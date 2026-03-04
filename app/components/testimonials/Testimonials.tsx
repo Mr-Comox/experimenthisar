@@ -250,6 +250,8 @@ const Testimonials = ({ id }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const yPosRef = useRef<number[]>([]);
+  // FIX: store X in a ref so we NEVER write style.left inside the RAF loop
+  const xPosRef = useRef<number[]>([]);
   const cardHeightsRef = useRef<number[]>([]);
   const speedRef = useRef(RUSH_SPEED);
   const targetSpeedRef = useRef(RUSH_SPEED);
@@ -313,9 +315,16 @@ const Testimonials = ({ id }: Props) => {
     if (!containerW || !containerH || slots.length === 0 || !sectionVisible)
       return;
 
+    // Initialise positions
     yPosRef.current = slots.map((s) => containerH + s.startOff);
+    // FIX: init X from xPool[0] — set style.left = '0' ONCE so left never changes
+    xPosRef.current = slots.map((s) => Math.round(s.xPool[0] * containerW));
+
     cardRefs.current.forEach((el, i) => {
-      if (el) el.style.transform = `translateY(${yPosRef.current[i]}px)`;
+      if (!el) return;
+      // FIX: left is fixed at 0; the X offset lives entirely in translate3d
+      el.style.left = '0px';
+      el.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
     });
 
     if (seqDoneRef.current) {
@@ -334,17 +343,25 @@ const Testimonials = ({ id }: Props) => {
         speedRef.current +=
           (targetSpeedRef.current - speedRef.current) * LERP_K;
         const spd = speedRef.current;
+
         for (let i = 0; i < slots.length; i++) {
           const card = cardRefs.current[i];
           if (!card) continue;
+
           yPosRef.current[i] -= spd * slots[i].speedMult;
+
           if (yPosRef.current[i] < -((cardHeightsRef.current[i] ?? 200) + 40)) {
+            // FIX: update xPosRef only — zero layout reads, no style.left mutation
             xCycleRef.current[i] =
               (xCycleRef.current[i] + 1) % slots[i].xPool.length;
-            card.style.left = `${Math.round(slots[i].xPool[xCycleRef.current[i]] * containerW)}px`;
+            xPosRef.current[i] = Math.round(
+              slots[i].xPool[xCycleRef.current[i]] * containerW,
+            );
             yPosRef.current[i] = containerH + 24;
           }
-          card.style.transform = `translateY(${yPosRef.current[i]}px)`;
+
+          // FIX: single compositor-thread write via translate3d — no layout thrash
+          card.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
         }
       }
       raf = requestAnimationFrame(tick);
@@ -387,6 +404,8 @@ const Testimonials = ({ id }: Props) => {
               const t = testimonies[i % testimonies.length];
               const v = CARD_VARIANTS[i % CARD_VARIANTS.length];
               const initY = containerH + slot.startOff;
+              // FIX: initial X from xPool[0]; left is always 0 — translate3d carries the X
+              const initX = Math.round(containerW * slot.xPool[0]);
               return (
                 <div
                   key={i}
@@ -395,9 +414,11 @@ const Testimonials = ({ id }: Props) => {
                   }}
                   className='absolute top-0'
                   style={{
-                    left: Math.round(containerW * slot.xR),
+                    // FIX: left is ALWAYS 0 — never change it again
+                    left: 0,
                     width: Math.round(containerW * slot.wR),
-                    transform: `translateY(${initY}px)`,
+                    transform: `translate3d(${initX}px,${initY}px,0)`,
+                    // FIX: tell the browser upfront which props animate → skip style recalc
                     willChange: 'transform',
                     zIndex: slot.speedMult >= 1.0 ? 3 : 2,
                     background: v.bg,
