@@ -11,9 +11,9 @@ type Props = { id: string };
 /* ─────────────────────────────────────────────────────────────────
    ANIMATION CONSTANTS
 ───────────────────────────────────────────────────────────────── */
-const RUSH_SPEED = 10.6;
+const RUSH_SPEED = 7.8; // was 10.6 — slightly calmer rush
 const DRIFT_SPEED = 0.52;
-const LERP_K = 0.072;
+const LERP_K = 0.038; // was 0.072 — slower lerp = silkier deceleration curve
 
 const LINE_DUR_MS = 340;
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -117,19 +117,19 @@ const SLOTS_TABLET: Slot[] = [
   },
 ];
 const SLOTS_MOBILE: Slot[] = [
-  { xR: 0.02, wR: 0.46, speedMult: 1.3, startOff: 0, xPool: [0.02, 0.014] },
-  { xR: 0.52, wR: 0.46, speedMult: 0.88, startOff: 260, xPool: [0.52, 0.514] },
+  { xR: 0.02, wR: 0.46, speedMult: 1.12, startOff: 0, xPool: [0.02, 0.014] },
+  { xR: 0.52, wR: 0.46, speedMult: 0.92, startOff: 260, xPool: [0.52, 0.514] },
   {
     xR: 0.024,
     wR: 0.455,
-    speedMult: 1.46,
+    speedMult: 1.18,
     startOff: 504,
     xPool: [0.024, 0.03],
   },
   {
     xR: 0.514,
     wR: 0.465,
-    speedMult: 0.84,
+    speedMult: 0.88,
     startOff: 758,
     xPool: [0.514, 0.52],
   },
