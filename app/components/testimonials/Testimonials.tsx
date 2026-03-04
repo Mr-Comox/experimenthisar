@@ -11,7 +11,7 @@ type Props = { id: string };
 /* ─────────────────────────────────────────────────────────────────
    ANIMATION CONSTANTS
 ───────────────────────────────────────────────────────────────── */
-const RUSH_SPEED = 50.6;
+const RUSH_SPEED = 10.6;
 const DRIFT_SPEED = 0.52;
 const LERP_K = 0.072;
 
@@ -250,7 +250,6 @@ const Testimonials = ({ id }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const yPosRef = useRef<number[]>([]);
-  // FIX: store X in a ref so we NEVER write style.left inside the RAF loop
   const xPosRef = useRef<number[]>([]);
   const cardHeightsRef = useRef<number[]>([]);
   const speedRef = useRef(RUSH_SPEED);
@@ -315,14 +314,12 @@ const Testimonials = ({ id }: Props) => {
     if (!containerW || !containerH || slots.length === 0 || !sectionVisible)
       return;
 
-    // Initialise positions
     yPosRef.current = slots.map((s) => containerH + s.startOff);
-    // FIX: init X from xPool[0] — set style.left = '0' ONCE so left never changes
+    // X stored in ref — style.left is set to 0 once and never touched again
     xPosRef.current = slots.map((s) => Math.round(s.xPool[0] * containerW));
 
     cardRefs.current.forEach((el, i) => {
       if (!el) return;
-      // FIX: left is fixed at 0; the X offset lives entirely in translate3d
       el.style.left = '0px';
       el.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
     });
@@ -351,7 +348,6 @@ const Testimonials = ({ id }: Props) => {
           yPosRef.current[i] -= spd * slots[i].speedMult;
 
           if (yPosRef.current[i] < -((cardHeightsRef.current[i] ?? 200) + 40)) {
-            // FIX: update xPosRef only — zero layout reads, no style.left mutation
             xCycleRef.current[i] =
               (xCycleRef.current[i] + 1) % slots[i].xPool.length;
             xPosRef.current[i] = Math.round(
@@ -360,7 +356,7 @@ const Testimonials = ({ id }: Props) => {
             yPosRef.current[i] = containerH + 24;
           }
 
-          // FIX: single compositor-thread write via translate3d — no layout thrash
+          // Only property mutated per frame — compositor-only, zero layout reads
           card.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
         }
       }
@@ -370,15 +366,14 @@ const Testimonials = ({ id }: Props) => {
     return () => cancelAnimationFrame(raf);
   }, [containerW, containerH, slots, sectionVisible]);
 
+  const isMobile = containerW > 0 && containerW < 640;
+
   return (
     <section
       id={id}
       className='relative bg-secondaryColor overflow-hidden'
       aria-labelledby='testimonials-heading'
     >
-      {/* ══════════════════════════════════════════
-          PART 1 — FLOATING CARDS STAGE
-      ══════════════════════════════════════════ */}
       <div ref={revealRef}>
         <div
           ref={containerRef}
@@ -389,6 +384,14 @@ const Testimonials = ({ id }: Props) => {
             transition: sectionVisible
               ? 'opacity 0.55s cubic-bezier(0.25,0.46,0.45,0.94)'
               : 'none',
+            /*
+             * FIX 1 — promote the CONTAINER as a single compositor layer.
+             * Cards share this one layer instead of each demanding their own.
+             * This is the opposite of willChange on every card, which fragments
+             * GPU texture memory and causes the browser to fall back to software
+             * rendering on mobile.
+             */
+            transform: 'translateZ(0)',
           }}
         >
           <div
@@ -404,8 +407,8 @@ const Testimonials = ({ id }: Props) => {
               const t = testimonies[i % testimonies.length];
               const v = CARD_VARIANTS[i % CARD_VARIANTS.length];
               const initY = containerH + slot.startOff;
-              // FIX: initial X from xPool[0]; left is always 0 — translate3d carries the X
               const initX = Math.round(containerW * slot.xPool[0]);
+
               return (
                 <div
                   key={i}
@@ -414,22 +417,41 @@ const Testimonials = ({ id }: Props) => {
                   }}
                   className='absolute top-0'
                   style={{
-                    // FIX: left is ALWAYS 0 — never change it again
                     left: 0,
                     width: Math.round(containerW * slot.wR),
                     transform: `translate3d(${initX}px,${initY}px,0)`,
-                    // FIX: tell the browser upfront which props animate → skip style recalc
-                    willChange: 'transform',
+                    /*
+                     * FIX 2 — NO willChange:'transform' on individual cards.
+                     * Applying it to every card simultaneously exhausts mobile GPU
+                     * texture memory (typically 64–256 MB). Once exceeded the browser
+                     * silently squashes layers and falls back to software rendering,
+                     * which is slower than having no willChange at all.
+                     * The container's translateZ(0) above covers us.
+                     */
                     zIndex: slot.speedMult >= 1.0 ? 3 : 2,
                     background: v.bg,
                     border: `1px solid ${v.borderColor}`,
                     borderRadius: '16px',
-                    boxShadow: `0 16px 48px rgba(0,0,0,0.60), ${v.shadow}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+                    /*
+                     * FIX 3 — drop box-shadow on mobile.
+                     * A large blur-radius shadow (0 16px 48px) forces the browser to
+                     * allocate a separate texture for each shadow at every frame.
+                     * It's the single most expensive CSS property on mobile GPUs.
+                     */
+                    boxShadow: isMobile
+                      ? `inset 0 1px 0 rgba(255,255,255,0.06)`
+                      : `0 16px 48px rgba(0,0,0,0.60), ${v.shadow}, inset 0 1px 0 rgba(255,255,255,0.06)`,
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
                     padding: '18px 17px 15px',
                     gap: 0,
+                    /*
+                     * FIX 4 — contain:'layout style paint' tells the browser that
+                     * nothing inside this card affects layout outside it, so it can
+                     * skip invalidating sibling cards when one card's transform changes.
+                     */
+                    contain: 'layout style paint',
                   }}
                 >
                   <div
@@ -499,8 +521,12 @@ const Testimonials = ({ id }: Props) => {
             <div
               style={{
                 padding: 'clamp(24px,4vw,44px) clamp(32px,5vw,60px)',
-                backdropFilter: 'blur(1.4px)',
-                WebkitBackdropFilter: 'blur(1.4px)',
+                /*
+                 * FIX 5 — backdropFilter:blur forces its own compositor layer and
+                 * is one of the most expensive effects on mobile. Remove on mobile.
+                 */
+                backdropFilter: isMobile ? undefined : 'blur(1.4px)',
+                WebkitBackdropFilter: isMobile ? undefined : 'blur(1.4px)',
                 borderRadius: '20px',
               }}
             >
@@ -571,9 +597,6 @@ const Testimonials = ({ id }: Props) => {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════
-          PART 2 — PLATFORM SCORES (own component)
-      ══════════════════════════════════════════ */}
       <div className='w-full h-px bg-white/[0.07]' />
       <PlatformScores />
     </section>
