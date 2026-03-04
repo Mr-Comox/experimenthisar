@@ -11,7 +11,7 @@ type Props = { id: string };
 /* ─────────────────────────────────────────────────────────────────
    ANIMATION CONSTANTS
 ───────────────────────────────────────────────────────────────── */
-const RUSH_SPEED = 27.6;
+const RUSH_SPEED = 7.6;
 const DRIFT_SPEED = 0.52;
 const LERP_K = 0.072;
 
