@@ -171,7 +171,6 @@ export default function Hero() {
             src={SLIDES[index].src}
             alt={SLIDES[index].alt}
             draggable={false}
-            // fetchpriority tells the browser to load this before other resources
             fetchPriority={index === 0 ? 'high' : 'auto'}
             className='absolute inset-0 w-full h-full object-cover object-center'
             style={{ willChange: 'transform' }}

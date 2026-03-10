@@ -53,8 +53,8 @@ function SingleDigit({ digit }: { digit: string }) {
     <div
       className='relative overflow-hidden'
       style={{
-        width: 'clamp(2.6rem, 7.5vw, 5.4rem)',
-        height: 'clamp(4.2rem, 12vw, 8.8rem)',
+        width: 'clamp(2.2rem, 9vw, 5.4rem)',
+        height: 'clamp(3.6rem, 14.5vw, 8.8rem)',
       }}
     >
       <AnimatePresence mode='popLayout'>
@@ -67,7 +67,7 @@ function SingleDigit({ digit }: { digit: string }) {
           className='absolute inset-0 flex items-center justify-center
                      font-black tabular-nums leading-none select-none
                      text-white/85 tracking-[-0.05em]'
-          style={{ fontSize: 'clamp(3.8rem, 11vw, 8rem)' }}
+          style={{ fontSize: 'clamp(3.2rem, 13vw, 8rem)' }}
         >
           {digit}
         </motion.span>
@@ -76,15 +76,13 @@ function SingleDigit({ digit }: { digit: string }) {
   );
 }
 
-// Identical dimensions to SingleDigit but renders nothing — used during SSR
-// so the server and client produce the exact same HTML structure.
 function SingleDigitPlaceholder() {
   return (
     <div
       className='relative overflow-hidden'
       style={{
-        width: 'clamp(2.6rem, 7.5vw, 5.4rem)',
-        height: 'clamp(4.2rem, 12vw, 8.8rem)',
+        width: 'clamp(2.2rem, 9vw, 5.4rem)',
+        height: 'clamp(3.6rem, 14.5vw, 8.8rem)',
       }}
     />
   );
@@ -101,7 +99,7 @@ function CountdownUnit({
 }) {
   const display = String(value).padStart(2, '0');
   return (
-    <div className='flex flex-col items-center gap-4'>
+    <div className='flex flex-col items-center gap-3'>
       <div className='flex items-center'>
         {mounted ? (
           <>
@@ -115,7 +113,7 @@ function CountdownUnit({
           </>
         )}
       </div>
-      <span className='uppercase tracking-[0.08em] text-[0.58rem] font-medium text-[#999] select-none'>
+      <span className='uppercase tracking-[0.08em] text-[0.55rem] sm:text-[0.58rem] font-medium text-[#999] select-none'>
         {label}
       </span>
     </div>
@@ -129,8 +127,8 @@ function Colon() {
       transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
       className='font-black text-white/20 leading-none select-none'
       style={{
-        fontSize: 'clamp(2.4rem, 7vw, 5.5rem)',
-        paddingBottom: 'clamp(1.6rem, 4vw, 3rem)',
+        fontSize: 'clamp(2rem, 8vw, 5.5rem)',
+        paddingBottom: 'clamp(1.2rem, 4.5vw, 3rem)',
       }}
     >
       :
@@ -180,8 +178,6 @@ const sharedStyles = `
 `;
 
 function CountdownCard() {
-  // Must be null on server — seconds change every tick so SSR value is
-
   const [secs, setSecs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -206,11 +202,12 @@ function CountdownCard() {
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
         exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
         transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-        className='relative mb-10 rounded-2xl overflow-hidden countdown-border'
+        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-5xl mx-auto w-full'
       >
-        <div className='relative px-8 py-8'>
-          <div className='flex items-center justify-between mb-8'>
-            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10'>
+        <div className='relative px-5 sm:px-8 py-6 sm:py-8'>
+          {/* Header — always one row, text shrinks to fit on small screens */}
+          <div className='flex items-center justify-between gap-3 mb-7 sm:mb-8'>
+            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0'>
               <span className='relative flex w-2 h-2'>
                 <span className='absolute inset-0 rounded-full bg-white/30 opacity-70 animate-ping' />
                 <span className='relative w-2 h-2 rounded-full bg-white/40' />
@@ -223,14 +220,16 @@ function CountdownCard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className='text-[0.78rem] text-[#999] tracking-wide'
+              className='text-right text-[#999] tracking-wide'
+              style={{ fontSize: 'clamp(0.6rem, 2vw, 0.78rem)' }}
             >
               Kapılar <span className='text-white/80 font-semibold'>23:00</span>
               &apos;de açılıyor
             </motion.p>
           </div>
 
-          <div className='flex items-end justify-center gap-4 sm:gap-8'>
+          {/* Digits */}
+          <div className='flex items-end justify-center gap-2 sm:gap-4 lg:gap-8'>
             <CountdownUnit value={hours} label='Saat' mounted={mounted} />
             <Colon />
             <CountdownUnit value={minutes} label='Dakika' mounted={mounted} />
@@ -238,7 +237,7 @@ function CountdownCard() {
             <CountdownUnit value={seconds} label='Saniye' mounted={mounted} />
           </div>
 
-          <div className='mt-10' />
+          <div className='mt-8 sm:mt-10' />
         </div>
       </motion.div>
     </>
@@ -298,9 +297,9 @@ export default function Timeline() {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
               exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
               transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-              className='relative mb-10 rounded-2xl overflow-hidden now-card-border'
+              className='relative mb-10 rounded-2xl overflow-hidden now-card-border max-w-5xl mx-auto w-full'
             >
-              <div className='relative px-8 py-7'>
+              <div className='relative px-5 sm:px-8 py-5 sm:py-7'>
                 <div className='flex items-center justify-between mb-5'>
                   <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-mainColor/15 border border-mainColor/30'>
                     <span className='relative flex w-2 h-2'>
