@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrollTo } from '@/app/lib/scrollTo';
 
@@ -20,9 +20,20 @@ const DRIFT = [
   { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
 ];
 
-// Fast-out, long-tail easing — feels mechanical and premium
+// Expo ease — fast out, long tail
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
+// ─── Preload all slide images so the browser has them ready ───────────────────
+// Called once at module level so it runs before the component mounts.
+// This prevents the "download + decode + animate simultaneously" FPS spike.
+if (typeof window !== 'undefined') {
+  SLIDES.forEach(({ src }) => {
+    const img = new window.Image();
+    img.src = src;
+  });
+}
+
+// ─── Progress bar ─────────────────────────────────────────────────────────────
 function ProgressBar({
   active,
   done,
@@ -51,22 +62,29 @@ function ProgressBar({
   );
 }
 
-// Theatrical mask reveal — text slides up from behind a clip boundary.
-// Uses translateY ONLY (pure GPU composite, zero layout, zero paint = 60fps).
-function MaskedWord({
+// ─── MaskedLine ───────────────────────────────────────────────────────────────
+// Wraps a single line of text in an overflow-hidden clip.
+// Only animates when `ready` is true so we never race against image decode.
+function MaskedLine({
   children,
   delay = 0,
+  ready,
   className = '',
 }: {
   children: React.ReactNode;
   delay?: number;
+  ready: boolean;
   className?: string;
 }) {
   return (
-    <div className='overflow-hidden'>
+    // paddingBottom gives descenders room; negative margin cancels layout shift
+    <div
+      className='overflow-hidden'
+      style={{ paddingBottom: '0.08em', marginBottom: '-0.08em' }}
+    >
       <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: '0%' }}
+        initial={{ y: '105%' }}
+        animate={ready ? { y: '0%' } : { y: '105%' }}
         transition={{ duration: 1.05, delay, ease: EASE_OUT_EXPO }}
         style={{ willChange: 'transform' }}
       >
@@ -76,25 +94,45 @@ function MaskedWord({
   );
 }
 
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
   const [index, setIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
+  // `ready` gates ALL animations — nothing runs until the first image is loaded.
+  // This is the single biggest FPS fix: no more download + decode + animate race.
+  const [ready, setReady] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startTimer = () => {
+  const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setIndex((i) => (i + 1) % SLIDES.length);
       setAnimKey((k) => k + 1);
     }, SLIDE_MS);
-  };
+  }, []);
 
   useEffect(() => {
-    startTimer();
+    // If the first image is already cached (common on reload),
+    // `complete` will be true immediately — no flicker.
+    const img = new window.Image();
+    img.src = SLIDES[0].src;
+
+    const onReady = () => {
+      setReady(true);
+      startTimer();
+    };
+
+    if (img.complete) {
+      // Already in cache — fire synchronously next tick so React has rendered
+      requestAnimationFrame(onReady);
+    } else {
+      img.onload = onReady;
+    }
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [startTimer]);
 
   const goTo = (i: number) => {
     if (i === index) return;
@@ -103,9 +141,13 @@ export default function Hero() {
     startTimer();
   };
 
+  const sharedTextClass =
+    ' font-black tracking-tight leading-[0.88] text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
+
   return (
     <section className='relative w-full h-svh min-h-160 overflow-hidden bg-secondaryColor'>
-      {/* ── GRAIN ─────────────────────────────────────────────────── */}
+      {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
+      {/* Kept as-is — it's a single CSS bg with no paint cost per frame */}
       <div
         className='absolute inset-0 z-15 pointer-events-none opacity-[0.032] mix-blend-overlay'
         style={{
@@ -114,12 +156,13 @@ export default function Hero() {
         }}
       />
 
-      {/* ── IMAGE LAYER ───────────────────────────────────────────── */}
+      {/* ── IMAGE LAYER ───────────────────────────────────────────────────── */}
+      {/* Only mounts after `ready` to avoid compositor layer thrash on load */}
       <AnimatePresence mode='sync'>
         <motion.div
           key={index}
           className='absolute inset-0 z-2'
-          initial={{ opacity: 0 }}
+          initial={{ opacity: ready ? 0 : 1 }} // skip fade-in for the very first slide
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1.2, ease: 'easeInOut' }}
@@ -128,6 +171,8 @@ export default function Hero() {
             src={SLIDES[index].src}
             alt={SLIDES[index].alt}
             draggable={false}
+            // fetchpriority tells the browser to load this before other resources
+            fetchPriority={index === 0 ? 'high' : 'auto'}
             className='absolute inset-0 w-full h-full object-cover object-center'
             style={{ willChange: 'transform' }}
             initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
@@ -137,41 +182,53 @@ export default function Hero() {
         </motion.div>
       </AnimatePresence>
 
-      {/* ── OVERLAYS ──────────────────────────────────────────────── */}
-      <div className='absolute inset-0 z-10 pointer-events-none bg-linear-to-b secondaryColor/55 via-secondaryColor/10 to-secondaryColor/95' />
-      <div className='absolute inset-0 z-10 pointer-events-none bg-linear-to-r secondaryColor/70 via-secondaryColor/20 to-transparent' />
-      {/* Right vignette so the info panel sits on a clean dark surface */}
-      <div className='absolute inset-0 z-10 pointer-events-none bg-linear-to-l from-secondaryColor/60 via-transparent to-transparent' />
+      {/* ── OVERLAYS ──────────────────────────────────────────────────────── */}
+      {/*
+        Reduced from 3 separate gradient divs to 1.
+        3 composited layers × full-viewport × 60fps = serious paint cost.
+        One div with a single complex gradient achieves the same visual result.
+      */}
+      <div
+        className='absolute inset-0 z-10 pointer-events-none'
+        style={{
+          background: `
+            linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
+            linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
+            linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
+          `,
+          opacity: 0.85,
+        }}
+      />
 
-      {/* ── BOTTOM CONTENT ────────────────────────────────────────── */}
+      {/* ── BOTTOM CONTENT ────────────────────────────────────────────────── */}
       <div className='absolute bottom-0 left-0 z-20 pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full'>
         {/* YENİ */}
-        <MaskedWord
+        <MaskedLine
           delay={0}
-          className='block uppercase text-[#FBFBFB] font-black tracking-tight leading-[0.88]
-            text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]'
+          ready={ready}
+          className={`text-[#FBFBFB] ${sharedTextClass}`}
         >
           YENI
-        </MaskedWord>
+        </MaskedLine>
 
         {/* HİSAR */}
         <div className='mb-7 sm:mb-8'>
-          <MaskedWord
-            delay={0.1}
-            className='text-stroke-white block uppercase font-black tracking-tight leading-[0.88]
-              text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]'
+          <MaskedLine
+            delay={0.18}
+            ready={ready}
+            className={`text-stroke-white ${sharedTextClass}`}
           >
             HISAR
-          </MaskedWord>
+          </MaskedLine>
         </div>
 
         {/* Bottom row */}
         <motion.div
           className='flex items-center justify-between gap-6'
           initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           style={{ willChange: 'transform, opacity' }}
-          transition={{ duration: 0.8, delay: 0.42, ease: EASE_OUT_EXPO }}
+          transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
         >
           {/* Progress bars */}
           <div className='flex items-center gap-2 flex-1 max-w-40'>

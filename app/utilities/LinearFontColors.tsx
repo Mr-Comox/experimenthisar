@@ -24,10 +24,10 @@ const GoldToAmberFont = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-const RedSpectrumFont = ({ children }: { children: React.ReactNode }) => (
+const MainToGoldFont = ({ children }: { children: React.ReactNode }) => (
   <span
     style={{
-      background: 'linear-gradient(180deg, #e8e6e3 0%, #bfbab3 100%)',
+      background: 'linear-gradient(135deg,#ff1987 0%,#ff6ec7 50%,#b8860b 100%)',
       WebkitBackgroundClip: 'text',
       WebkitTextFillColor: 'transparent',
     }}
@@ -36,4 +36,4 @@ const RedSpectrumFont = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-export { MainColorToQuatFont, GoldToAmberFont, RedSpectrumFont };
+export { MainColorToQuatFont, GoldToAmberFont, MainToGoldFont };

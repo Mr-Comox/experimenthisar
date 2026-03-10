@@ -1,412 +1,391 @@
 'use client';
 
-import { LeftLeafletIcon, RightLeafletIcon } from '@/public/Icons';
-import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState } from 'react';
-import AnimatedText from '@/app/utilities/AnimatedText';
+import React, { useState, useRef } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { menuData } from '@/app/components/menu/Collection';
+import { GoldToAmberFont } from '@/app/utilities/LinearFontColors';
 
-type Props = {
-  id: string;
-};
+/* ─────────────────────────────────────────────────────────────────
+   TYPES & CONSTANTS
+───────────────────────────────────────────────────────────────── */
+type Props = { id: string };
+type Category = keyof typeof menuData;
+type Item = { name: string };
 
-const Menu = ({ id }: Props) => {
-  const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const categories = Object.entries(menuData);
+const CATS = Object.entries(menuData) as [Category, Item[]][];
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+// Only kept for framer-motion animated values and SVG strokes
+// that cannot be expressed as Tailwind classes
+const GOLD_GRADIENT =
+  'linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #ff8c00 100%)';
+const GOLD_GLOW = 'rgba(255,215,0,0.2)';
+
+/* ─────────────────────────────────────────────────────────────────
+   CHEVRON
+───────────────────────────────────────────────────────────────── */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <motion.svg
+      width='20'
+      height='20'
+      viewBox='0 0 20 20'
+      fill='none'
+      animate={{ rotate: open ? 180 : 0 }}
+      transition={{ duration: 0.45, ease: EASE }}
+      className='shrink-0'
+    >
+      {open && (
+        <defs>
+          <linearGradient id='chevron-gold' x1='0%' y1='0%' x2='100%' y2='100%'>
+            <stop offset='0%' stopColor='#b8860b' />
+            <stop offset='50%' stopColor='#ffd700' />
+            <stop offset='100%' stopColor='#ff8c00' />
+          </linearGradient>
+        </defs>
+      )}
+      <path
+        d='M5 7.5L10 12.5L15 7.5'
+        stroke={open ? 'url(#chevron-gold)' : 'rgba(255,255,255,0.25)'}
+        strokeWidth='1.6'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+      />
+    </motion.svg>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ACCORDION ROW
+───────────────────────────────────────────────────────────────── */
+function AccordionRow({
+  cat,
+  items,
+  index,
+  isOpen,
+  onToggle,
+  isLast,
+}: {
+  cat: Category;
+  items: Item[];
+  index: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  isLast: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '0px 0px -80px 0px' });
+  const col1 = items.filter((_, i) => i % 2 === 0);
+  const col2 = items.filter((_, i) => i % 2 !== 0);
 
   return (
-    <section id={id} className='relative bg-secondaryColor overflow-hidden'>
-      {/* ───── HERO ───── */}
-      <div className='relative flex'>
-        <div className='hidden lg:flex w-14 pt-24 justify-center'></div>
-
-        <div className='relative flex-1 px-6 sm:px-10 lg:px-12 pt-24 pb-16 flex flex-col gap-8 overflow-hidden'>
-          <header className='flex items-center gap-3 relative z-10'>
-            <LeftLeafletIcon widthSize='9' heightSize='18' />
-            <span className='text-mainColor uppercase tracking-[0.35em] text-[0.65rem]'>
-              Menü
-            </span>
-            <RightLeafletIcon widthSize='9' heightSize='18' />
-          </header>
-
-          <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 relative z-10'>
-            <h2 className='text-softWhite font-serif text-[2.4rem] sm:text-[3.2rem] md:text-[3.8rem] lg:text-[4.5rem] xl:text-[5.2rem] leading-[1.05] max-w-4xl'>
-              <AnimatedText text='İçkiler & Mezeler' />
-            </h2>
-            <span className='hidden sm:block text-softWhite/20 text-[10px] tracking-[0.3em] uppercase mb-2'>
-              Seçkin Tatlar
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ───── DIVIDER ───── */}
-      <div className='w-full h-px bg-softWhite/10' />
-
-      {/* ───── MENU ROWS ───── */}
-      <div className='relative flex'>
-        <div className='hidden lg:flex items-start justify-center w-14 pt-16 flex-shrink-0'>
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.65, delay: index * 0.07, ease: EASE }}
+      className={!isLast ? 'border-b border-white/[0.07]' : ''}
+    >
+      {/* ── Trigger button ── */}
+      <button
+        onClick={onToggle}
+        className='w-full flex items-center gap-[clamp(16px,3vw,40px)] py-[clamp(28px,4vh,40px)] px-6 md:px-16 xl:px-24 bg-transparent border-0 cursor-pointer text-left'
+      >
+        {/* Index number */}
+        {isOpen ? (
+          <GoldToAmberFont>
+            <div className='text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold shrink-0 tracking-[-0.03em] leading-none tabular-nums min-w-[2.2ch] select-none'>
+              {String(index + 1).padStart(2, '0')}
+            </div>
+          </GoldToAmberFont>
+        ) : (
           <span
-            className='text-softWhite/20 text-[9px] tracking-[0.35em] uppercase select-none whitespace-nowrap'
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            aria-hidden
+            className='text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold text-white/8 shrink-0 tracking-[-0.03em] leading-none tabular-nums min-w-[2.2ch] select-none'
           >
-            Kategoriler
+            {String(index + 1).padStart(2, '0')}
           </span>
+        )}
+
+        {/* Category name */}
+        <h3
+          className='text-[clamp(2.2rem,4.2vw,3rem)] font-bold leading-[1.05] tracking-[-0.03em] flex-1 transition-colors duration-350'
+          style={{
+            color: isOpen ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.55)',
+          }}
+        >
+          {cat}
+        </h3>
+
+        {/* Connector line — animated gold fill */}
+        <div
+          aria-hidden
+          className='flex-auto max-w-[clamp(60px,15vw,240px)] h-px bg-white/8 relative overflow-hidden'
+        >
+          <motion.div
+            animate={{ width: isOpen ? '100%' : '0%' }}
+            transition={{ duration: 0.7, ease: EASE }}
+            className='absolute inset-y-0 left-0 h-full'
+            style={{ background: GOLD_GRADIENT }}
+          />
         </div>
 
-        <div className='flex-1'>
-          {/* Instructions */}
-          <div className='px-6 sm:px-10 lg:px-12 pt-6 pb-10'>
-            <motion.p
-              initial={{ opacity: 0, y: -10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className='hidden sm:block text-softWhite/20 text-[9.4px] tracking-[0.1em] uppercase -mb-10  leading-relaxed text-right w-full'
-            >
-              Ürünleri görmek için kategorilere tıklayınız.
-            </motion.p>
-          </div>
+        <Chevron open={isOpen} />
+      </button>
 
-          {/* Category List */}
-          <div className='flex flex-col gap-6'>
-            {categories.map(([category, items], index) => {
-              const isOpen = openCategory === category;
+      {/* ── Expandable content ── */}
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            key='content'
+            initial={{ height: 0, opacity: 0 }}
+            animate={{
+              height: 'auto',
+              opacity: 1,
+              transition: {
+                height: { duration: 0.65, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.4, delay: 0.1 },
+              },
+            }}
+            exit={{
+              height: 0,
+              opacity: 0,
+              transition: {
+                height: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+                opacity: { duration: 0.2 },
+              },
+            }}
+            className='overflow-hidden'
+          >
+            <div className='px-6 md:px-16 xl:px-24 pb-[clamp(40px,6vh,64px)]'>
+              {/* Gold accent line */}
+              <motion.div
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.8, ease: EASE }}
+                className='h-px opacity-40 mb-[clamp(32px,5vh,52px)] origin-left'
+                style={{ background: GOLD_GRADIENT }}
+              />
 
-              return (
-                <motion.div
-                  key={category}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.6,
-                    delay: index * 0.1,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  viewport={{ once: true }}
-                  className='relative'
-                >
-                  {/* Category Row */}
-                  <div
-                    className={`
-                      group relative
-                      px-6 sm:px-10 lg:px-12
-                      transition-all duration-500
-                      ${isOpen ? 'opacity-100' : 'opacity-80'}
-                      hover:opacity-100
-                    `}
-                  >
-                    <button
-                      onClick={() => setOpenCategory(isOpen ? null : category)}
-                      className='w-full flex items-center gap-6 sm:gap-10 py-6 sm:py-8 text-left group/button'
-                    >
-                      {/* Index number */}
-                      <span className='hidden md:block text-softWhite/10 font-serif text-4xl lg:text-5xl w-12 text-right select-none flex-shrink-0 leading-none'>
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-
-                      {/* Category name */}
-                      <div className='flex-1 flex items-center gap-4'>
-                        <h3
-                          className={`
-                            font-serif text-2xl sm:text-3xl md:text-4xl leading-tight
-                            ${isOpen ? 'text-softWhite/95' : 'text-softWhite/75 group-hover/button:text-softWhite'}
-                            transition-colors duration-500
-                          `}
-                        >
-                          {category}
-                        </h3>
-                      </div>
-
-                      {/* Connector line */}
-                      <div className='relative flex-1 h-px bg-softWhite/10 mx-2 sm:mx-4 overflow-visible'>
-                        <motion.div
-                          className='absolute top-0 left-0 h-px bg-mainColor'
-                          initial={{ width: '0%' }}
-                          animate={{ width: isOpen ? '100%' : '0%' }}
-                          transition={{
-                            duration: 0.7,
-                            ease: [0.22, 1, 0.36, 1],
-                          }}
-                        />
-                      </div>
-
-                      {/* chevron */}
-                      <div className='flex items-center gap-4 sm:gap-6 flex-shrink-0 min-w-[140px] sm:min-w-[180px] justify-end'>
-                        <motion.div
-                          animate={{ rotate: isOpen ? 180 : 0 }}
-                          transition={{
-                            duration: 0.5,
-                            ease: [0.22, 1, 0.36, 1],
-                          }}
-                          className='flex items-center justify-center w-8 h-8 rounded-full border border-softWhite/10 group-hover/button:border-mainColor/30 transition-colors duration-500'
-                        >
-                          <svg
-                            width='16'
-                            height='16'
-                            viewBox='0 0 20 20'
-                            fill='none'
-                            className={`${isOpen ? 'text-mainColor' : 'text-softWhite/40'} transition-colors duration-500`}
+              {/* Two-column item grid */}
+              <div
+                className='grid gap-x-[clamp(24px,5vw,80px)]'
+                style={{
+                  gridTemplateColumns:
+                    'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                }}
+              >
+                {[col1, col2].map((col, ci) =>
+                  col.length === 0 ? null : (
+                    <div key={ci}>
+                      {col.map(({ name }, ri) => {
+                        const gi = ci === 0 ? ri * 2 : ri * 2 + 1;
+                        return (
+                          <motion.div
+                            key={name}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                              duration: 0.38,
+                              delay: gi * 0.028,
+                              ease: 'easeOut',
+                            }}
+                            className='py-4.5 border-b border-white/5.5 flex items-baseline gap-3.5'
                           >
-                            <path
-                              d='M5 7.5L10 12.5L15 7.5'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                            />
-                          </svg>
-                        </motion.div>
-                      </div>
-                    </button>
+                            <span className='text-white/70 text-[clamp(0.965rem,1.1vw,1.05rem)] leading-[1.44] font-normal tracking-[0.006em]'>
+                              {name}
+                            </span>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  ),
+                )}
+              </div>
 
-                    {/* Expanded Items - REFINED & ELEGANT */}
-                    <AnimatePresence mode='wait'>
-                      {isOpen && (
-                        <motion.div
-                          initial={{
-                            height: 0,
-                            opacity: 0,
-                          }}
-                          animate={{
-                            height: 'auto',
-                            opacity: 1,
-                            transition: {
-                              height: {
-                                duration: 0.8,
-                                ease: [0.16, 1, 0.3, 1],
-                              },
-                              opacity: {
-                                duration: 0.5,
-                                delay: 0.15,
-                              },
-                            },
-                          }}
-                          exit={{
-                            height: 0,
-                            opacity: 0,
-                            transition: {
-                              height: {
-                                duration: 0.6,
-                                ease: [0.16, 1, 0.3, 1],
-                              },
-                              opacity: {
-                                duration: 0.25,
-                                delay: 0,
-                              },
-                            },
-                          }}
-                          className='overflow-hidden'
-                        >
-                          <div className='pt-8 pb-12 ml-0 md:ml-[88px]'>
-                            {/* Premium card design */}
-                            <motion.div
-                              initial={{
-                                opacity: 0,
-                                y: -30,
-                                scale: 0.96,
-                              }}
-                              animate={{
-                                opacity: 1,
-                                y: 0,
-                                scale: 1,
-                              }}
-                              exit={{
-                                opacity: 0,
-                                y: -15,
-                                scale: 0.96,
-                              }}
-                              transition={{
-                                duration: 0.7,
-                                delay: 0.1,
-                                ease: [0.16, 1, 0.3, 1],
-                              }}
-                              className='relative'
-                            >
-                              {/* Subtle border glow */}
-                              <div className='absolute inset-0  border border-softWhite/[0.08]' />
+              {/* Footer count row */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.2 + items.length * 0.025,
+                }}
+                className='mt-7 flex items-center gap-4'
+              >
+                <span className='text-[0.58rem] tracking-[0.2em] uppercase text-white/20 font-medium shrink-0'>
+                  {items.length} ürün
+                </span>
+                <div className='flex-1 h-px bg-linear-to-r from-white/6 to-transparent' />
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
 
-                              {/* Top accent line */}
-                              <motion.div
-                                initial={{ scaleX: 0 }}
-                                animate={{ scaleX: 1 }}
-                                transition={{
-                                  duration: 1.2,
-                                  delay: 0.3,
-                                  ease: [0.16, 1, 0.3, 1],
-                                }}
-                                className='absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-mainColor/40 to-transparent origin-center'
-                              />
+/* ─────────────────────────────────────────────────────────────────
+   PRE-REVEAL
+───────────────────────────────────────────────────────────────── */
+function PreMenuReveal({ onReveal }: { onReveal: () => void }) {
+  return (
+    <motion.div
+      key='pre-reveal'
+      exit={{
+        opacity: 0,
+        transition: { duration: 0.35, ease: [0.4, 0, 1, 1] },
+      }}
+    >
+      <div className='mb-30 mt-10 grid gap-[clamp(40px,6vw,96px)] px-6 md:px-16 xl:px-24 pt-[clamp(48px,8vh,88px)] grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] items-center'>
+        {/* ── LEFT — headline + copy + CTA ── */}
+        <div className='flex flex-col gap-[clamp(20px,3.5vh,36px)]'>
+          {/* Eyebrow placeholder */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.04, ease: EASE }}
+            className='flex items-center gap-2.5'
+          />
 
-                              {/* Content wrapper */}
-                              <div className='relative px-8 sm:px-12 py-10 sm:py-12'>
-                                {/* Grid layout for items - CLEAN VERSION */}
-                                <div className='grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-6'>
-                                  {items.map(({ name }, itemIndex) => {
-                                    const column = itemIndex % 2;
-                                    const row = Math.floor(itemIndex / 2);
+          {/* Headline */}
+          <motion.h2
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: EASE }}
+            className='font-bold text-white leading-[1.04] tracking-[-0.03em] text-[clamp(3rem,5vw,4.9rem)] m-0'
+          >
+            Damağınıza özel
+            <br />
+            <GoldToAmberFont>seçkin tatlar.</GoldToAmberFont>
+          </motion.h2>
 
-                                    return (
-                                      <motion.div
-                                        key={name}
-                                        initial={{
-                                          opacity: 0,
-                                          x: column === 0 ? -50 : 50,
-                                          y: 20,
-                                        }}
-                                        animate={{
-                                          opacity: 1,
-                                          x: 0,
-                                          y: 0,
-                                          transition: {
-                                            duration: 0.8,
-                                            delay:
-                                              0.2 + row * 0.08 + column * 0.04,
-                                            ease: [0.16, 1, 0.3, 1],
-                                          },
-                                        }}
-                                        exit={{
-                                          opacity: 0,
-                                          x: column === 0 ? -30 : 30,
-                                          y: 10,
-                                          transition: {
-                                            duration: 0.4,
-                                            delay:
-                                              (items.length - itemIndex) * 0.02,
-                                            ease: [0.16, 1, 0.3, 1],
-                                          },
-                                        }}
-                                        className='relative group/item'
-                                      >
-                                        {/* Simple, elegant layout */}
-                                        <div className='relative flex items-start gap-4 py-3'>
-                                          {/* Vertical accent bar - subtle and elegant */}
-                                          <motion.div
-                                            initial={{ scaleY: 0, opacity: 0 }}
-                                            animate={{
-                                              scaleY: 1,
-                                              opacity: 1,
-                                              transition: {
-                                                delay:
-                                                  0.25 +
-                                                  row * 0.08 +
-                                                  column * 0.04,
-                                                duration: 0.6,
-                                                ease: [0.16, 1, 0.3, 1],
-                                              },
-                                            }}
-                                            className='w-[2px] h-full bg-gradient-to-b from-mainColor/40 via-mainColor/20 to-transparent flex-shrink-0 origin-top rounded-full'
-                                          />
+          {/* Body */}
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, delay: 0.18, ease: EASE }}
+            className='text-white/55 leading-[1.72] text-[clamp(0.9rem,1.2vw,1rem)] max-w-[38ch] m-0'
+          >
+            Özenle kurgulanan menü seçkisi, sahnedeki ritimle bütünleşen bir
+            deneyim sunar.
+          </motion.p>
 
-                                          {/* Item name - clean typography */}
-                                          <div className='flex-1 pt-0.5'>
-                                            <motion.span
-                                              className='block text-softWhite/75 group-hover/item:text-softWhite/90 text-[0.95rem] sm:text-base md:text-[1.05rem] leading-relaxed font-light tracking-wide transition-colors duration-500'
-                                              initial={{ opacity: 0.7 }}
-                                              animate={{
-                                                opacity: 1,
-                                                transition: {
-                                                  delay:
-                                                    0.3 +
-                                                    row * 0.08 +
-                                                    column * 0.04,
-                                                  duration: 0.6,
-                                                },
-                                              }}
-                                            >
-                                              {name}
-                                            </motion.span>
-                                          </div>
-                                        </div>
-                                      </motion.div>
-                                    );
-                                  })}
-                                </div>
+          {/* CTA pill */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.26, ease: EASE }}
+          >
+            <button
+              onClick={onReveal}
+              className='inline-flex items-center gap-3 py-3.5 pl-6 pr-3.5 bg-white/5.5 border border-white/10 rounded-full cursor-pointer transition-all duration-220 hover:bg-white/9 hover:border-[rgba(255,215,0,0.28)] hover:scale-[1.02]'
+            >
+              <span className='text-[0.9375rem] font-medium text-white/85 tracking-[-0.01em] whitespace-nowrap'>
+                Menüyü Görüntüle
+              </span>
 
-                                {/* Bottom decorative element */}
-                                <motion.div
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{
-                                    opacity: 1,
-                                    y: 0,
-                                    transition: {
-                                      delay:
-                                        0.5 +
-                                        Math.ceil(items.length / 2) * 0.08,
-                                      duration: 0.8,
-                                      ease: [0.16, 1, 0.3, 1],
-                                    },
-                                  }}
-                                  exit={{
-                                    opacity: 0,
-                                    y: 10,
-                                    transition: { duration: 0.3 },
-                                  }}
-                                  className='mt-10 pt-8 border-t border-softWhite/[0.06]'
-                                >
-                                  <div className='flex items-center justify-between'>
-                                    <div className='flex items-center gap-3'>
-                                      <motion.div className='w-1.5 h-1.5 rounded-full bg-mainColor animate-pulse' />
-                                      <span className='text-[0.7rem] sm:text-xs text-softWhite/40 tracking-wider uppercase'>
-                                        {items.length} Ürün Listelendi
-                                      </span>
-                                    </div>
+              {/* Gold circle arrow */}
+              <span
+                className='w-7.5 h-7.5 rounded-full flex items-center justify-center shrink-0'
+                style={{
+                  background: GOLD_GRADIENT,
+                  boxShadow: `0 0 14px 2px ${GOLD_GLOW}`,
+                }}
+              >
+                <svg width='12' height='12' viewBox='0 0 14 14' fill='none'>
+                  <path
+                    d='M3 7h8M8 4l3 3-3 3'
+                    stroke='#1a0f00'
+                    strokeWidth='1.8'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  />
+                </svg>
+              </span>
+            </button>
+          </motion.div>
+        </div>
 
-                                    <motion.div
-                                      initial={{ scaleX: 0 }}
-                                      animate={{
-                                        scaleX: 1,
-                                        transition: {
-                                          delay:
-                                            0.6 +
-                                            Math.ceil(items.length / 2) * 0.08,
-                                          duration: 1,
-                                          ease: [0.16, 1, 0.3, 1],
-                                        },
-                                      }}
-                                      className='flex-1 ml-6 h-[1px] bg-gradient-to-r from-softWhite/10 via-mainColor/20 to-transparent origin-left'
-                                    />
-                                  </div>
-                                </motion.div>
-                              </div>
-
-                              {/* Bottom glow effect */}
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{
-                                  opacity: 1,
-                                  transition: {
-                                    delay: 0.4,
-                                    duration: 1,
-                                  },
-                                }}
-                                exit={{ opacity: 0 }}
-                                className='absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-mainColor/[0.03] blur-3xl rounded-full pointer-events-none'
-                              />
-                            </motion.div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+        {/* ── RIGHT — category name list, Apple One style ── */}
+        <div className='flex flex-col gap-[clamp(0px,0.5vh,6px)]'>
+          {CATS.map(([cat], i) => {
+            const rowOpacity = i < 3 ? 1 : Math.max(0.18, 1 - (i - 2) * 0.18);
+            return (
+              <motion.div
+                className='text-[clamp(1.9rem,3.8vw,3.2rem)] font-bold leading-[1.18] tracking-[-0.025em] block'
+                key={cat}
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: rowOpacity, x: 0 }}
+                transition={{
+                  duration: 0.65,
+                  delay: 0.06 + i * 0.06,
+                  ease: EASE,
+                }}
+              >
+                <GoldToAmberFont>{cat}</GoldToAmberFont>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
 
-      {/* ───── FOOTER ───── */}
-      <div className='flex'>
-        <div className='hidden lg:block w-14' />
-        <div className='flex-1 px-6 sm:px-10 lg:px-12 py-20'>
-          <p className='text-[10px] sm:text-xs text-softWhite/25 tracking-[0.2em] uppercase text-right select-none italic'>
-            * Menü içeriği duruma göre değişiklik gösterebilir.
-          </p>
-        </div>
-      </div>
+      {/* Hairline divider */}
+      <div className='h-px mx-6 md:mx-16 xl:mx-24 bg-linear-to-r from-transparent via-white/6 to-transparent mb-3' />
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ROOT
+───────────────────────────────────────────────────────────────── */
+export default function Menu({ id }: Props) {
+  const [menuRevealed, setMenuRevealed] = useState(false);
+  const [open, setOpen] = useState<Category | null>(null);
+
+  const toggle = (cat: Category) =>
+    setOpen((prev) => (prev === cat ? null : cat));
+
+  return (
+    <section
+      id={id}
+      className='relative bg-secondaryColor overflow-hidden pt-14'
+    >
+      {/* ── PRE-REVEAL / ACCORDION ── */}
+      <AnimatePresence mode='wait'>
+        {!menuRevealed ? (
+          <PreMenuReveal key='pre' onReveal={() => setMenuRevealed(true)} />
+        ) : (
+          <motion.div
+            key='menu'
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <div className='pt-[clamp(16px,3vh,32px)]'>
+              {CATS.map(([cat, items], i) => (
+                <AccordionRow
+                  key={cat}
+                  cat={cat}
+                  items={items as Item[]}
+                  index={i}
+                  isOpen={open === cat}
+                  onToggle={() => toggle(cat)}
+                  isLast={i === CATS.length - 1}
+                />
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className='px-6 md:px-16 xl:px-24 pt-8 pb-14 border-t border-white/6 mt-4'>
+              <p className='text-[0.55rem] tracking-[0.16em] uppercase text-white/16 text-right'>
+                * Menü içeriği duruma göre değişiklik gösterebilir.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
-};
-
-export default Menu;
+}

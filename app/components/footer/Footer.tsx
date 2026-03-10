@@ -7,30 +7,15 @@ import {
   WhatsappIcon,
 } from '@/public/Icons';
 import Link from 'next/link';
-import React from 'react';
-import { scroller } from 'react-scroll';
-
-const smoothScroll = (
-  e: React.MouseEvent<HTMLAnchorElement>,
-  target: string,
-  offset = 0,
-  duration = 1200
-) => {
-  e.preventDefault();
-  scroller.scrollTo(target, {
-    smooth: true,
-    offset,
-    duration,
-  });
-};
+import { scrollTo } from '@/app/lib/scrollTo';
 
 const Footer = () => {
   return (
     <footer className='bg-secondaryColor pt-10 pb-10 px-4'>
-      <div className='max-w-screen-xl mx-auto border-t border-[#2f3134] pt-8 pb-24 md:pb-10'>
+      <div className='max-w-7xl mx-auto border-t border-[#2f3134] pt-8 pb-24 md:pb-10'>
         <div className='flex flex-col md:flex-row justify-between items-center gap-6'>
           <div className='flex flex-col items-center text-softWhite'>
-            <Logo className='w-[60px] h-[60px] lg:w-[70px] lg:h-[70px]' />
+            <Logo className='w-15 h-15 lg:w-17.5 lg:h-17.5' />
             <p className='text-sm font-bold mt-1'>Yeni Hisar Internatinoal</p>
             <p className='text-sm font-bold'>Night Club</p>
           </div>
@@ -38,19 +23,25 @@ const Footer = () => {
           <div className='flex flex-wrap justify-center gap-6 text-subtleGray font-medium text-base'>
             <a
               href='#about'
-              onClick={(e) => smoothScroll(e, 'about', -30)}
+              onClick={(e) => {
+                e.preventDefault();
+                scrollTo('about');
+              }}
               className='hover:text-softWhite transition cursor-pointer'
             >
               Hakkımızda
             </a>
+            {/* scroll prop tells Next.js to scroll to top on navigation */}
             <Link
               href='/privacy'
+              scroll={true}
               className='hover:text-softWhite transition cursor-pointer'
             >
               Gizlilik Politikası
             </Link>
             <Link
               href='/kvkk'
+              scroll={true}
               className='hover:text-softWhite transition cursor-pointer'
             >
               K.V.K.K

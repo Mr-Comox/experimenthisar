@@ -1,21 +1,131 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import {
-  LeftLeafletIcon,
-  RightLeafletIcon,
-  CocktailIcon,
-  VipIcon,
-  DiscoBallIcon,
-  ActivitiesIcon,
-} from '@/public/Icons';
-import AnimatedText from '@/app/utilities/AnimatedText';
+import TextReveal from '@/app/utilities/TextReveal';
 
+/* ─────────────────────────────────────────────────────────────────
+   ICONS
+───────────────────────────────────────────────────────────────── */
+const IconCocktail = () => (
+  <svg
+    viewBox='0 0 40 40'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+    width='100%'
+    height='100%'
+  >
+    <path
+      d='M8 9h24L22 23v9'
+      stroke='rgba(251,251,251,0.88)'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
+    <path
+      d='M17 32h6'
+      stroke='rgba(251,251,251,0.88)'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+    />
+    <circle cx='28.5' cy='12' r='3.2' stroke='#ff1987' strokeWidth='1.7' />
+    <path
+      d='M28.5 12l3.5-4'
+      stroke='#ff1987'
+      strokeWidth='1.7'
+      strokeLinecap='round'
+    />
+    <path
+      d='M8 9l5 6'
+      stroke='rgba(251,251,251,0.2)'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+    />
+  </svg>
+);
+
+const IconCrown = () => (
+  <svg
+    viewBox='0 0 40 40'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+    width='100%'
+    height='100%'
+  >
+    <path
+      d='M6 29l3.5-15 6.5 7.5L20 10l4 11.5 6.5-7.5L34 29H6z'
+      stroke='rgba(251,251,251,0.88)'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
+    <path
+      d='M6 29h28'
+      stroke='#ff1987'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+    />
+    <circle cx='6' cy='14' r='2.3' fill='rgba(251,251,251,0.5)' />
+    <circle cx='20' cy='10' r='2.3' fill='rgba(251,251,251,0.5)' />
+    <circle cx='34' cy='14' r='2.3' fill='rgba(251,251,251,0.5)' />
+  </svg>
+);
+
+const IconWave = () => (
+  <svg
+    viewBox='0 0 40 40'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+    width='100%'
+    height='100%'
+  >
+    <path
+      d='M3 13c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
+      stroke='rgba(251,251,251,0.25)'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+    />
+    <path
+      d='M3 20c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
+      stroke='rgba(251,251,251,0.88)'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+    />
+    <path
+      d='M3 27c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
+      stroke='#ff1987'
+      strokeWidth='1.7'
+      strokeLinecap='round'
+    />
+  </svg>
+);
+
+const IconStar = () => (
+  <svg
+    viewBox='0 0 40 40'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+    width='100%'
+    height='100%'
+  >
+    <path
+      d='M20 6l3.8 9.2H33l-7.5 5.5 2.8 9.2L20 24.5l-8.3 5.4 2.8-9.2L7 15.2h9.2L20 6z'
+      stroke='rgba(251,251,251,0.88)'
+      strokeWidth='1.9'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      fill='rgba(255,25,135,0.07)'
+    />
+  </svg>
+);
+
+/* ─────────────────────────────────────────────────────────────────
+   DATA
+───────────────────────────────────────────────────────────────── */
 const services = [
   {
     id: 1,
-    Icon: CocktailIcon,
+    Icon: IconCocktail,
     title: 'Lounge Bar',
     tag: 'İçki & Servis',
     description:
@@ -23,7 +133,7 @@ const services = [
   },
   {
     id: 2,
-    Icon: VipIcon,
+    Icon: IconCrown,
     title: 'VIP Loca',
     tag: 'VIP & Rezervasyon',
     description:
@@ -31,15 +141,15 @@ const services = [
   },
   {
     id: 3,
-    Icon: DiscoBallIcon,
+    Icon: IconWave,
     title: 'Dans Alanı',
-    tag: 'Sahne ',
+    tag: 'Sahne',
     description:
       'Gece ilerledikçe yükselen tempo ve özgür hareket. Işıklar söndüğünde, müzik konuşur.',
   },
   {
     id: 4,
-    Icon: ActivitiesIcon,
+    Icon: IconStar,
     title: 'Özel Etkinlikler',
     tag: 'Organizasyon',
     description:
@@ -49,160 +159,358 @@ const services = [
 
 type Props = { id: string };
 
+/* ─────────────────────────────────────────────────────────────────
+   NAV BUTTON — with press animation via motion.button
+───────────────────────────────────────────────────────────────── */
+const NavButton = ({
+  dir,
+  disabled,
+  onClick,
+}: {
+  dir: 'left' | 'right';
+  disabled: boolean;
+  onClick: () => void;
+}) => (
+  <motion.button
+    onClick={onClick}
+    disabled={disabled}
+    aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
+    /* Press animation: scale down + slight bg flash, only when enabled */
+    whileTap={
+      disabled ? {} : { scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }
+    }
+    transition={{ duration: 0.12, ease: 'easeOut' }}
+    style={{
+      width: 40,
+      height: 40,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: disabled
+        ? 'rgba(251,251,251,0.04)'
+        : 'rgba(251,251,251,0.08)',
+      color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
+      cursor: disabled ? 'default' : 'pointer',
+      border: 'none',
+      flexShrink: 0,
+      /* Smooth background transition for enable/disable state changes */
+      transition: 'background 0.2s, color 0.2s',
+    }}
+  >
+    {dir === 'left' ? (
+      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
+        <path
+          d='M10 12L6 8L10 4'
+          stroke='currentColor'
+          strokeWidth='1.6'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+    ) : (
+      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
+        <path
+          d='M6 4L10 8L6 12'
+          stroke='currentColor'
+          strokeWidth='1.6'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+    )}
+  </motion.button>
+);
+
+/* ─────────────────────────────────────────────────────────────────
+   ROOT
+───────────────────────────────────────────────────────────────── */
+const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
+
 const Offer = ({ id }: Props) => {
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [visible, setVisible] = useState<boolean[]>(
-    new Array(services.length).fill(false),
-  );
+  const trackRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
+  /*
+    DECOUPLED state:
+    - activeIndex: which card to navigate to/from — purely for scrollToCard math
+    - canScrollLeft / canScrollRight: pure pixel-based, never tied to activeIndex
+    
+    This prevents the bug where atEnd forced activeIndex=last, and syncScrollState
+    immediately reset it back when the user tried to scroll back left.
+  */
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
-    itemRefs.current.forEach((el, index) => {
-      if (!el) return;
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setVisible((prev) => {
-              const next = [...prev];
-              next[index] = true;
-              return next;
-            });
-            observer.disconnect();
-          }
-        },
-        { threshold: 0.4 },
-      );
-      observer.observe(el);
-      observers.push(observer);
+  const syncScrollState = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const { scrollLeft, clientWidth, scrollWidth } = track;
+
+    // Button states — pure pixel truth, no index dependency
+    setCanScrollLeft(scrollLeft > 2);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
+
+    // Active index — used only to know which card to jump to on next/prev click
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    let closest = 0;
+    let minDist = Infinity;
+    cardRefs.current.forEach((card, i) => {
+      if (!card) return;
+      const dist = Math.abs(card.offsetLeft - scrollLeft - paddingLeft);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = i;
+      }
     });
-
-    return () => observers.forEach((o) => o.disconnect());
+    setActiveIndex(closest);
   }, []);
 
-  const setRef = (index: number) => (el: HTMLDivElement | null) => {
-    itemRefs.current[index] = el;
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    syncScrollState();
+    el.addEventListener('scroll', syncScrollState, { passive: true });
+    window.addEventListener('resize', syncScrollState);
+    return () => {
+      el.removeEventListener('scroll', syncScrollState);
+      window.removeEventListener('resize', syncScrollState);
+    };
+  }, [syncScrollState]);
+
+  /* Scroll exactly to a card's left edge */
+  const scrollToCard = useCallback((index: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const clamped = Math.max(0, Math.min(index, services.length - 1));
+    const card = cardRefs.current[clamped];
+    if (!card) return;
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    track.scrollTo({ left: card.offsetLeft - paddingLeft, behavior: 'smooth' });
+  }, []);
+
+  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+    cardRefs.current[i] = el;
   };
+
   return (
     <section id={id} className='relative bg-secondaryColor overflow-hidden'>
-      {/* ───── HERO ───── */}
-      <div className='relative flex'>
-        {/* vertical label */}
-        <div className='hidden lg:flex w-14 pt-24 justify-center'>
-          <span
-            className='text-softWhite/20 text-[9px] tracking-[0.35em] uppercase select-none'
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-          >
-            Hizmetler
-          </span>
-        </div>
-
-        <div className='relative flex-1 px-6 sm:px-10 lg:px-12 pt-24 pb-16 flex flex-col gap-8 overflow-hidden'>
-          {/* ghost word */}
-          <span className='whitespace-nowrap absolute top-10 -right-32 text-softWhite/[0.02] font-serif text-[12rem] leading-none select-none pointer-events-none'>
-            Yeni Hisar
-          </span>
-
-          <header className='flex items-center gap-3 relative z-10'>
-            <LeftLeafletIcon widthSize='9' heightSize='18' />
-            <span className='text-mainColor uppercase tracking-[0.35em] text-[0.65rem]'>
-              Deneyim
-            </span>
-            <RightLeafletIcon widthSize='9' heightSize='18' />
-          </header>
-
-          <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8 relative z-10'>
-            <h2 className='text-softWhite font-serif text-[2.4rem] sm:text-[3.2rem] md:text-[3.8rem] lg:text-[4.5rem] xl:text-[5.2rem] leading-[1.05] max-w-4xl'>
-              <AnimatedText text='Hizmetlerimiz' />
-            </h2>
-          </div>
-        </div>
-      </div>
-
-      {/* ───── COLUMN HEADERS ───── */}
-      <div className='flex'>
-        <div className='hidden lg:block w-14' />
-        <div className='flex-1 px-6 sm:px-10 lg:px-12'>
-          <div className='grid grid-cols-[40px_1fr] sm:grid-cols-[56px_1fr_auto] py-3 gap-x-8'>
-            <span className='text-softWhite/20 text-[0.6rem] tracking-[0.25em] uppercase'></span>
-            <span className='text-softWhite/20 text-[0.6rem] tracking-[0.25em] uppercase'>
-              Hizmet
-            </span>
-            <span className='hidden sm:block text-softWhite/20 text-[0.6rem] tracking-[0.25em] uppercase pr-2'>
-              Kategori
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className='w-full h-px bg-softWhite/10' />
-
-      {/* ───── LIST ───── */}
-      <div className='flex flex-col group/list'>
-        {services.map(({ id, Icon, title, tag, description }, index) => (
-          <motion.div
-            key={id}
-            ref={setRef(index)}
-            initial={{ opacity: 0, y: 24 }}
+      {/* ─── HEADER ─── */}
+      <div
+        style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
+        className='pt-24 xl:pt-32 pb-12'
+      >
+        <TextReveal>
+          <motion.h2
+            initial={{ opacity: 0, y: 28 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: index * 0.1, ease: 'easeOut' }}
-            className='group opacity-80 hover:opacity-100 transition-opacity'
+            transition={{
+              duration: 0.9,
+              ease: [0.25, 0.46, 0.45, 0.94],
+              delay: 0.08,
+            }}
+            className='font-bold text-white leading-[1.02] tracking-[-0.03em] whitespace-nowrap'
+            style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
           >
-            <div className='flex'>
-              <div className='hidden lg:block w-14' />
+            Kaliteli hizmet,
+            <br />
+            benzersiz ambiyans
+          </motion.h2>
+        </TextReveal>
+      </div>
 
-              <div className='flex-1 px-6 sm:px-10 lg:px-12'>
+      {/* Section divider */}
+      <div
+        style={{
+          height: 1,
+          background:
+            'linear-gradient(to right, transparent, rgba(255,255,255,0.07), transparent)',
+        }}
+      />
+
+      {/* ─── CAROUSEL ─── */}
+      <div
+        ref={trackRef}
+        className='scrollbar-hide'
+        style={
+          {
+            display: 'flex',
+            overflowX: 'auto',
+            alignItems: 'stretch', // all wrapper divs reach the tallest card's height
+            gap: 16,
+            paddingLeft: TRACK_PADDING,
+            paddingRight: TRACK_PADDING,
+            paddingTop: 40,
+            paddingBottom: 32,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          } as React.CSSProperties
+        }
+      >
+        {services.map(({ id, Icon, title, tag, description }, index) => (
+          <div
+            key={id}
+            ref={setCardRef(index)}
+            style={{
+              flexShrink: 0,
+              width: 'clamp(303px, 30vw, 405px)',
+              display: 'flex', // lets motion.div inside use height:100%
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{
+                duration: 0.55,
+                delay: index * 0.08,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: '100%', // fills wrapper → all cards equal height
+                borderRadius: 18,
+                overflow: 'hidden',
+                background: 'rgba(255,255,255,0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {/* Hairline top edge */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 1,
+                  background: 'rgba(255,255,255,0.09)',
+                }}
+              />
+
+              {/* Card body */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '28px 28px 24px',
+                  flexGrow: 1,
+                }}
+              >
+                {/* Icon tile */}
                 <div
-                  className='
-                  relative grid grid-cols-[40px_1fr]
-                  sm:grid-cols-[56px_1fr_auto]
-                  gap-x-8 py-10
-                  transition-all duration-300
-                  hover:bg-softWhite/[0.025]
-                  hover:scale-[1.01]
-                '
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 14,
+                    background: 'rgba(255,255,255,0.065)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginBottom: 22,
+                  }}
                 >
-                  {/* left bar */}
-                  <span className='absolute left-0 top-0 bottom-0 w-[2px] bg-mainColor scale-y-0 hover:scale-y-100 transition-transform origin-top' />
-
-                  {/* index */}
-                  <span className='text-softWhite/20 font-mono text-sm tracking-widest select-none ml-4'>
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-
-                  {/* content */}
-                  <div className='flex flex-col gap-3'>
-                    <div className='flex items-center gap-4'>
-                      <div className='relative flex-shrink-0 before:absolute before:inset-[-8px] before:rounded-full before:bg-mainColor/5 before:scale-0 hover:before:scale-100 before:transition-transform'>
-                        <Icon animate={visible[index]} />
-                      </div>
-                      <h3 className='text-softWhite/85 hover:text-softWhite font-serif text-xl md:text-2xl leading-tight tracking-tight transition-colors'>
-                        {title}
-                      </h3>
-                    </div>
-
-                    <p className='max-w-[520px] text-softWhite/45 hover:text-softWhite/60 text-sm md:text-base leading-relaxed transition-colors'>
-                      {description}
-                    </p>
-
-                    <span className='sm:hidden text-mainColor/50 text-[0.6rem] tracking-[0.25em] uppercase'>
-                      {tag}
-                    </span>
-                  </div>
-
-                  <div className='hidden sm:flex pt-1 pr-2'>
-                    <span className='text-softWhite/25 hover:text-mainColor/60 text-[0.65rem] tracking-[0.2em] uppercase transition-colors whitespace-nowrap'>
-                      {tag}
-                    </span>
+                  <div style={{ width: 34, height: 34 }}>
+                    <Icon />
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className='w-full h-px bg-softWhite/[0.06]' />
-          </motion.div>
+                {/* Title */}
+                <p
+                  style={{
+                    fontSize: 'clamp(1.2rem, 1.65vw, 1.375rem)',
+                    fontWeight: 700,
+                    color: 'rgba(251,251,251,0.95)',
+                    lineHeight: 1.18,
+                    letterSpacing: '-0.018em',
+                    marginBottom: 12,
+                    flexShrink: 0,
+                  }}
+                >
+                  {title}
+                </p>
+
+                {/* Description — flex-grow pushes tag down */}
+                <p
+                  className='text-white/55 leading-[1.72] mt-2  '
+                  style={{
+                    fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)',
+                    flexGrow: 1,
+                  }}
+                >
+                  {description}
+                </p>
+                {/* Tag */}
+                <div
+                  style={{
+                    marginTop: 24,
+                    paddingTop: 16,
+                    borderTop: '1px solid rgba(255,255,255,0.07)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: '#ff1987',
+                      opacity: 0.8,
+                      flexShrink: 0,
+                      display: 'block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: '0.6rem',
+                      letterSpacing: '0.2em',
+                      textTransform: 'uppercase',
+                      fontWeight: 500,
+                      color: 'rgba(255,255,255,0.32)',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         ))}
+
+        {/* Trailing spacer mirrors leading padding */}
+        <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
+      </div>
+
+      {/* ─── NAV — always bottom right ─── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 12,
+          paddingRight: TRACK_PADDING,
+          paddingBottom: 80,
+          paddingTop: 8,
+        }}
+      >
+        <NavButton
+          dir='left'
+          disabled={!canScrollLeft}
+          onClick={() => scrollToCard(activeIndex - 1)}
+        />
+        <NavButton
+          dir='right'
+          disabled={!canScrollRight}
+          onClick={() => scrollToCard(activeIndex + 1)}
+        />
       </div>
     </section>
   );

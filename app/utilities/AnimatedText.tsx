@@ -22,7 +22,7 @@ export default function AnimatedText({ text }: Props) {
           },
         }}
         viewport={{ once: true, amount: 0.5 }}
-        className='text-4xl lg:text-5xl font-serif text-softWhite leading-tight mb-6'
+        className='text-4xl lg:text-5xl font-(family-name:--font-graphik) font-bold text-softWhite leading-tight mb-6'
       >
         {text.split('').map((char, i) => (
           <motion.span

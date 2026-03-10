@@ -1,137 +1,33 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-body {
-  background-color: #111117;
-  color: #fff;
-  overflow-x: hidden;
+/* ================================================= */
+/* THEME TOKENS (Tailwind v4)                       */
+/* ================================================= */
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-h1 {
-  text-transform: uppercase;
-  font-size: 6rem;
-  font-weight: 700;
-  letter-spacing: -0.2rem;
-  line-height: 0.8;
-}
+  /* Brand Colors */
+  --color-mainColor: #ff1987;
+  --color-secondaryColor: #070707;
+  --color-tertiaryColor: #141414;
+  --color-quaternaryColor: #9d00ff;
 
-p {
-  text-transform: uppercase;
-  font-size: 1.25rem;
-  font-weight: 500;
-  line-height: 0.8;
-}
-section {
-  position: relative;
-  width: 100vw;
-  height: 100svh;
-  background-color: #111117;
-  text-align: center;
-  overflow: hidden;
-}
+  --color-softWhite: #fbfbfb;
+  --color-softGray: #e2e2e2;
+  --color-subtleGray: #c0c0c0;
+  --color-mediumGray: #ededed;
+  --breakpoint-xs: 420px;
 
-.hero-img-container,
-.hero-img-container img,
-.fade-overlay {
-  position: absolute;
-  top: 0%;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-.hero-img-logo img {
-  position: absolute;
-  top: 10%;
-  left: 50%;
-  transform: translate(-50%, -20%);
-  width: 1500px;
-  height: auto;
-  object-fit: contain;
-}
-
-.hero-img-copy {
-  position: absolute;
-  bottom: 4%;
-  left: 50%;
-  transform: translate(-50%, 0);
-  will-change: opacity;
-}
-
-.hero-img-copy p {
-  font-size: 0.65rem;
-}
-
-.fade-overlay {
-  background-color: #fff;
-  will-change: opacity;
-}
-
-.overlay {
-  position: absolute;
-  top: 0%;
-  left: 0;
-  transform-origin: center 12.5%;
-  width: 100%;
-  height: 200%;
-  z-index: 1;
-}
-
-.logo-container {
-  position: fixed;
-  top: 25%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200px;
-  height: 150px;
-  z-index: 2;
-}
-
-.overlay-copy {
-  position: absolute;
-  bottom: 25%;
-  left: 50%;
-  transform: translate(-50%, 0%);
-  z-index: 2;
-}
-
-.overlay-copy h1 {
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  transform-origin: center 0%;
-}
-
-.outro {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-@media (max-width: 900px) {
-  h1 {
-    font-size: 2.5rem;
-    letter-spacing: 0;
-  }
-  p {
-    font-size: 1rem;
-  }
-
-  .overlay-copy {
-    width: 100%;
-  }
+  --font-display: var(--font-graphik);
+  --font-sans: var(--font-graphik);
+  --font-super: 950;
 }
 
 /* Dark Mode */

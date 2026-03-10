@@ -196,7 +196,7 @@ const Reservation = ({ id }: Props) => {
   return (
     <section id={id} className='relative bg-secondaryColor overflow-hidden'>
       <div className='relative flex'>
-        <div className='hidden lg:flex items-start justify-center w-14 pt-20 flex-shrink-0'>
+        <div className='hidden lg:flex items-start justify-center w-14 pt-20 shrink-0'>
           <span
             className='text-softWhite/20 text-[9px] tracking-[0.35em] uppercase select-none whitespace-nowrap'
             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
@@ -225,7 +225,7 @@ const Reservation = ({ id }: Props) => {
       <div className='w-full h-px bg-softWhite/10' />
 
       <div className='relative flex'>
-        <div className='hidden lg:block w-14 flex-shrink-0' />
+        <div className='hidden lg:block w-14 shrink-0' />
         <div className='flex-1 px-6 sm:px-10 lg:px-12 py-12 lg:py-16'>
           <AnimatePresence mode='wait'>
             {!showReservationForm ? (
@@ -235,7 +235,7 @@ const Reservation = ({ id }: Props) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className='min-h-[500px] flex items-center'
+                className='min-h-125 flex items-center'
               >
                 <div className='grid lg:grid-cols-2 gap-12 lg:gap-16 items-center w-full'>
                   {/* Left Side - Premium Visual Showcase */}
@@ -243,10 +243,10 @@ const Reservation = ({ id }: Props) => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2, duration: 0.8 }}
-                    className='relative h-[500px] lg:h-[600px]'
+                    className='relative h-125 lg:h-150'
                   >
                     <div className='absolute inset-0 rounded-2xl overflow-hidden'>
-                      <div className='absolute inset-0 bg-gradient-to-br from-mainColor/5 via-transparent to-mainColor/10' />
+                      <div className='absolute inset-0 bg-linear-to-br from-mainColor/5 via-transparent to-mainColor/10' />
                       <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64'>
                         <div className='absolute inset-0 rounded-full border border-mainColor/40 animate-ping' />
                         <div className='absolute inset-4 rounded-full border border-softWhite/10 animate-pulse' />
@@ -261,10 +261,10 @@ const Reservation = ({ id }: Props) => {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.5 }}
-                          className='absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 group max-w-[160px] sm:max-w-none'
+                          className='absolute top-4 left-4 sm:top-6 sm:left-6 md:top-8 md:left-8 group max-w-40 sm:max-w-none'
                         >
-                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/[0.02] backdrop-blur-sm border border-softWhite/[0.08] rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/[0.05] transition-all duration-300'>
-                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center flex-shrink-0'>
+                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/2 backdrop-blur-sm border border-softWhite/8 rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/5 transition-all duration-300'>
+                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center shrink-0'>
                               <svg
                                 className='w-5 h-5 text-mainColor'
                                 fill='none'
@@ -294,10 +294,10 @@ const Reservation = ({ id }: Props) => {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.7 }}
-                          className='absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 max-w-[160px] sm:max-w-none'
+                          className='absolute top-4 right-4 sm:top-6 sm:right-6 md:top-8 md:right-8 max-w-40 sm:max-w-none'
                         >
-                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/[0.02] backdrop-blur-sm border border-softWhite/[0.08] rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/[0.05] transition-all duration-300'>
-                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center flex-shrink-0'>
+                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/2 backdrop-blur-sm border border-softWhite/8 rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/5 transition-all duration-300'>
+                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center shrink-0'>
                               <svg
                                 className='w-5 h-5 text-mainColor'
                                 fill='none'
@@ -327,10 +327,10 @@ const Reservation = ({ id }: Props) => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.9 }}
-                          className='absolute bottom-4 left-4 sm:bottom-6 sm:left-6 md:bottom-8 md:left-8 max-w-[160px] sm:max-w-none'
+                          className='absolute bottom-4 left-4 sm:bottom-6 sm:left-6 md:bottom-8 md:left-8 max-w-40 sm:max-w-none'
                         >
-                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/[0.02] backdrop-blur-sm border border-softWhite/[0.08] rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/[0.05] transition-all duration-300'>
-                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center flex-shrink-0'>
+                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/2 backdrop-blur-sm border border-softWhite/8 rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/5 transition-all duration-300'>
+                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center shrink-0'>
                               <svg
                                 className='w-5 h-5 text-mainColor'
                                 fill='none'
@@ -360,10 +360,10 @@ const Reservation = ({ id }: Props) => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.9 }}
-                          className='absolute bottom-4 right-4 sm:bottom-6 sm:right-6 md:bottom-8 md:right-8 max-w-[160px] sm:max-w-none'
+                          className='absolute bottom-4 right-4 sm:bottom-6 sm:right-6 md:bottom-8 md:right-8 max-w-40 sm:max-w-none'
                         >
-                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/[0.02] backdrop-blur-sm border border-softWhite/[0.08] rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/[0.05] transition-all duration-300'>
-                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center flex-shrink-0'>
+                          <div className='flex items-center gap-2 sm:gap-3 bg-softWhite/2 backdrop-blur-sm border border-softWhite/8 rounded-lg px-2.5 py-2 sm:px-4 sm:py-3 hover:bg-softWhite/5 transition-all duration-300'>
+                            <div className='w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-mainColor/10 flex items-center justify-center shrink-0'>
                               <svg
                                 className='w-5 h-5 text-mainColor'
                                 fill='none'
@@ -413,7 +413,7 @@ const Reservation = ({ id }: Props) => {
                           Hemen Rezerve Et
                         </span>
                       </motion.div>
-                      <h3 className='text-softWhite font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.1]'>
+                      <h3 className='text-softWhite font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.1]'>
                         Akşamını
                         <span className='block text-mainColor mt-2'>
                           Planla
@@ -438,7 +438,7 @@ const Reservation = ({ id }: Props) => {
                           transition={{ delay: 0.5 + i * 0.1 }}
                           className='flex items-center gap-3'
                         >
-                          <div className='w-5 h-5 rounded-full bg-mainColor/20 flex items-center justify-center flex-shrink-0'>
+                          <div className='w-5 h-5 rounded-full bg-mainColor/20 flex items-center justify-center shrink-0'>
                             <svg
                               className='w-3 h-3 text-mainColor'
                               fill='none'
@@ -463,9 +463,9 @@ const Reservation = ({ id }: Props) => {
                     <div className='space-y-4 pt-4'>
                       <button
                         onClick={() => setShowReservationForm(true)}
-                        className='group relative w-full sm:w-auto px-8 md:px-10 py-4 md:py-4 bg-mainColor text-secondaryColor rounded-xl text-sm md:text-base font-semibold transition-all duration-500 hover:bg-mainColor/90 hover:shadow-2xl hover:shadow-mainColor/20 hover:scale-[1.02] overflow-hidden'
+                        className='cursor-pointer group relative w-full sm:w-auto px-8 md:px-10 py-4 md:py-4 bg-mainColor text-secondaryColor rounded-xl text-sm md:text-base font-semibold transition-all duration-500 hover:bg-mainColor/90 hover:shadow-2xl hover:shadow-mainColor/20 hover:scale-[1.02] overflow-hidden'
                       >
-                        <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000' />
+                        <div className='absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000' />
                         <span className='relative z-10 uppercase tracking-widest font-medium text-softWhite flex items-center justify-center gap-2'>
                           Rezervasyon Yap
                           <svg
@@ -534,13 +534,13 @@ const Reservation = ({ id }: Props) => {
                     {Array.from({ length: totalSteps }).map((_, i) => (
                       <div
                         key={i}
-                        className={`flex-1 h-[3px] rounded-full transition-all duration-500 ${i < currentStep ? 'bg-mainColor' : i === currentStep ? 'bg-mainColor/50' : 'bg-softWhite/10'}`}
+                        className={`flex-1 h-0.75 rounded-full transition-all duration-500 ${i < currentStep ? 'bg-mainColor' : i === currentStep ? 'bg-mainColor/50' : 'bg-softWhite/10'}`}
                       />
                     ))}
                   </div>
                 </div>
 
-                <div className='min-h-[250px] relative'>
+                <div className='min-h-62.5 relative'>
                   <AnimatePresence mode='wait'>
                     {currentStep === 1 && (
                       <motion.div
@@ -561,7 +561,7 @@ const Reservation = ({ id }: Props) => {
                               <button
                                 key={num}
                                 onClick={() => setGuests(num)}
-                                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-lg border transition-all duration-300 flex items-center justify-center ${guests === num ? 'border-mainColor/50 bg-mainColor/10 shadow-lg shadow-mainColor/10' : 'border-softWhite/10 hover:border-softWhite/25 hover:bg-softWhite/[0.02]'}`}
+                                className={`cursor-pointer w-16 h-16 sm:w-20 sm:h-20 rounded-lg border transition-all duration-300 flex items-center justify-center ${guests === num ? 'border-mainColor/50 bg-mainColor/10 shadow-lg shadow-mainColor/10' : 'border-softWhite/10 hover:border-softWhite/25 hover:bg-softWhite/2'}`}
                               >
                                 <span
                                   className={`text-2xl sm:text-3xl font-serif ${guests === num ? 'text-mainColor' : 'text-softWhite/60'}`}
@@ -609,7 +609,7 @@ const Reservation = ({ id }: Props) => {
                             <button
                               key={value}
                               onClick={() => setSeatingType(value)}
-                              className={`w-full p-5 rounded-lg border text-left transition-all duration-300 ${seatingType === value ? 'border-mainColor/50 bg-mainColor/10 shadow-lg shadow-mainColor/10' : 'border-softWhite/10 hover:border-softWhite/25 hover:bg-softWhite/[0.02]'}`}
+                              className={`cursor-pointer w-full p-5 rounded-lg border text-left transition-all duration-300 ${seatingType === value ? 'border-mainColor/50 bg-mainColor/10 shadow-lg shadow-mainColor/10' : 'border-softWhite/10 hover:border-softWhite/25 hover:bg-softWhite/2'}`}
                             >
                               <div className='flex items-center justify-between'>
                                 <div>
@@ -623,7 +623,7 @@ const Reservation = ({ id }: Props) => {
                                   </p>
                                 </div>
                                 <div
-                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${seatingType === value ? 'border-mainColor' : 'border-softWhite/30'}`}
+                                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${seatingType === value ? 'border-mainColor' : 'border-softWhite/30'}`}
                                 >
                                   {seatingType === value && (
                                     <div className='w-4 h-4 rounded-full bg-mainColor' />
@@ -648,7 +648,7 @@ const Reservation = ({ id }: Props) => {
                       >
                         <div className='grid lg:grid-cols-[1fr_1.2fr] gap-6'>
                           {/* Calendar */}
-                          <div className='bg-softWhite/[0.03] border border-softWhite/[0.08] rounded-lg p-5'>
+                          <div className='bg-softWhite/3 border border-softWhite/8 rounded-lg p-5'>
                             <div className='flex items-center justify-between mb-4'>
                               <h4 className='text-softWhite/90 text-sm font-medium'>
                                 {new Date(
@@ -662,13 +662,13 @@ const Reservation = ({ id }: Props) => {
                               <div className='flex gap-1'>
                                 <button
                                   onClick={prevMonth}
-                                  className='w-7 h-7 flex items-center justify-center rounded hover:bg-softWhite/[0.05] text-softWhite/50 text-sm transition-colors'
+                                  className='cursor-pointer w-7 h-7 flex items-center justify-center rounded hover:bg-softWhite/5 text-softWhite/50 text-sm transition-colors'
                                 >
                                   ‹
                                 </button>
                                 <button
                                   onClick={nextMonth}
-                                  className='w-7 h-7 flex items-center justify-center rounded hover:bg-softWhite/[0.05] text-softWhite/50 text-sm transition-colors'
+                                  className='cursor-pointer w-7 h-7 flex items-center justify-center rounded hover:bg-softWhite/5 text-softWhite/50 text-sm transition-colors'
                                 >
                                   ›
                                 </button>
@@ -704,11 +704,11 @@ const Reservation = ({ id }: Props) => {
                                       setSelectedDate(day.date)
                                     }
                                     disabled={isPast || !day.isCurrentMonth}
-                                    className={`aspect-square rounded-md text-xs transition-all duration-200
+                                    className={`cursor-pointer aspect-square rounded-md text-xs transition-all duration-200
                                       ${!day.isCurrentMonth ? 'text-softWhite/15' : ''}
                                       ${isPast ? 'text-softWhite/15 cursor-not-allowed' : ''}
                                       ${isSelected ? 'bg-mainColor text-secondaryColor font-medium' : ''}
-                                      ${!isSelected && !isPast && day.isCurrentMonth ? 'hover:bg-softWhite/[0.05] text-softWhite/60' : ''}
+                                      ${!isSelected && !isPast && day.isCurrentMonth ? 'hover:bg-softWhite/5 text-softWhite/60' : ''}
                                       ${isToday && !isSelected ? 'ring-1 ring-mainColor/40' : ''}`}
                                   >
                                     {day.date.getDate()}
@@ -754,9 +754,9 @@ const Reservation = ({ id }: Props) => {
                                     });
 
                                   return (
-                                    <div className='flex items-start gap-2.5 bg-mainColor/[0.06] border border-mainColor/20 rounded-lg px-4 py-3'>
+                                    <div className='flex items-start gap-2.5 bg-mainColor/6 border border-mainColor/20 rounded-lg px-4 py-3'>
                                       <svg
-                                        className='w-4 h-4 text-mainColor/70 flex-shrink-0 mt-0.5'
+                                        className='w-4 h-4 text-mainColor/70 shrink-0 mt-0.5'
                                         fill='none'
                                         viewBox='0 0 24 24'
                                         stroke='currentColor'
@@ -819,9 +819,9 @@ const Reservation = ({ id }: Props) => {
                                     });
 
                                   return (
-                                    <div className='flex items-start gap-3 bg-mainColor/[0.06] border border-mainColor/20 rounded-lg px-4 py-3'>
+                                    <div className='flex items-start gap-3 bg-mainColor/6 border border-mainColor/20 rounded-lg px-4 py-3'>
                                       <svg
-                                        className='w-4 h-4 text-mainColor/70 flex-shrink-0 mt-0.5'
+                                        className='w-4 h-4 text-mainColor/70 shrink-0 mt-0.5'
                                         fill='none'
                                         viewBox='0 0 24 24'
                                         stroke='currentColor'
@@ -880,12 +880,12 @@ const Reservation = ({ id }: Props) => {
                                               ? 'Bu saat için rezervasyon süreci kapanmıştır.'
                                               : undefined
                                           }
-                                          className={`px-3 py-2.5 rounded-md text-xs font-mono transition-all duration-200 ${
+                                          className={`cursor-pointer px-3 py-2.5 rounded-md text-xs font-mono transition-all duration-200 ${
                                             selectedTime === time
                                               ? 'bg-mainColor text-secondaryColor font-medium shadow-lg shadow-mainColor/20'
                                               : isPast
-                                                ? 'bg-softWhite/[0.02] text-softWhite/20 border border-softWhite/[0.05] cursor-not-allowed line-through'
-                                                : 'bg-softWhite/[0.05] hover:bg-softWhite/[0.08] text-softWhite/60 border border-softWhite/10'
+                                                ? 'bg-softWhite/2 text-softWhite/20 border border-softWhite/5 cursor-not-allowed line-through'
+                                                : 'bg-softWhite/5 hover:bg-softWhite/8 text-softWhite/60 border border-softWhite/10'
                                           }`}
                                         >
                                           {time}
@@ -920,12 +920,12 @@ const Reservation = ({ id }: Props) => {
                                               ? 'Bu saat için rezervasyon süreci kapanmıştır.'
                                               : undefined
                                           }
-                                          className={`px-3 py-2.5 rounded-md text-xs font-mono transition-all duration-200 ${
+                                          className={`cursor-pointer px-3 py-2.5 rounded-md text-xs font-mono transition-all duration-200 ${
                                             selectedTime === time
                                               ? 'bg-mainColor text-secondaryColor font-medium shadow-lg shadow-mainColor/20'
                                               : isPast
-                                                ? 'bg-softWhite/[0.02] text-softWhite/20 border border-softWhite/[0.05] cursor-not-allowed line-through'
-                                                : 'bg-softWhite/[0.05] hover:bg-softWhite/[0.08] text-softWhite/60 border border-softWhite/10'
+                                                ? 'bg-softWhite/2 text-softWhite/20 border border-softWhite/5 cursor-not-allowed line-through'
+                                                : 'bg-softWhite/5 hover:bg-softWhite/8 text-softWhite/60 border border-softWhite/10'
                                           }`}
                                         >
                                           {time}
@@ -979,7 +979,7 @@ const Reservation = ({ id }: Props) => {
                                 onFocus={() => setFocusedField('name')}
                                 onBlur={() => setFocusedField(null)}
                                 placeholder='Adınız'
-                                className={`w-full px-4 py-3.5 bg-softWhite/[0.03] border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'name' ? 'border-mainColor/50 bg-mainColor/[0.02] shadow-lg shadow-mainColor/5' : userInfo.name.trim().length >= 2 ? 'border-softWhite/20' : 'border-softWhite/10'}`}
+                                className={`w-full px-4 py-3.5 bg-softWhite/3 border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'name' ? 'border-mainColor/50 bg-mainColor/2 shadow-lg shadow-mainColor/5' : userInfo.name.trim().length >= 2 ? 'border-softWhite/20' : 'border-softWhite/10'}`}
                               />
                               {userInfo.name.trim().length >= 2 && (
                                 <div className='absolute right-3 top-1/2 -translate-y-1/2'>
@@ -1021,7 +1021,7 @@ const Reservation = ({ id }: Props) => {
                                 onFocus={() => setFocusedField('surname')}
                                 onBlur={() => setFocusedField(null)}
                                 placeholder='Soyadınız'
-                                className={`w-full px-4 py-3.5 bg-softWhite/[0.03] border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'surname' ? 'border-mainColor/50 bg-mainColor/[0.02] shadow-lg shadow-mainColor/5' : userInfo.surname.trim().length >= 2 ? 'border-softWhite/20' : 'border-softWhite/10'}`}
+                                className={`w-full px-4 py-3.5 bg-softWhite/3 border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'surname' ? 'border-mainColor/50 bg-mainColor/2 shadow-lg shadow-mainColor/5' : userInfo.surname.trim().length >= 2 ? 'border-softWhite/20' : 'border-softWhite/10'}`}
                               />
                               {userInfo.surname.trim().length >= 2 && (
                                 <div className='absolute right-3 top-1/2 -translate-y-1/2'>
@@ -1063,7 +1063,7 @@ const Reservation = ({ id }: Props) => {
                                 onFocus={() => setFocusedField('phone')}
                                 onBlur={() => setFocusedField(null)}
                                 placeholder='+90 5XX XXX XX XX'
-                                className={`w-full px-4 py-3.5 bg-softWhite/[0.03] border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'phone' ? 'border-mainColor/50 bg-mainColor/[0.02] shadow-lg shadow-mainColor/5' : validatePhone(userInfo.phone) ? 'border-softWhite/20' : 'border-softWhite/10'}`}
+                                className={`w-full px-4 py-3.5 bg-softWhite/3 border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'phone' ? 'border-mainColor/50 bg-mainColor/2 shadow-lg shadow-mainColor/5' : validatePhone(userInfo.phone) ? 'border-softWhite/20' : 'border-softWhite/10'}`}
                               />
                               {validatePhone(userInfo.phone) && (
                                 <div className='absolute right-3 top-1/2 -translate-y-1/2'>
@@ -1105,7 +1105,7 @@ const Reservation = ({ id }: Props) => {
                                 onFocus={() => setFocusedField('email')}
                                 onBlur={() => setFocusedField(null)}
                                 placeholder='ornek@email.com'
-                                className={`w-full px-4 py-3.5 bg-softWhite/[0.03] border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'email' ? 'border-mainColor/50 bg-mainColor/[0.02] shadow-lg shadow-mainColor/5' : validateEmail(userInfo.email) ? 'border-softWhite/20' : 'border-softWhite/10'}`}
+                                className={`w-full px-4 py-3.5 bg-softWhite/3 border rounded-lg text-softWhite/90 text-sm placeholder:text-softWhite/20 transition-all duration-300 focus:outline-none ${focusedField === 'email' ? 'border-mainColor/50 bg-mainColor/2 shadow-lg shadow-mainColor/5' : validateEmail(userInfo.email) ? 'border-softWhite/20' : 'border-softWhite/10'}`}
                               />
                               {validateEmail(userInfo.email) && (
                                 <div className='absolute right-3 top-1/2 -translate-y-1/2'>
@@ -1129,8 +1129,8 @@ const Reservation = ({ id }: Props) => {
                             </div>
                           </div>
                         </div>
-                        <div className='mt-8 pt-6 border-t border-softWhite/[0.08]'>
-                          <div className='flex items-start gap-3 bg-softWhite/[0.02] border border-softWhite/[0.06] rounded-lg p-4'>
+                        <div className='mt-8 pt-6 border-t border-softWhite/8'>
+                          <div className='flex items-start gap-3 bg-softWhite/2 border border-softWhite/6 rounded-lg p-4'>
                             <div className='mt-0.5'>
                               <svg
                                 className='w-4 h-4 text-mainColor/70'
@@ -1192,12 +1192,12 @@ const Reservation = ({ id }: Props) => {
                           })();
 
                           return (
-                            <div className='bg-softWhite/[0.03] border border-softWhite/[0.08] rounded-lg p-6 space-y-5'>
+                            <div className='bg-softWhite/3 border border-softWhite/8 rounded-lg p-6 space-y-5'>
                               <h4 className='text-softWhite/90 text-base font-medium mb-4'>
                                 Rezervasyon Detayları
                               </h4>
                               <div className='space-y-3'>
-                                <div className='flex justify-between py-2.5 border-b border-softWhite/[0.06]'>
+                                <div className='flex justify-between py-2.5 border-b border-softWhite/6'>
                                   <span className='text-softWhite/50 text-sm'>
                                     Kişi Sayısı
                                   </span>
@@ -1205,7 +1205,7 @@ const Reservation = ({ id }: Props) => {
                                     {guests} Kişi
                                   </span>
                                 </div>
-                                <div className='flex justify-between py-2.5 border-b border-softWhite/[0.06]'>
+                                <div className='flex justify-between py-2.5 border-b border-softWhite/6'>
                                   <span className='text-softWhite/50 text-sm'>
                                     Oturma Tercihi
                                   </span>
@@ -1215,7 +1215,7 @@ const Reservation = ({ id }: Props) => {
                                     {seatingType === 'masa' && 'Masa'}
                                   </span>
                                 </div>
-                                <div className='flex justify-between py-2.5 border-b border-softWhite/[0.06]'>
+                                <div className='flex justify-between py-2.5 border-b border-softWhite/6'>
                                   <span className='text-softWhite/50 text-sm'>
                                     Tarih
                                   </span>
@@ -1227,7 +1227,7 @@ const Reservation = ({ id }: Props) => {
                                     })}
                                   </span>
                                 </div>
-                                <div className='flex justify-between py-2.5 border-b border-softWhite/[0.06]'>
+                                <div className='flex justify-between py-2.5 border-b border-softWhite/6'>
                                   <span className='text-softWhite/50 text-sm'>
                                     Saat
                                   </span>
@@ -1236,7 +1236,7 @@ const Reservation = ({ id }: Props) => {
                                   </span>
                                 </div>
                               </div>
-                              <div className='pt-4 mt-4 border-t border-softWhite/[0.08]'>
+                              <div className='pt-4 mt-4 border-t border-softWhite/8'>
                                 <h5 className='text-softWhite/70 text-sm font-medium mb-3'>
                                   İletişim Bilgileri
                                 </h5>
@@ -1267,7 +1267,7 @@ const Reservation = ({ id }: Props) => {
                                   </div>
                                 </div>
                               </div>
-                              <div className='pt-4 mt-4 border-t border-softWhite/[0.08]'>
+                              <div className='pt-4 mt-4 border-t border-softWhite/8'>
                                 <p className='text-xs text-softWhite/40 leading-relaxed'>
                                   * Rezervasyonunuz onay için gönderilecektir.
                                   En kısa sürede size dönüş yapılacaktır.
@@ -1281,7 +1281,7 @@ const Reservation = ({ id }: Props) => {
                   </AnimatePresence>
                 </div>
 
-                <div className='flex items-center justify-between mt-8 pt-6 border-t border-softWhite/[0.08]'>
+                <div className='flex items-center justify-between mt-8 pt-6 border-t border-softWhite/8'>
                   <button
                     onClick={() => {
                       if (currentStep === 1) {
@@ -1290,7 +1290,7 @@ const Reservation = ({ id }: Props) => {
                         prevStep();
                       }
                     }}
-                    className='px-5 py-2.5 rounded-lg text-xs uppercase tracking-wider font-medium transition-all duration-300 text-softWhite/70 hover:text-softWhite hover:bg-softWhite/[0.05]'
+                    className='cursor-pointer px-5 py-2.5 rounded-lg text-xs uppercase tracking-wider font-medium transition-all duration-300 text-softWhite/70 hover:text-softWhite hover:bg-softWhite/5'
                   >
                     {currentStep === 1 ? 'İptal' : 'Geri'}
                   </button>
@@ -1301,7 +1301,7 @@ const Reservation = ({ id }: Props) => {
                         : nextStep
                     }
                     disabled={!canProceed()}
-                    className={`relative px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider font-medium transition-all duration-300 overflow-hidden ${canProceed() ? 'bg-mainColor/20 hover:bg-mainColor/30 text-mainColor border border-mainColor/40 shadow-lg shadow-mainColor/10' : 'bg-softWhite/[0.03] text-softWhite/30 border border-softWhite/[0.06] cursor-not-allowed'}`}
+                    className={`cursor-pointer relative px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider font-medium transition-all duration-300 overflow-hidden ${canProceed() ? 'bg-mainColor/20 hover:bg-mainColor/30 text-mainColor border border-mainColor/40 shadow-lg shadow-mainColor/10' : 'bg-softWhite/3 text-softWhite/30 border border-softWhite/6 cursor-not-allowed'}`}
                   >
                     {currentStep === totalSteps
                       ? 'Rezervasyonu Tamamla'

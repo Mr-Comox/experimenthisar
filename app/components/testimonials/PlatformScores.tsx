@@ -427,9 +427,8 @@ const PlatformCard = ({
 
       {/* Verified badge */}
       <div
-        className='absolute top-2 right-2 '
+        className='absolute top-2 right-2 hidden md:inline-flex '
         style={{
-          display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
           marginTop: 7,
@@ -501,12 +500,8 @@ const PlatformScores: React.FC = () => {
     <section
       ref={rootRef}
       aria-label='Platform değerlendirmeleri'
+      className='px-12 pt-28 lg:pt-36 pb-16 lg:pb-48'
       style={{
-        padding: isMobile
-          ? '40px 18px 48px'
-          : isTablet
-            ? '52px 32px 60px'
-            : 'clamp(48px,6vw,80px) clamp(32px,7vw,100px)',
         opacity: visible ? 1 : 0,
         transform: visible ? 'none' : 'translateY(20px)',
         transition:

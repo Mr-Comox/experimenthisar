@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { testimonies } from './Collection';
 import PlatformScores from './PlatformScores';
@@ -11,17 +11,34 @@ type Props = { id: string };
 /* ─────────────────────────────────────────────────────────────────
    ANIMATION CONSTANTS
 ───────────────────────────────────────────────────────────────── */
-const RUSH_SPEED = 9.2; // fast enough to feel dramatic
+const RUSH_SPEED = 20.6;
 const DRIFT_SPEED = 0.52;
-const LERP_K = 0.048; // decelerates fully within the LINE_DUR_MS window
+const LERP_K = 0.072;
 
 const LINE_DUR_MS = 340;
 const SMOOTH_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const CARDS_START_MS = LINE_DUR_MS + 30;
 const LINE2_START_MS = CARDS_START_MS + 460;
-// Start decelerating slightly before Deneyimleri finishes so lerp
-// arrives at DRIFT_SPEED exactly as the text settles on screen
-const DRIFT_START_MS = LINE2_START_MS + Math.round(LINE_DUR_MS * 0.35);
+const DRIFT_START_MS = LINE2_START_MS + LINE_DUR_MS;
+
+/* ─────────────────────────────────────────────────────────────────
+   LAYOUT CONSTANTS
+───────────────────────────────────────────────────────────────── */
+const CARD_LAYOUT = {
+  recycleGap: 40,
+  recycleTopPad: 24,
+  quoteTop: -6,
+  quoteRight: 9,
+  quoteFontSize: '5.2rem',
+  avatarSize: 20,
+  avatarFontSize: '0.46rem',
+  bodyFontSize: 'clamp(0.875rem, 1.02vw, 0.91rem)',
+  authorFontSize: '0.74rem',
+  padding: '18px 17px 15px',
+  borderRadius: '16px',
+  staleRefWaitMs: 150,
+  resizeDebounceMs: 60, // FIX: debounce resize state flushes
+} as const;
 
 /* ─────────────────────────────────────────────────────────────────
    SLOTS
@@ -33,6 +50,7 @@ interface Slot {
   startOff: number;
   xPool: number[];
 }
+
 const SLOTS_DESKTOP: Slot[] = [
   {
     xR: 0.0,
@@ -119,23 +137,24 @@ const SLOTS_TABLET: Slot[] = [
   },
 ];
 const SLOTS_MOBILE: Slot[] = [
-  { xR: 0.02, wR: 0.46, speedMult: 1.12, startOff: 0, xPool: [0.02, 0.014] },
-  { xR: 0.52, wR: 0.46, speedMult: 0.92, startOff: 260, xPool: [0.52, 0.514] },
+  { xR: 0.02, wR: 0.46, speedMult: 1.3, startOff: 0, xPool: [0.02, 0.014] },
+  { xR: 0.52, wR: 0.46, speedMult: 0.88, startOff: 260, xPool: [0.52, 0.514] },
   {
     xR: 0.024,
     wR: 0.455,
-    speedMult: 1.18,
+    speedMult: 1.46,
     startOff: 504,
     xPool: [0.024, 0.03],
   },
   {
     xR: 0.514,
     wR: 0.465,
-    speedMult: 0.88,
+    speedMult: 0.84,
     startOff: 758,
     xPool: [0.514, 0.52],
   },
 ];
+
 function getSlotsForWidth(w: number): Slot[] {
   if (w < 640) return SLOTS_MOBILE;
   if (w < 1024) return SLOTS_TABLET;
@@ -201,47 +220,75 @@ const CARD_VARIANTS = [
 ] as const;
 
 /* ─────────────────────────────────────────────────────────────────
-   HOOKS & HELPERS
+   HOOKS
 ───────────────────────────────────────────────────────────────── */
+
+// FIX: useReveal now re-triggers every time the element enters the viewport,
+// not just the first time. A second observer watches for exit so the state
+// correctly resets when the section scrolls out of view.
 function useReveal(threshold = 0.54) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(
+
+    // Enter observer — fires every time the element crosses the threshold
+    const enterIO = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) {
-          setVisible(true);
-          io.disconnect();
-        }
+        if (e.isIntersecting) setVisible(true);
       },
       { threshold },
     );
-    io.observe(el);
-    return () => io.disconnect();
+
+    // Exit observer — uses a lower threshold so we reset early and cleanly
+    const exitIO = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) setVisible(false);
+      },
+      { threshold: 0.05 },
+    );
+
+    enterIO.observe(el);
+    exitIO.observe(el);
+    return () => {
+      enterIO.disconnect();
+      exitIO.disconnect();
+    };
   }, [threshold]);
+
   return { ref, visible };
 }
 
-const Stars = ({ fill, size = 11 }: { fill: string; size?: number }) => (
-  <div className='flex items-center gap-0.75'>
-    {Array.from({ length: 5 }).map((_, i) => (
-      <svg
-        key={i}
-        width={size}
-        height={size}
-        viewBox='0 0 20 20'
-        aria-hidden='true'
-      >
-        <path
-          d='M10 1l2.5 6.5H19l-5.5 4 2 6.5L10 14l-5.5 4 2-6.5-5.5-4h6.5z'
-          fill={fill}
-        />
-      </svg>
-    ))}
-  </div>
+/* ─────────────────────────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────────────────────────── */
+const Stars = React.memo(
+  ({ fill, size = 11 }: { fill: string; size?: number }) => (
+    <div
+      className='flex items-center gap-0.75'
+      aria-label='5 out of 5 stars'
+      role='img'
+    >
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg
+          key={i}
+          width={size}
+          height={size}
+          viewBox='0 0 20 20'
+          aria-hidden='true'
+        >
+          <path
+            d='M10 1l2.5 6.5H19l-5.5 4 2 6.5L10 14l-5.5 4 2-6.5-5.5-4h6.5z'
+            fill={fill}
+          />
+        </svg>
+      ))}
+    </div>
+  ),
 );
+Stars.displayName = 'Stars';
 
 /* ─────────────────────────────────────────────────────────────────
    ROOT
@@ -252,7 +299,6 @@ const Testimonials = ({ id }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const yPosRef = useRef<number[]>([]);
-  const xPosRef = useRef<number[]>([]);
   const cardHeightsRef = useRef<number[]>([]);
   const speedRef = useRef(RUSH_SPEED);
   const targetSpeedRef = useRef(RUSH_SPEED);
@@ -260,41 +306,103 @@ const Testimonials = ({ id }: Props) => {
   const seqDoneRef = useRef(false);
   const xCycleRef = useRef<number[]>([]);
 
+  // FIX: layout dims live in refs for the RAF loop
+  const containerWRef = useRef(0);
+  const containerHRef = useRef(0);
+  // FIX: slots also live in a ref so the RAF closure is never stale
+  const slotsRef = useRef<Slot[]>(SLOTS_DESKTOP);
+
   const [containerW, setContainerW] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [slots, setSlots] = useState<Slot[]>(SLOTS_DESKTOP);
   const [line2Visible, setLine2Visible] = useState(false);
 
+  /* ── Memoize resolved px values ── */
+  const resolvedSlots = useMemo(
+    () =>
+      slots.map((s) => ({
+        ...s,
+        xPx: Math.round(containerW * s.xR),
+        wPx: Math.round(containerW * s.wR),
+      })),
+    [slots, containerW],
+  );
+
+  /* ── ResizeObserver — debounced state flush ── */
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
     const measure = () => {
-      setContainerW(el.offsetWidth);
-      setContainerH(el.offsetHeight);
-      setSlots(getSlotsForWidth(el.offsetWidth));
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      // Write refs immediately (RAF loop reads these synchronously)
+      containerWRef.current = w;
+      containerHRef.current = h;
+      const nextSlots = getSlotsForWidth(w);
+      slotsRef.current = nextSlots;
+      // FIX: debounce the state writes to avoid a render on every resize pixel
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setContainerW(w);
+        setContainerH(h);
+        setSlots(nextSlots);
+      }, CARD_LAYOUT.resizeDebounceMs);
     };
+
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      clearTimeout(timer);
+    };
   }, []);
 
+  /* ── Read card heights after slot/layout change ──
+     FIX: also attach a ResizeObserver per card so heights stay accurate
+     if content changes (fonts, images) after initial mount.            */
   useEffect(() => {
     if (!containerW) return;
-    const t = setTimeout(() => {
-      cardHeightsRef.current = cardRefs.current.map(
-        (el) => el?.offsetHeight ?? 200,
-      );
-    }, 150);
-    return () => clearTimeout(t);
+
+    const readHeights = () => {
+      cardHeightsRef.current = cardRefs.current
+        .slice(0, slots.length)
+        .map((el) => el?.offsetHeight ?? 200);
+    };
+
+    const t = setTimeout(readHeights, CARD_LAYOUT.staleRefWaitMs);
+
+    // One ResizeObserver for all cards — cheaper than N observers
+    const ro = new ResizeObserver(readHeights);
+    cardRefs.current.slice(0, slots.length).forEach((el) => {
+      if (el) ro.observe(el);
+    });
+
+    return () => {
+      clearTimeout(t);
+      ro.disconnect();
+    };
   }, [containerW, slots]);
 
+  /* ── xCycle reset on slot change ── */
   useEffect(() => {
     xCycleRef.current = slots.map(() => 0);
+    cardRefs.current = cardRefs.current.slice(0, slots.length);
   }, [slots]);
 
+  /* ── Sequence timers ── */
   useEffect(() => {
-    if (!sectionVisible) return;
+    if (!sectionVisible) {
+      seqDoneRef.current = false;
+      cardsActiveRef.current = false;
+      speedRef.current = RUSH_SPEED;
+      targetSpeedRef.current = RUSH_SPEED;
+      return;
+    }
+
     const t1 = setTimeout(() => {
       cardsActiveRef.current = true;
     }, CARDS_START_MS);
@@ -305,36 +413,27 @@ const Testimonials = ({ id }: Props) => {
       targetSpeedRef.current = DRIFT_SPEED;
       seqDoneRef.current = true;
     }, DRIFT_START_MS);
+
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      // FIX: only reset line2 on actual visibility loss, not on every dep change
+      if (!sectionVisible) setLine2Visible(false);
     };
   }, [sectionVisible]);
 
+  /* ── RAF animation loop ──
+     FIX: slotsRef used inside the loop instead of closed-over `slots`,
+     so a breakpoint resize never leaves the loop reading a stale array.  */
   useEffect(() => {
     if (!containerW || !containerH || slots.length === 0 || !sectionVisible)
       return;
 
     yPosRef.current = slots.map((s) => containerH + s.startOff);
-    // X stored in ref — style.left is set to 0 once and never touched again
-    xPosRef.current = slots.map((s) => Math.round(s.xPool[0] * containerW));
-
     cardRefs.current.forEach((el, i) => {
-      if (!el) return;
-      el.style.left = '0px';
-      el.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
+      if (el) el.style.transform = `translateY(${yPosRef.current[i]}px)`;
     });
-
-    if (seqDoneRef.current) {
-      cardsActiveRef.current = true;
-      speedRef.current = DRIFT_SPEED;
-      targetSpeedRef.current = DRIFT_SPEED;
-    } else {
-      cardsActiveRef.current = false;
-      speedRef.current = RUSH_SPEED;
-      targetSpeedRef.current = RUSH_SPEED;
-    }
 
     let raf: number;
     const tick = () => {
@@ -342,24 +441,29 @@ const Testimonials = ({ id }: Props) => {
         speedRef.current +=
           (targetSpeedRef.current - speedRef.current) * LERP_K;
         const spd = speedRef.current;
+        const cW = containerWRef.current;
+        const cH = containerHRef.current;
+        // FIX: read from ref — never stale even mid-resize
+        const currentSlots = slotsRef.current;
 
-        for (let i = 0; i < slots.length; i++) {
+        for (let i = 0; i < currentSlots.length; i++) {
           const card = cardRefs.current[i];
           if (!card) continue;
 
-          yPosRef.current[i] -= spd * slots[i].speedMult;
+          yPosRef.current[i] -= spd * currentSlots[i].speedMult;
 
-          if (yPosRef.current[i] < -((cardHeightsRef.current[i] ?? 200) + 40)) {
+          if (
+            yPosRef.current[i] <
+            -((cardHeightsRef.current[i] ?? 200) + CARD_LAYOUT.recycleGap)
+          ) {
             xCycleRef.current[i] =
-              (xCycleRef.current[i] + 1) % slots[i].xPool.length;
-            xPosRef.current[i] = Math.round(
-              slots[i].xPool[xCycleRef.current[i]] * containerW,
-            );
-            yPosRef.current[i] = containerH + 24;
+              (xCycleRef.current[i] + 1) % currentSlots[i].xPool.length;
+            card.style.left = `${Math.round(
+              currentSlots[i].xPool[xCycleRef.current[i]] * cW,
+            )}px`;
+            yPosRef.current[i] = cH + CARD_LAYOUT.recycleTopPad;
           }
-
-          // Only property mutated per frame — compositor-only, zero layout reads
-          card.style.transform = `translate3d(${xPosRef.current[i]}px,${yPosRef.current[i]}px,0)`;
+          card.style.transform = `translateY(${yPosRef.current[i]}px)`;
         }
       }
       raf = requestAnimationFrame(tick);
@@ -368,14 +472,15 @@ const Testimonials = ({ id }: Props) => {
     return () => cancelAnimationFrame(raf);
   }, [containerW, containerH, slots, sectionVisible]);
 
-  const isMobile = containerW > 0 && containerW < 640;
-
   return (
     <section
       id={id}
-      className='relative bg-secondaryColor overflow-hidden'
+      className='relative bg-secondaryColor overflow-hidden pt-28'
       aria-labelledby='testimonials-heading'
     >
+      {/* ══════════════════════════════════════════
+          PART 1 — FLOATING CARDS STAGE
+      ══════════════════════════════════════════ */}
       <div ref={revealRef}>
         <div
           ref={containerRef}
@@ -386,149 +491,126 @@ const Testimonials = ({ id }: Props) => {
             transition: sectionVisible
               ? 'opacity 0.55s cubic-bezier(0.25,0.46,0.45,0.94)'
               : 'none',
-            /*
-             * FIX 1 — promote the CONTAINER as a single compositor layer.
-             * Cards share this one layer instead of each demanding their own.
-             * This is the opposite of willChange on every card, which fragments
-             * GPU texture memory and causes the browser to fall back to software
-             * rendering on mobile.
-             */
-            transform: 'translateZ(0)',
           }}
         >
+          {/* Ambient glow */}
           <div
             className='pointer-events-none absolute inset-0'
+            aria-hidden='true'
             style={{
               background:
                 'radial-gradient(ellipse 75% 55% at 50% 58%, rgba(255,25,135,0.036) 0%, transparent 65%)',
             }}
           />
 
-          {containerW > 0 &&
-            slots.map((slot, i) => {
-              const t = testimonies[i % testimonies.length];
-              const v = CARD_VARIANTS[i % CARD_VARIANTS.length];
-              const initY = containerH + slot.startOff;
-              const initX = Math.round(containerW * slot.xPool[0]);
-
-              return (
-                <div
-                  key={i}
-                  ref={(el) => {
-                    cardRefs.current[i] = el;
-                  }}
-                  className='absolute top-0'
-                  style={{
-                    left: 0,
-                    width: Math.round(containerW * slot.wR),
-                    transform: `translate3d(${initX}px,${initY}px,0)`,
-                    /*
-                     * FIX 2 — NO willChange:'transform' on individual cards.
-                     * Applying it to every card simultaneously exhausts mobile GPU
-                     * texture memory (typically 64–256 MB). Once exceeded the browser
-                     * silently squashes layers and falls back to software rendering,
-                     * which is slower than having no willChange at all.
-                     * The container's translateZ(0) above covers us.
-                     */
-                    zIndex: slot.speedMult >= 1.0 ? 3 : 2,
-                    background: v.bg,
-                    border: `1px solid ${v.borderColor}`,
-                    borderRadius: '16px',
-                    /*
-                     * FIX 3 — drop box-shadow on mobile.
-                     * A large blur-radius shadow (0 16px 48px) forces the browser to
-                     * allocate a separate texture for each shadow at every frame.
-                     * It's the single most expensive CSS property on mobile GPUs.
-                     */
-                    boxShadow: isMobile
-                      ? `inset 0 1px 0 rgba(255,255,255,0.06)`
-                      : `0 16px 48px rgba(0,0,0,0.60), ${v.shadow}, inset 0 1px 0 rgba(255,255,255,0.06)`,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '18px 17px 15px',
-                    gap: 0,
-                    /*
-                     * FIX 4 — contain:'layout style paint' tells the browser that
-                     * nothing inside this card affects layout outside it, so it can
-                     * skip invalidating sibling cards when one card's transform changes.
-                     */
-                    contain: 'layout style paint',
-                  }}
-                >
+          {/* Cards — decorative, hidden from assistive tech */}
+          {containerW > 0 && (
+            <div aria-hidden='true'>
+              {resolvedSlots.map((slot, i) => {
+                const t = testimonies[i % testimonies.length];
+                const v = CARD_VARIANTS[i % CARD_VARIANTS.length];
+                const initY = containerH + slot.startOff;
+                return (
                   <div
-                    className='absolute top-0 left-0 right-0 h-px pointer-events-none'
-                    style={{ background: v.lineBg }}
-                  />
-                  <div
-                    aria-hidden='true'
-                    className='absolute pointer-events-none select-none'
+                    key={i}
+                    ref={(el) => {
+                      cardRefs.current[i] = el;
+                    }}
+                    className='absolute top-0'
                     style={{
-                      top: '-6px',
-                      right: '9px',
-                      fontSize: '5.2rem',
-                      lineHeight: 1,
-                      color: v.quoteColor,
-                      fontFamily: 'Georgia, "Times New Roman", serif',
+                      left: slot.xPx,
+                      width: slot.wPx,
+                      transform: `translateY(${initY}px)`,
+                      willChange: 'transform',
+                      zIndex: slot.speedMult >= 1.0 ? 3 : 2,
+                      background: v.bg,
+                      border: `1px solid ${v.borderColor}`,
+                      borderRadius: CARD_LAYOUT.borderRadius,
+                      boxShadow: `0 16px 48px rgba(0,0,0,0.60), ${v.shadow}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: CARD_LAYOUT.padding,
+                      gap: 0,
                     }}
                   >
-                    ❝
-                  </div>
-                  <div className='relative mb-2.75'>
-                    <Stars fill={v.starFill} />
-                  </div>
-                  <p
-                    className='relative text-white/74 font-normal leading-[1.62]'
-                    style={{ fontSize: 'clamp(0.875rem, 1.02vw, 0.91rem)' }}
-                  >
-                    {t.comment}
-                  </p>
-                  <div
-                    className='relative flex items-center gap-1.75 mt-3 pt-2.5'
-                    style={{ borderTop: `1px solid ${v.divider}` }}
-                  >
+                    {/* Top shimmer line */}
                     <div
-                      className='shrink-0 flex items-center justify-center select-none rounded-full'
+                      className='absolute top-0 left-0 right-0 h-px pointer-events-none'
+                      style={{ background: v.lineBg }}
+                    />
+                    {/* Decorative quote mark */}
+                    <div
+                      className='absolute pointer-events-none select-none'
                       style={{
-                        width: '20px',
-                        height: '20px',
-                        background: v.authorBg,
-                        border: `1px solid ${v.authorBorder}`,
+                        top: CARD_LAYOUT.quoteTop,
+                        right: CARD_LAYOUT.quoteRight,
+                        fontSize: CARD_LAYOUT.quoteFontSize,
+                        lineHeight: 1,
+                        color: v.quoteColor,
                       }}
                     >
-                      <span
-                        className='font-bold uppercase'
+                      ❝
+                    </div>
+                    {/* Stars */}
+                    <div className='relative mb-2.75'>
+                      <Stars fill={v.starFill} />
+                    </div>
+                    {/* Body */}
+                    <p
+                      className='relative text-white/74 font-normal leading-[1.62]'
+                      style={{ fontSize: CARD_LAYOUT.bodyFontSize }}
+                    >
+                      {t.comment}
+                    </p>
+                    {/* Author */}
+                    <div
+                      className='relative flex items-center gap-1.75 mt-3 pt-2.5'
+                      style={{ borderTop: `1px solid ${v.divider}` }}
+                    >
+                      <div
+                        className='shrink-0 flex items-center justify-center select-none rounded-full'
                         style={{
-                          fontSize: '0.46rem',
-                          color: v.dotColor,
-                          letterSpacing: '0.04em',
+                          width: CARD_LAYOUT.avatarSize,
+                          height: CARD_LAYOUT.avatarSize,
+                          background: v.authorBg,
+                          border: `1px solid ${v.authorBorder}`,
                         }}
                       >
-                        {t.author.charAt(0)}
+                        <span
+                          className='font-bold uppercase'
+                          style={{
+                            fontSize: CARD_LAYOUT.avatarFontSize,
+                            color: v.dotColor,
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          {t.author.charAt(0)}
+                        </span>
+                      </div>
+                      <span
+                        className='text-white/44 truncate'
+                        style={{
+                          fontSize: CARD_LAYOUT.authorFontSize,
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {t.author}
                       </span>
                     </div>
-                    <span
-                      className='text-white/44 truncate'
-                      style={{ fontSize: '0.74rem', letterSpacing: '0.02em' }}
-                    >
-                      {t.author}
-                    </span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
 
           {/* HEADLINE */}
           <div className='absolute inset-0 flex items-center justify-center z-20 pointer-events-none select-none'>
             <div
               style={{
                 padding: 'clamp(24px,4vw,44px) clamp(32px,5vw,60px)',
-                /*
-                 * FIX 5 — backdropFilter:blur forces its own compositor layer and
-                 * is one of the most expensive effects on mobile. Remove on mobile.
-                 */
-                backdropFilter: isMobile ? undefined : 'blur(1.4px)',
-                WebkitBackdropFilter: isMobile ? undefined : 'blur(1.4px)',
+                backdropFilter: 'blur(1.4px)',
+                WebkitBackdropFilter: 'blur(1.4px)',
                 borderRadius: '20px',
               }}
             >
@@ -569,6 +651,7 @@ const Testimonials = ({ id }: Props) => {
 
           {/* Edge fades */}
           <div
+            aria-hidden='true'
             className='pointer-events-none absolute inset-y-0 left-0 w-20 z-10'
             style={{
               background:
@@ -576,6 +659,7 @@ const Testimonials = ({ id }: Props) => {
             }}
           />
           <div
+            aria-hidden='true'
             className='pointer-events-none absolute inset-y-0 right-0 w-20 z-10'
             style={{
               background:
@@ -583,6 +667,7 @@ const Testimonials = ({ id }: Props) => {
             }}
           />
           <div
+            aria-hidden='true'
             className='pointer-events-none absolute inset-x-0 top-0 h-28 z-10'
             style={{
               background:
@@ -590,6 +675,7 @@ const Testimonials = ({ id }: Props) => {
             }}
           />
           <div
+            aria-hidden='true'
             className='pointer-events-none absolute inset-x-0 bottom-0 h-28 z-10'
             style={{
               background:
@@ -599,6 +685,9 @@ const Testimonials = ({ id }: Props) => {
         </div>
       </div>
 
+      {/* ══════════════════════════════════════════
+          PART 2 — PLATFORM SCORES
+      ══════════════════════════════════════════ */}
       <div className='w-full h-px bg-white/[0.07]' />
       <PlatformScores />
     </section>
