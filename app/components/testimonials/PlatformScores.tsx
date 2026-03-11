@@ -1,26 +1,8 @@
 'use client';
 
-/**
- * PlatformScores — Verified social proof section.
- *
- * Design principle: Apple-style confidence. One big truth, then supporting detail.
- * No fake time-series charts. Shows real, manually-maintained platform ratings
- * plus a rating distribution that's honest and meaningful to visitors.
- *
- * ─── HOW TO UPDATE REAL DATA ──────────────────────────────────────────────
- * 1. Visit each platform page and note the current score.
- * 2. Update the PLATFORMS array and DISTRIBUTION below.
- * 3. Update LAST_UPDATED to today's date.
- * That's it. No API needed, no fake numbers.
- * ──────────────────────────────────────────────────────────────────────────
- */
-
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
-/* ─────────────────────────────────────────────────────────────────
-   ★  CONFIGURATION — update these with real values  ★
-───────────────────────────────────────────────────────────────── */
 const OVERALL = {
   score: 4.2,
   max: 5,
@@ -63,16 +45,12 @@ const DISTRIBUTION = [
 
 const LAST_UPDATED = 'Mayıs 2025';
 
-/* ─────────────────────────────────────────────────────────────────
-   DESIGN TOKENS
-───────────────────────────────────────────────────────────────── */
 const T = {
   accent: '#9d00ff',
   accentBorder: 'rgba(157,0,255,0.3)',
   accentFill: 'rgba(157,0,255,0.08)',
   accentGlow: 'rgba(157,0,255,0.35)',
   accentLight: 'rgba(157,0,255,0.6)',
-
   w96: 'rgba(255,255,255,0.96)',
   w80: 'rgba(255,255,255,0.80)',
   w55: 'rgba(255,255,255,0.55)',
@@ -80,15 +58,11 @@ const T = {
   w14: 'rgba(255,255,255,0.14)',
   w07: 'rgba(255,255,255,0.07)',
   w04: 'rgba(255,255,255,0.04)',
-
   green: '#4ade80',
   greenFill: 'rgba(74,222,128,0.1)',
   greenBorder: 'rgba(74,222,128,0.25)',
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   HOOKS
-───────────────────────────────────────────────────────────────── */
 function useReveal(threshold: number = 0.35) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -129,9 +103,6 @@ function useAnimatedNumber(target: number, duration: number = 900) {
   return val;
 }
 
-/**
- * ROOT CAUSE FIX — replaced useContainerWidth with useWindowWidth.
- */
 function useWindowWidth() {
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -143,11 +114,6 @@ function useWindowWidth() {
   return w;
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   STAR ICONS
-───────────────────────────────────────────────────────────────── */
-
-/** Binary star — used only in DistributionRow (unchanged). */
 const StarIcon = ({
   filled,
   size = 13,
@@ -163,22 +129,14 @@ const StarIcon = ({
   </svg>
 );
 
-/**
- * PartialStarIcon — renders a star filled from 0.0 (empty) to 1.0 (full).
- * Uses a clipPath to reveal the accent colour proportionally left-to-right,
- * with the unfilled portion showing T.w14 behind it.
- *
- * Used for: hero score stars + platform card stars.
- */
 const PartialStarIcon = ({
   fill,
   size = 13,
 }: {
-  fill: number; // 0.0 → 1.0
+  fill: number;
   size?: number;
 }) => {
   const clampedFill = Math.min(1, Math.max(0, fill));
-  // Unique clip-path id per fill value + size to avoid SVG id collisions
   const clipId = `pstar-${size}-${Math.round(clampedFill * 1000)}`;
   return (
     <svg width={size} height={size} viewBox='0 0 20 20' aria-hidden='true'>
@@ -187,12 +145,10 @@ const PartialStarIcon = ({
           <rect x={0} y={0} width={20 * clampedFill} height={20} />
         </clipPath>
       </defs>
-      {/* Unfilled background star */}
       <path
         d='M10 1l2.5 6.5H19l-5.5 4 2 6.5L10 14l-5.5 4 2-6.5-5.5-4h6.5z'
         fill={T.w14}
       />
-      {/* Filled portion — clipped to fill% */}
       <path
         d='M10 1l2.5 6.5H19l-5.5 4 2 6.5L10 14l-5.5 4 2-6.5-5.5-4h6.5z'
         fill={T.accent}
@@ -202,26 +158,13 @@ const PartialStarIcon = ({
   );
 };
 
-/**
- * Helper: given a score on an arbitrary scale (e.g. 8.2/10),
- * return an array of 5 fill values (0–1) for PartialStarIcon.
- *
- * Example: score=4.2, max=5
- *   normalised = 4.2 → fills = [1, 1, 1, 1, 0.2]
- *
- * Example: score=8.2, max=10
- *   normalised = 4.1 → fills = [1, 1, 1, 1, 0.1]
- */
 function starFills(score: number, max: number): number[] {
-  const normalised = (score / max) * 5; // project onto /5 scale
+  const normalised = (score / max) * 5;
   return Array.from({ length: 5 }, (_, i) =>
     Math.min(1, Math.max(0, normalised - i)),
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────
-   DISTRIBUTION ROW
-───────────────────────────────────────────────────────────────── */
 const DistributionRow = ({
   stars,
   pct,
@@ -257,7 +200,6 @@ const DistributionRow = ({
           <StarIcon key={i} filled={i < stars} size={10} />
         ))}
       </div>
-
       <div
         style={{
           flex: 1,
@@ -284,7 +226,6 @@ const DistributionRow = ({
           }}
         />
       </div>
-
       <span
         style={{
           fontSize: '0.63rem',
@@ -302,9 +243,6 @@ const DistributionRow = ({
   );
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   PLATFORM CARD
-───────────────────────────────────────────────────────────────── */
 const PlatformCard = ({
   platform,
   delay,
@@ -319,8 +257,6 @@ const PlatformCard = ({
   const pct = Math.round((platform.score / platform.max) * 100);
   const [barW, setBarW] = useState('0%');
   const pctRef = useRef(pct);
-
-  // Partial fill values for this platform's score on /5 scale
   const fills = starFills(platform.score, platform.max);
 
   useEffect(() => {
@@ -349,7 +285,6 @@ const PlatformCard = ({
         overflow: 'hidden',
       }}
     >
-      {/* Subtle top shimmer */}
       <div
         style={{
           position: 'absolute',
@@ -361,7 +296,6 @@ const PlatformCard = ({
           pointerEvents: 'none',
         }}
       />
-      {/* Platform name */}
       <span
         style={{
           fontSize: '.85rem',
@@ -372,7 +306,6 @@ const PlatformCard = ({
       >
         {platform.label}
       </span>
-      {/* Score */}
       <div
         style={{
           display: 'flex',
@@ -396,15 +329,11 @@ const PlatformCard = ({
           /{platform.max}
         </span>
       </div>
-
-      {/* ★ Partial stars — filled proportionally to the platform score ★ */}
       <div style={{ display: 'flex', gap: 3 }}>
         {fills.map((fill, i) => (
           <PartialStarIcon key={i} fill={fill} size={11} />
         ))}
       </div>
-
-      {/* Thin progress bar */}
       <div
         style={{
           height: 2,
@@ -424,10 +353,8 @@ const PlatformCard = ({
           }}
         />
       </div>
-
-      {/* Verified badge */}
       <div
-        className='absolute top-2 right-2 hidden md:inline-flex '
+        className='absolute top-2 right-2 hidden md:inline-flex'
         style={{
           alignItems: 'center',
           gap: 8,
@@ -481,9 +408,6 @@ const PlatformCard = ({
   );
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   MAIN COMPONENT
-───────────────────────────────────────────────────────────────── */
 const PlatformScores: React.FC = () => {
   const { ref: rootRef, visible } = useReveal(0.35);
   const { ref: distRef, visible: distVisible } = useReveal(0.35);
@@ -493,14 +417,13 @@ const PlatformScores: React.FC = () => {
   const isMobile = w > 0 && w < 650;
   const isTablet = w >= 650 && w < 960;
 
-  // Partial fill values for the animated hero score
   const heroFills = starFills(animScore, OVERALL.max);
 
   return (
     <section
       ref={rootRef}
       aria-label='Platform değerlendirmeleri'
-      className='px-12 pt-28 lg:pt-36 pb-16 lg:pb-48'
+      className='px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-36 pb-16 lg:pb-24'
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'none' : 'translateY(20px)',
@@ -574,7 +497,6 @@ const PlatformScores: React.FC = () => {
               </div>
             </div>
 
-            {/* ★ Partial stars — animate alongside the counting score ★ */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
               {heroFills.map((fill, i) => (
                 <PartialStarIcon
@@ -611,7 +533,6 @@ const PlatformScores: React.FC = () => {
             </div>
           </div>
 
-          {/* Vertical divider (non-mobile only) */}
           {!isMobile && (
             <div
               style={{

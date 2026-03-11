@@ -6,10 +6,13 @@ import {
   Logo,
   WhatsappIcon,
 } from '@/public/Icons';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { scrollTo } from '@/app/lib/scrollTo';
+import Link from 'next/link';
 
 const Footer = () => {
+  const router = useRouter();
+
   return (
     <footer className='bg-secondaryColor pt-10 pb-10 px-4'>
       <div className='max-w-7xl mx-auto border-t border-[#2f3134] pt-8 pb-24 md:pb-10'>
@@ -31,21 +34,18 @@ const Footer = () => {
             >
               Hakkımızda
             </a>
-            {/* scroll prop tells Next.js to scroll to top on navigation */}
-            <Link
-              href='/privacy'
-              scroll={true}
-              className='hover:text-softWhite transition cursor-pointer'
+            <button
+              onClick={() => router.push('/privacy')}
+              className='hover:text-softWhite transition cursor-pointer bg-transparent border-0 p-0 font-medium text-base text-subtleGray'
             >
               Gizlilik Politikası
-            </Link>
-            <Link
-              href='/kvkk'
-              scroll={true}
-              className='hover:text-softWhite transition cursor-pointer'
+            </button>
+            <button
+              onClick={() => router.push('/kvkk')}
+              className='hover:text-softWhite transition cursor-pointer bg-transparent border-0 p-0 font-medium text-base text-subtleGray'
             >
               K.V.K.K
-            </Link>
+            </button>
           </div>
 
           <div className='flex items-center gap-4'>

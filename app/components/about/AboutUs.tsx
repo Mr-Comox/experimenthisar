@@ -10,6 +10,7 @@ import {
   GoldToAmberFont,
   MainColorToQuatFont,
 } from '@/app/utilities/LinearFontColors';
+import { Headline } from '@/app/utilities/Headline';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -143,25 +144,6 @@ function useReveal(threshold = 0.12) {
   return { ref, visible };
 }
 
-const Headline = ({
-  children,
-  center = false,
-  className = '',
-  style = {},
-}: {
-  children: React.ReactNode;
-  center?: boolean;
-  className?: string;
-  style?: React.CSSProperties;
-}) => (
-  <h2
-    className={`text-white font-bold leading-[1.05] tracking-[-0.025em] ${center ? 'text-center mx-auto' : ''} ${className}`}
-    style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)', ...style }}
-  >
-    {children}
-  </h2>
-);
-
 const Body = ({
   children,
   center = false,
@@ -183,7 +165,6 @@ const Body = ({
 
 /* ─────────────────────────────────────────────────────────────────
    ATMOSPHERE SECTION
-   TextReveal on: Headline, Body
 ───────────────────────────────────────────────────────────────── */
 const AtmosphereSection = () => {
   const { ref, visible } = useReveal(0.1);
@@ -199,15 +180,13 @@ const AtmosphereSection = () => {
       }}
     >
       <div className='max-w-5xl mb-20'>
-        {/* ── TextReveal: Headline ── */}
         <TextReveal delay={0}>
           <Headline className='mb-8 max-w-[14ch]'>
-            Sözler yankılanır{'\n'}
-            <MainColorToQuatFont>gecede iz bırakır</MainColorToQuatFont>
+            Zamanla büyüyen{'\n'} <br />
+            <MainColorToQuatFont>köklü bir yolculuk</MainColorToQuatFont>
           </Headline>
         </TextReveal>
 
-        {/* ── TextReveal: Body ── */}
         <TextReveal delay={0.15}>
           <Body className='max-w-2xl'>
             Yeni Turistik Hisar Gazinosu, gece hayatının merkezinde konumlanan,
@@ -262,7 +241,6 @@ const AtmosphereSection = () => {
 
 /* ─────────────────────────────────────────────────────────────────
    HISTORY SECTION
-   TextReveal on: Headline, Body
 ───────────────────────────────────────────────────────────────── */
 const HistorySection = () => {
   const { ref, visible } = useReveal(0.08);
@@ -286,7 +264,6 @@ const HistorySection = () => {
         }}
       >
         <div className='text-center max-w-4xl mx-auto mb-24'>
-          {/* ── TextReveal: Headline ── */}
           <TextReveal delay={0}>
             <Headline center className='mb-8 max-w-3xl'>
               Nesiller boyu bir{' '}
@@ -294,7 +271,6 @@ const HistorySection = () => {
             </Headline>
           </TextReveal>
 
-          {/* ── TextReveal: Body ── */}
           <TextReveal delay={0.15}>
             <Body center className='max-w-2xl'>
               Canlı performanslar ve özenle oluşturulan sahne programları, Yeni
@@ -313,9 +289,6 @@ const HistorySection = () => {
 
 /* ─────────────────────────────────────────────────────────────────
    STATS SECTION
-   TextReveal on: Headline, Body
-   Note: removed opacity/transform from Headline & Body styles
-         since TextReveal owns the entrance animation for them.
 ───────────────────────────────────────────────────────────────── */
 const StatsSection = () => {
   const { ref, visible } = useReveal(0.24);
@@ -323,17 +296,15 @@ const StatsSection = () => {
     <div className='px-6 sm:px-12 lg:px-24 xl:px-32 py-24 lg:py-32 border-t border-white/[0.07]'>
       <div ref={ref}>
         <div className='max-w-3xl mb-10 mt-20'>
-          {/* ── TextReveal: Headline ── */}
           <TextReveal delay={0}>
             <Headline
               className='mb-6'
-              style={{ fontSize: 'clamp(3rem, 6vw, 5.5rem)' }}
+              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
             >
               Rakamlarla <GoldToAmberFont> Yeni Hisar.</GoldToAmberFont>
             </Headline>
           </TextReveal>
 
-          {/* ── TextReveal: Body ── */}
           <TextReveal delay={0.15}>
             <Body style={{ fontSize: 'clamp(1rem, 1.6vw, 1.0625rem)' }}>
               60 yılı aşan geçmişimiz, binlerce misafirimiz ve yüzlerce sahne
@@ -479,9 +450,11 @@ const HEADLINE_LINE1 = 'Eğlenceniz için';
 const HEADLINE_LINE2 = 'maksimum güvenlik.';
 
 /* ─────────────────────────────────────────────────────────────────
-   SECURITY SECTION
-   TextReveal on: Body only
-   The h2 has its own custom decode animation — left untouched.
+   SECURITY SECTION — FIXED FOR MOBILE
+   Key fixes:
+   1. Font size clamp lowered from 3rem to 1.75rem minimum
+   2. whiteSpace: 'nowrap' removed from all four headline divs
+   3. overflow-hidden added to headline wrapper to contain anim divs
 ───────────────────────────────────────────────────────────────── */
 const SecuritySection = () => {
   const { ref, visible } = useReveal(0.08);
@@ -561,19 +534,19 @@ const SecuritySection = () => {
           }}
         >
           <ShieldVisual visible={visible} />
-          <div className='flex-1 lg:pt-6'>
-            {/* ── Custom decode headline — untouched ── */}
+          <div className='flex-1 lg:pt-6 min-w-0'>
+            {/* ── Decode headline — FIXED: smaller min font, no nowrap ── */}
             <h2
-              className='text-white font-bold leading-[1.05] tracking-[-0.025em] mb-8'
-              style={{ fontSize: 'clamp(3rem, 6vw, 5.5rem)' }}
+              className='text-white font-bold leading-[1.15] tracking-[-0.025em] mb-8'
+              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
             >
+              {/* Line 1 */}
               <div style={{ position: 'relative', display: 'block' }}>
-                <div
-                  ref={l1BaseRef}
-                  style={{ opacity: 0, whiteSpace: 'nowrap' }}
-                >
+                {/* Base: invisible, drives natural height & wrapping */}
+                <div ref={l1BaseRef} style={{ opacity: 0 }}>
                   {HEADLINE_LINE1}
                 </div>
+                {/* Animated overlay — positioned to match base */}
                 <div
                   ref={l1AnimRef}
                   aria-hidden='true'
@@ -581,15 +554,14 @@ const SecuritySection = () => {
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    whiteSpace: 'nowrap',
+                    right: 0,
                   }}
                 />
               </div>
+
+              {/* Line 2 */}
               <div style={{ position: 'relative', display: 'block' }}>
-                <div
-                  ref={l2BaseRef}
-                  style={{ opacity: 0, whiteSpace: 'nowrap' }}
-                >
+                <div ref={l2BaseRef} style={{ opacity: 0 }}>
                   {HEADLINE_LINE2}
                 </div>
                 <div
@@ -599,13 +571,12 @@ const SecuritySection = () => {
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    whiteSpace: 'nowrap',
+                    right: 0,
                   }}
                 />
               </div>
             </h2>
 
-            {/* ── TextReveal: Body (opacity/transform removed from style) ── */}
             <TextReveal delay={0.2}>
               <Body className='max-w-xl'>
                 Yeni Turistik Hisar Gazinosu, misafirlerinin gece boyunca
@@ -624,32 +595,6 @@ const SecuritySection = () => {
                 transition: 'opacity 1s ease 0.5s',
               }}
             />
-            <div
-              className='flex flex-wrap gap-6 mt-8'
-              style={{
-                opacity: visible ? 1 : 0,
-                transition: 'opacity 1s ease 0.55s',
-              }}
-            >
-              {['7/24 Aktif', 'Uzman Personel', 'Kayıtlı Gözetim'].map(
-                (badge) => (
-                  <span
-                    key={badge}
-                    className='flex items-center gap-2 text-white/60'
-                    style={{ fontSize: 'clamp(0.8rem, 1.1vw, 0.9rem)' }}
-                  >
-                    <span
-                      className='inline-block w-1.5 h-1.5 rounded-full'
-                      style={{
-                        background: '#ff1987',
-                        boxShadow: '0 0 6px rgba(255,25,135,0.8)',
-                      }}
-                    />
-                    {badge}
-                  </span>
-                ),
-              )}
-            </div>
           </div>
         </div>
 
@@ -712,7 +657,7 @@ const SecuritySection = () => {
             <p
               className='font-bold leading-none tracking-[-0.03em]'
               style={{
-                fontSize: 'clamp(3rem, 5vw, 4rem)',
+                fontSize: 'clamp(3.5rem, 5vw, 4.5rem)',
                 background:
                   'linear-gradient(135deg,#b8860b 0%,#ffd700 30%,#ff8c00 100%)',
                 WebkitBackgroundClip: 'text',

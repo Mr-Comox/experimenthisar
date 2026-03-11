@@ -10,6 +10,7 @@ import { gallery } from './Collection';
 import { getSmoother } from '@/app/lib/smoother';
 import { MainToGoldFont } from '@/app/utilities/LinearFontColors';
 import TextReveal from '@/app/utilities/TextReveal';
+import { Headline } from '@/app/utilities/Headline';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -21,6 +22,13 @@ const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const GAP = 3;
 const PAD = 3;
 const CELL_ASPECT = 3 / 2;
+
+/*
+ * Evaluated once on the client. False during SSR — fine because touch devices
+ * re-evaluate correctly on hydration. Used to skip expensive GPU effects.
+ */
+const IS_TOUCH =
+  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
 
 /* Fallback accent palette — vivid nightclub hues */
 const ACCENT_PALETTE = [
@@ -63,15 +71,16 @@ function calcLayout(w: number, h: number) {
     cols = 3;
     rows = 3;
   }
-  const cellW = (w - PAD * 2 - GAP * (cols - 1)) / cols;
-  const cellH = Math.round(cellW / CELL_ASPECT);
-  return { cols, rows, cellH };
+  return { cols, rows };
 }
 
-/* ─── 1. Global keyframes (grain + shimmer) ─────────────────── */
+/* ─── 1. Global keyframes (grain) ──────────────────────────── */
 function GlobalStyles() {
   return (
     <style>{`
+      /* Safari iOS dvh fix — 100vh is the fallback before dvh is applied */
+      .gallery-section { height: 100vh; height: 100dvh; }
+      @supports (height: 100dvh) { .gallery-section { height: 100dvh; } }
       @keyframes g-grain {
         0%,100% { transform:translate(0,0) }
         10%  { transform:translate(-2%,-3%) }
@@ -89,11 +98,11 @@ function GlobalStyles() {
   );
 }
 
-/* ─── 1. Grain overlay layer ─────────────────────────────────── */
+/* ─── Grain overlay layer ─────────────────────────────────── */
 function GrainOverlay({ zIndex = 28 }: { zIndex?: number }) {
   return (
     <div
-      className='g-grain'
+      className={IS_TOUCH ? undefined : 'g-grain'}
       style={{
         position: 'absolute',
         inset: '-15%',
@@ -118,16 +127,15 @@ function useImageAccents(srcs: string[]): string[] {
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    /* Accent extraction is only used by the desktop spotlight — skip on touch */
+    if (typeof window === 'undefined' || IS_TOUCH) return;
     const results = srcs.map(
       (_, i) => ACCENT_PALETTE[i % ACCENT_PALETTE.length],
     );
     let pending = srcs.length;
-
     const done = () => {
       if (--pending === 0) setAccents([...results]);
     };
-
     srcs.forEach((src, i) => {
       const img = new window.Image();
       img.crossOrigin = 'anonymous';
@@ -152,14 +160,13 @@ function useImageAccents(srcs: string[]): string[] {
             b += d[j + 2];
           }
           const n = d.length / 4;
-          /* Boost saturation so colours pop in the glow */
           const avg = (r + g + b) / (3 * n);
           const boost = 1.6;
           const c = (v: number) =>
             Math.min(255, Math.max(0, Math.round((v / n - avg) * boost + avg)));
           results[i] = `rgb(${c(r)},${c(g)},${c(b)})`;
         } catch {
-          /* CORS / tainted canvas — keep palette fallback */
+          /* CORS / tainted canvas */
         }
         done();
       };
@@ -176,9 +183,11 @@ function useImageAccents(srcs: string[]): string[] {
 function NavBtn({
   onClick,
   children,
+  active,
 }: {
   onClick: (e: React.MouseEvent) => void;
   children: React.ReactNode;
+  active?: boolean;
 }) {
   const [pressed, setPressed] = useState(false);
   const [hov, setHov] = useState(false);
@@ -196,17 +205,29 @@ function NavBtn({
       style={{
         width: 48,
         height: 48,
-        border: `1px solid ${pressed ? 'rgba(255,215,0,0.55)' : hov ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.14)'}`,
-        background: pressed
-          ? 'rgba(255,215,0,0.10)'
-          : hov
-            ? 'rgba(255,255,255,0.07)'
-            : 'rgba(255,255,255,0.04)',
-        color: pressed
-          ? 'rgba(255,215,0,0.95)'
-          : hov
-            ? 'rgba(255,255,255,0.85)'
-            : 'rgba(255,255,255,0.5)',
+        border: `1px solid ${
+          active
+            ? 'rgba(255,25,135,0.55)'
+            : pressed
+              ? 'rgba(255,215,0,0.55)'
+              : hov
+                ? 'rgba(255,255,255,0.28)'
+                : 'rgba(255,255,255,0.14)'
+        }`,
+        background: active
+          ? 'rgba(255,25,135,0.08)'
+          : pressed
+            ? 'rgba(255,215,0,0.10)'
+            : hov
+              ? 'rgba(255,255,255,0.07)'
+              : 'rgba(255,255,255,0.04)',
+        color: active
+          ? 'rgba(255,25,135,0.95)'
+          : pressed
+            ? 'rgba(255,215,0,0.95)'
+            : hov
+              ? 'rgba(255,255,255,0.85)'
+              : 'rgba(255,255,255,0.5)',
         transform: pressed ? 'scale(0.90)' : 'scale(1)',
         transition:
           'transform 0.11s ease, border-color 0.18s, background 0.18s, color 0.18s',
@@ -217,7 +238,7 @@ function NavBtn({
   );
 }
 
-/* ─── 3 + 4. Modal — swipe gestures + zoom-from-origin ──────── */
+/* ─── 3 + 4. Modal ───────────────────────────────────────────── */
 function GalleryModal({
   index,
   total,
@@ -234,13 +255,17 @@ function GalleryModal({
   onNext: () => void;
 }) {
   /*
-   * Zoom-from-origin: compute the initial transform of the image so it
-   * appears to expand directly out of the thumbnail that was clicked.
-   * Only applied on the first image render; navigation uses a standard
-   * crossfade so subsequent images don't fly in from the wrong place.
+   * Mobile/tablet detection — checked once on mount.
+   * On touch devices we skip zoom-from-origin and use opacity-only
+   * transitions to keep the GPU layer count minimal.
    */
+  const isMobile = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(hover: none), (max-width: 1023px)').matches;
+  }, []);
+
   const origin = useMemo(() => {
-    if (!originRect || typeof window === 'undefined')
+    if (isMobile || !originRect || typeof window === 'undefined')
       return { x: 0, y: 0, scale: 0.88 };
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -257,9 +282,8 @@ function GalleryModal({
       y: originRect.y + originRect.height / 2 - vh / 2,
       scale: Math.max(0.06, originRect.width / imgW),
     };
-  }, [originRect]);
+  }, [isMobile, originRect]);
 
-  /* 3. Swipe / drag navigation */
   const swipeX = useRef(0);
   const swipeY = useRef(0);
   const onPointerDown = (e: React.PointerEvent) => {
@@ -269,43 +293,51 @@ function GalleryModal({
   const onPointerUp = (e: React.PointerEvent) => {
     const dx = e.clientX - swipeX.current;
     const dy = Math.abs(e.clientY - swipeY.current);
-    if (Math.abs(dx) > 52 && dy < 90) {
-      if (dx < 0) {
-        onNext();
-      } else {
-        onPrev();
-      }
+    if (Math.abs(dx) > 72 && dy < 80) {
+      if (dx < 0) onNext();
+      else onPrev();
     }
   };
 
   /*
-   * Image enter animation — zoom from the clicked thumbnail on first open
-   * (originRect is only supplied when a card is clicked directly); otherwise
-   * use a standard crossfade so navigation never flies from the wrong place.
+   * Desktop: zoom-from-origin on first open, crossfade on navigation.
+   * Mobile:  pure opacity — no x/y/scale animated at all.
    */
-  const imgInitial =
-    originRect !== null
+  const imgInitial = isMobile
+    ? { opacity: 0 }
+    : originRect !== null
       ? { opacity: 0, x: origin.x, y: origin.y, scale: origin.scale }
       : { opacity: 0, scale: 0.96, y: 10 };
 
+  const imgAnimate = isMobile
+    ? { opacity: 1 }
+    : { opacity: 1, x: 0, y: 0, scale: 1 };
+  const imgExit = isMobile
+    ? { opacity: 0 }
+    : { opacity: 0, scale: 0.94, y: -14 };
+
   return createPortal(
     <motion.div
+      role='dialog'
+      aria-modal='true'
+      aria-label={`Hisar Nightclub — Fotoğraf ${index + 1} / ${total}`}
       className='fixed inset-0 flex items-center justify-center'
       style={{
         zIndex: 99999,
         backgroundColor: 'rgba(4,4,4,0.97)',
-        backdropFilter: 'blur(32px)',
+        backdropFilter: isMobile ? 'blur(14px)' : 'blur(32px)',
+        WebkitBackdropFilter: isMobile ? 'blur(14px)' : 'blur(32px)',
+        willChange: 'opacity',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.22 }}
+      transition={{ duration: isMobile ? 0.16 : 0.22 }}
       onClick={onClose}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
     >
-      {/* Film grain inside modal */}
-      <GrainOverlay zIndex={6} />
+      {!isMobile && <GrainOverlay zIndex={6} />}
 
       {/* Counter */}
       <div
@@ -371,24 +403,33 @@ function GalleryModal({
         </NavBtn>
       </div>
 
-      {/* 4. Image — zoom-from-origin enter, crossfade for navigation */}
+      {/*
+       * mode='sync' on mobile: exit and enter overlap — no black gap between images.
+       * mode='wait' on desktop: clean sequential crossfade.
+       */}
       <AnimatePresence mode='wait'>
         <motion.div
           key={index}
           initial={imgInitial}
-          animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.94, y: -14 }}
-          transition={{ duration: 0.44, ease: EASE }}
+          animate={imgAnimate}
+          exit={
+            isMobile ? { opacity: 0, transition: { duration: 0 } } : imgExit
+          }
+          transition={{
+            duration: isMobile ? 0.2 : 0.44,
+            ease: isMobile ? 'easeOut' : EASE,
+          }}
           onClick={(e) => e.stopPropagation()}
           className='relative'
-          style={{ touchAction: 'none', zIndex: 4 }}
+          style={{ touchAction: 'none', zIndex: 4, willChange: 'opacity' }}
         >
           <Image
             src={gallery[index].src}
-            alt={`Hisar Galeri ${index + 1}`}
+            alt={`Hisar Nightclub — Sahne fotoğrafı ${index + 1} / ${total}`}
             width={1400}
             height={900}
             className='max-w-[84vw] max-h-[78vh] w-auto h-auto object-contain rounded-lg'
+            priority
             unoptimized
           />
           <div
@@ -427,7 +468,9 @@ function GalleryModal({
         style={{ zIndex: 10 }}
       >
         <span className='text-[0.48rem] tracking-[0.22em] uppercase text-white/18 font-medium'>
-          ← → ok tuşları · kaydır · ESC kapat
+          {isMobile
+            ? 'kaydır · kapatmak için dokun'
+            : '← → ok tuşları · kaydır · ESC kapat'}
         </span>
       </div>
     </motion.div>,
@@ -435,35 +478,31 @@ function GalleryModal({
   );
 }
 
-/* ─── 5 + 6. Gallery Card — shimmer glint + staggered reveal ── */
+/* ─── 5 + 6. Gallery Card ─────────────────────────────────── */
+/*
+ * Entrance animation is now driven entirely by GSAP from SpotlightGrid.
+ * motion.button is kept only for the whileTap press feedback on touch.
+ * The card starts invisible (opacity: 0 via inline style); GSAP takes
+ * control from there and calls clearProps on complete so whileTap can
+ * own the transform afterwards without conflict.
+ */
 function GalleryCard({
   item,
   index,
-  visible,
   cols,
-  rows,
+  priority,
   onOpen,
   cardRef,
 }: {
   item: (typeof gallery)[number];
   index: number;
-  visible: boolean;
+  visible: boolean; // kept in signature — SpotlightGrid still passes it
   cols: number;
-  rows: number;
+  rows: number; // kept in signature — SpotlightGrid still passes it
+  priority: boolean;
   onOpen: (i: number, rect?: DOMRect) => void;
   cardRef: (el: HTMLButtonElement | null) => void;
 }) {
-  /* 6. Staggered reveal — radial from grid centre; centre cells appear first */
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  const cx = (cols - 1) / 2;
-  const cy = (rows - 1) / 2;
-  const dist = Math.sqrt((col - cx) ** 2 + (row - cy) ** 2);
-  const staggerDelay = visible ? dist * 0.072 : 0;
-
-  /* Scattered-photo tilt — deterministic per card, -9..+9 deg */
-  const tiltDeg = ((index * 137) % 18) - 9;
-
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) =>
     onOpen(index, e.currentTarget.getBoundingClientRect());
 
@@ -472,26 +511,9 @@ function GalleryCard({
       ref={cardRef}
       type='button'
       onClick={handleClick}
-      initial={{ opacity: 0, scale: 0.72, y: 52, rotate: tiltDeg }}
-      animate={
-        visible
-          ? { opacity: 1, scale: 1, y: 0, rotate: 0 }
-          : { opacity: 0, scale: 0.72, y: 52, rotate: tiltDeg }
-      }
-      transition={
-        visible
-          ? {
-              duration: 0.78,
-              delay: staggerDelay,
-              ease: [0.22, 1, 0.36, 1],
-              rotate: {
-                duration: 0.92,
-                delay: staggerDelay,
-                ease: [0.34, 1.56, 0.64, 1],
-              },
-            }
-          : { duration: 0.22, delay: 0, ease: 'easeIn' }
-      }
+      /* whileTap is the only FM animation left on this element.
+         After GSAP clearProps fires, FM owns the transform cleanly. */
+      whileTap={IS_TOUCH ? { opacity: 0.72, scale: 0.97 } : {}}
       style={{
         position: 'relative',
         border: 0,
@@ -499,24 +521,30 @@ function GalleryCard({
         overflow: 'hidden',
         borderRadius: 4,
         background: '#0d0b09',
-        cursor: 'none',
+        cursor: 'inherit',
         minWidth: 0,
         minHeight: 0,
+        /* GSAP sets opacity: 0 on first paint via gsap.set in the entrance
+           effect — this inline default just prevents a flash on SSR/hydration. */
+        opacity: 0,
+        willChange: 'transform, opacity',
       }}
     >
       <Image
         src={item.src}
-        alt={`Galeri ${item.id}`}
+        alt={`Hisar Nightclub — Sahne fotoğrafı ${item.id}`}
         fill
         unoptimized
         className='object-cover'
         sizes={`${Math.round(100 / cols)}vw`}
+        priority={priority}
+        loading={priority ? undefined : 'lazy'}
       />
     </motion.button>
   );
 }
 
-/* ─── Spotlight cursor (unchanged) ──────────────────────────── */
+/* ─── Spotlight cursor — desktop only ───────────────────────── */
 function SpotlightCursor({
   containerRef,
 }: {
@@ -599,7 +627,43 @@ function SpotlightCursor({
   );
 }
 
-/* ─── SpotlightGrid — now with 2. accent colour glow ────────── */
+/* ─── Spotlight icon SVG ─────────────────────────────────────── */
+function SpotlightIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox='0 0 16 16' fill='none'>
+      {/* Light cone */}
+      <path
+        d='M6 3L3 13H13L10 3H6Z'
+        stroke='currentColor'
+        strokeWidth='1.3'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+      />
+      {/* Lamp head */}
+      <rect
+        x='5.5'
+        y='1.5'
+        width='5'
+        height='2'
+        rx='0.8'
+        stroke='currentColor'
+        strokeWidth='1.3'
+      />
+      {/* Beam lines */}
+      <line
+        x1='4'
+        y1='13'
+        x2='12'
+        y2='13'
+        stroke='currentColor'
+        strokeWidth='1.3'
+        strokeLinecap='round'
+      />
+    </svg>
+  );
+}
+
+/* ─── SpotlightGrid ──────────────────────────────────────────── */
 function SpotlightGrid({
   visible,
   onOpen,
@@ -614,16 +678,15 @@ function SpotlightGrid({
   const warmRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  /* ── Intro sequence ──────────────────────────────────────────
-   * idle     → nothing shown yet
-   * cards    → images scatter in, veil/spotlight off
-   * covering → solid mask fades IN (0.65 s), images disappear
-   * spotlight→ mask fades back OUT (1.1 s) while spotlight RAF starts
-   * ─────────────────────────────────────────────────────────── */
   type IntroPhase = 'idle' | 'cards' | 'covering' | 'spotlight';
   const [introPhase, setIntroPhase] = useState<IntroPhase>('idle');
+  const [spotlightEnabled, setSpotlightEnabled] = useState(true);
+  /* Ref mirror so phase sequencer timeouts can read current value without stale closure */
+  const spotlightEnabledRef = useRef(true);
+  useEffect(() => {
+    spotlightEnabledRef.current = spotlightEnabled;
+  }, [spotlightEnabled]);
 
-  /* Keep accent colours accessible inside RAF without stale closure */
   const accentColorsRef = useRef(accentColors);
   useEffect(() => {
     accentColorsRef.current = accentColors;
@@ -632,51 +695,235 @@ function SpotlightGrid({
   const posRef = useRef({ x: 50, y: 50 });
   const targetRef = useRef({ x: 50, y: 50 });
 
-  const [layout, setLayout] = useState<{
-    cols: number;
-    rows: number;
-    cellH: number;
-  }>({ cols: 4, rows: 3, cellH: 0 });
+  const [layout, setLayout] = useState<{ cols: number; rows: number }>({
+    cols: 4,
+    rows: 3,
+  });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    let rafId: number;
     const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setLayout(calcLayout(width, height));
+      /* Debounce via rAF — prevents layout thrash on every pixel during resize */
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const { width, height } = entry.contentRect;
+        setLayout(calcLayout(width, height));
+      });
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
-  /* Phase timer — fires whenever the gallery becomes visible/hidden */
+  const { cols, rows } = layout;
+
+  /* Desktop = 4-column layout — spotlight only runs here */
+  const isDesktop = cols === 4;
+
+  /* Intro phase sequencer — spotlight phases only on desktop + when user hasn't disabled */
   useEffect(() => {
     const t0 = setTimeout(() => setIntroPhase(visible ? 'cards' : 'idle'), 0);
     if (!visible) return () => clearTimeout(t0);
-    const t1 = setTimeout(() => setIntroPhase('covering'), 1150);
-    const t2 = setTimeout(() => setIntroPhase('spotlight'), 1850);
+    /* Non-desktop: stay on 'cards', no cinematic intro */
+    if (!isDesktop) return () => clearTimeout(t0);
+    /* Read ref at callback time — skips cinematic if user disabled spotlight */
+    const t1 = setTimeout(() => {
+      if (!spotlightEnabledRef.current) return;
+      setIntroPhase('covering');
+    }, 1150);
+    const t2 = setTimeout(() => {
+      if (!spotlightEnabledRef.current) return;
+      setIntroPhase('spotlight');
+    }, 1850);
     return () => {
       clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [visible]);
+  }, [visible, isDesktop]);
 
-  const { cols, rows, cellH } = layout;
   const visibleItems = gallery.slice(0, Math.min(cols * rows, gallery.length));
 
-  /*
-   * Cinematic spotlight state machine — lives entirely in refs, zero React
-   * re-renders. Phases per cell:
-   *   fadein  700 ms  curtain 1 → 0  (easeOutCubic)  spotlight becomes visible
-   *   hold   1500 ms  curtain stays 0                 image is lit
-   *   fadeout 600 ms  curtain 0 → 1  (easeInCubic)   light fades out
-   *   → snap to next cell while dark, restart fadein
-   *
-   * Mouse override: entering manual mode drops curtain to 0 immediately and
-   * lets the user roam freely. After 3 s of inactivity the cinematic sequence
-   * resumes from the current cell index.
-   */
+  const seedsRef = useRef<
+    {
+      angle: number;
+      travel: number;
+      rotation: number;
+      delay: number;
+      scale: number;
+      duration: number;
+    }[]
+  >([]);
+
+  useEffect(() => {
+    /* Regenerate seeds when grid layout changes */
+    const cx = (cols - 1) / 2;
+    const cy = (rows - 1) / 2;
+    const maxDist = Math.sqrt(cx * cx + cy * cy) || 1;
+
+    seedsRef.current = visibleItems.map((_, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const dx = col - cx;
+      const dy = row - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      /* Direction: radially outward from grid centre with ±6° jitter — tighter
+         angle spread keeps motion graceful rather than chaotic */
+      const baseAngle =
+        dist > 0.01 ? Math.atan2(dy, dx) : Math.random() * Math.PI * 2;
+      const jitter = (Math.random() - 0.5) * 0.22; /* ~±6° in radians */
+      const angle = baseAngle + jitter;
+
+      /* Travel distance — reduced so cards glide in, not cannon-ball.
+         Outer cards still travel further for the layered arrival feel. */
+      const minTravel = IS_TOUCH ? 28 : 42;
+      const extraTravel = IS_TOUCH ? 32 : 58;
+      const travel =
+        minTravel +
+        (dist / maxDist) * extraTravel +
+        Math.random() * (IS_TOUCH ? 10 : 16);
+
+      /* Rotation — dialled back to barely perceptible on desktop */
+      const rotation = IS_TOUCH ? 0 : (Math.random() - 0.5) * 10;
+
+      /* Starting scale — closer to 1 so the scale-up feels like a breath
+         rather than a pop. Outer cards slightly smaller for depth. */
+      const scale = IS_TOUCH
+        ? 0.88 + Math.random() * 0.05
+        : 0.78 + (dist / maxDist) * -0.06 + Math.random() * 0.06;
+
+      /*
+       * Stagger delay — slightly wider spread creates a more wave-like,
+       * cinematic wash. Total spread: ~0–640ms desktop, ~0–440ms touch.
+       */
+      const maxSpread = IS_TOUCH ? 0.44 : 0.64;
+      const outerBias = (dist / maxDist) * (IS_TOUCH ? -0.05 : -0.08);
+      const delay = Math.random() * maxSpread + outerBias;
+
+      /* Duration — longer for that floaty, prestige deceleration */
+      const duration = IS_TOUCH
+        ? 0.72 + Math.random() * 0.18
+        : 0.95 + Math.random() * 0.28;
+
+      return {
+        angle,
+        travel,
+        rotation,
+        delay: Math.max(0, delay),
+        scale,
+        duration,
+      };
+    });
+  }, [cols, rows, visibleItems.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Active tween refs for cleanup */
+  const tweensRef = useRef<gsap.core.Tween[]>([]);
+
+  useEffect(() => {
+    const cards = cardRefs.current.filter(Boolean) as HTMLButtonElement[];
+
+    /* Kill any in-flight animations from a previous visible=true cycle */
+    tweensRef.current.forEach((t) => t.kill());
+    tweensRef.current = [];
+
+    if (!visible || !cards.length) {
+      /* Instant hide — scroll back up resets everything cleanly */
+      gsap.set(cards, {
+        opacity: 0,
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scale: 1,
+        clearProps: 'willChange',
+      });
+      return;
+    }
+
+    /* Promote each card to its own compositor layer for the duration of
+       the animation, then demote to avoid unnecessary GPU memory usage */
+    gsap.set(cards, { force3D: true });
+
+    tweensRef.current = cards.map((card, i) => {
+      const s = seedsRef.current[i];
+      if (!s)
+        return gsap.to(card, { opacity: 1, duration: 0.4 }); /* fallback */
+
+      const fromX = Math.cos(s.angle) * s.travel;
+      const fromY = Math.sin(s.angle) * s.travel;
+
+      /* Snap card to its starting off-position synchronously.
+         Opacity is kept at 0 here; the separate opacity tween above owns the fade. */
+      gsap.set(card, {
+        opacity: 0,
+        x: fromX,
+        y: fromY,
+        rotation: s.rotation,
+        scale: s.scale,
+      });
+
+      /*
+       * Opacity runs on its own slower tween — cards materialise gradually
+       * rather than snapping visible mid-flight. This is the key to that
+       * "emerging from darkness" Hollywood feel.
+       */
+      gsap.to(card, {
+        opacity: 1,
+        duration: s.duration * 0.72,
+        delay: s.delay,
+        ease: 'power4.out',
+        force3D: true,
+        overwrite: false,
+      });
+
+      return gsap.to(card, {
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scale: 1,
+        duration: s.duration,
+        delay: s.delay,
+        /*
+         * expo.out: nearly instantaneous initial velocity → asymptotically
+         * approaches rest. This is the easing used in most prestige title
+         * sequences — you feel the energy but the landing is imperceptibly soft.
+         */
+        ease: 'expo.out',
+        /* Minimal scale overshoot — just enough physical weight, not bouncy */
+        keyframes: [
+          {
+            scale: 1.018,
+            duration: s.duration * 0.78,
+            ease: 'expo.out',
+          },
+          {
+            scale: 1,
+            duration: s.duration * 0.22,
+            ease: 'sine.inOut',
+          },
+        ],
+        force3D: true,
+        onComplete() {
+          /*
+           * Hand transform ownership back to Framer Motion (whileTap).
+           * clearProps removes GSAP's inline transform so FM can apply
+           * its own scale/opacity on tap without fighting a residual matrix.
+           */
+          gsap.set(card, { clearProps: 'transform,opacity,willChange' });
+        },
+      });
+    });
+
+    return () => {
+      tweensRef.current.forEach((t) => t.kill());
+    };
+  }, [visible, cols, rows]);
+
+  /* Cinematic spotlight RAF — desktop + enabled only */
   const curtainRef = useRef<HTMLDivElement>(null);
   const lastPaintRef = useRef({ x: -1, y: -1 });
 
@@ -684,11 +931,10 @@ function SpotlightGrid({
     phase: 'fadein' as 'fadein' | 'hold' | 'fadeout',
     elapsed: 0,
     cellIdx: 0,
-    curtain: 1, // 0 = spotlight fully visible, 1 = pitch dark
-    manual: false, // mouse is controlling
+    curtain: 1,
+    manual: false,
   });
 
-  /* Expose centres to RAF without stale closure */
   const centresRef = useRef<{ x: number; y: number }[]>([]);
   useEffect(() => {
     centresRef.current = visibleItems.map((_, i) => ({
@@ -697,11 +943,30 @@ function SpotlightGrid({
     }));
   }, [visibleItems, cols, rows]);
 
-  /* Single unified RAF — only active in spotlight phase */
+  /* Clear layers when disabled; re-trigger cinematic sequence when re-enabled */
   useEffect(() => {
-    if (introPhase !== 'spotlight') return;
+    if (!spotlightEnabled) {
+      if (veilRef.current) veilRef.current.style.background = 'none';
+      if (warmRef.current) warmRef.current.style.background = 'none';
+      if (curtainRef.current) curtainRef.current.style.opacity = '0';
+      return;
+    }
+    /* Re-enabled on desktop while cards are visible — restart cinematic */
+    if (!isDesktop || introPhase === 'idle') return;
+    setIntroPhase('cards');
+    const t1 = setTimeout(() => setIntroPhase('covering'), 120);
+    const t2 = setTimeout(() => setIntroPhase('spotlight'), 820);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotlightEnabled]);
 
-    /* Reset cinematic state each time spotlight phase begins */
+  /* Spotlight RAF */
+  useEffect(() => {
+    if (introPhase !== 'spotlight' || !isDesktop || !spotlightEnabled) return;
+
     const c = cinema.current;
     c.phase = 'fadein';
     c.elapsed = 0;
@@ -709,7 +974,6 @@ function SpotlightGrid({
     c.curtain = 1;
     c.manual = false;
 
-    /* Snap spotlight position to first cell immediately */
     const first = centresRef.current[0];
     if (first) {
       posRef.current = { ...first };
@@ -719,42 +983,26 @@ function SpotlightGrid({
     let lastTime = -1;
     let raf: number;
 
-    /*
-     * Smoothstep: zero first-derivative at t=0 and t=1.
-     * This gives the "light slowly materialises then dissolves" feel —
-     * no hard snap at the start or end of each beat.
-     *
-     * easeInOut smoothstep  →  gradual start AND gradual stop (fade-in / fade-out)
-     * easeIn    smoothstep  →  lazy start, accelerates into darkness (fade-out)
-     */
-    const smoothstep = (t: number) => t * t * (3 - 2 * t); // in-out, both ends soft
-    const smoothIn = (t: number) => t * t * t * (t * (t * 6 - 15) + 10); // quintic — even silkier
+    const smoothstep = (t: number) => t * t * (3 - 2 * t);
+    const smoothIn = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
 
-    /*
-     * Timing in milliseconds — tuned for a theatrical pace:
-     *   FADE_IN  2200 ms — light bleeds in very slowly, like a stage fresnel warming up
-     *   HOLD     3200 ms — image sits fully lit; long enough to read every detail
-     *   FADE_OUT 1600 ms — graceful dissolve back to black, unhurried
-     */
     const FADE_IN = 1400;
     const HOLD = 2200;
     const FADE_OUT = 1000;
 
     const tick = (now: number) => {
-      const dt = lastTime >= 0 ? Math.min(now - lastTime, 64) : 0; // cap at 64ms
+      const dt = lastTime >= 0 ? Math.min(now - lastTime, 64) : 0;
       lastTime = now;
 
       const cm = cinema.current;
       const cells = centresRef.current;
       const el = containerRef.current;
 
-      /* ── Cinematic sequencer (skipped when user is driving) ── */
       if (!cm.manual && cells.length > 0) {
         cm.elapsed += dt;
-
         if (cm.phase === 'fadein') {
           const t = Math.min(cm.elapsed / FADE_IN, 1);
-          cm.curtain = 1 - smoothstep(t); // 1→0, soft both ends
+          cm.curtain = 1 - smoothstep(t);
           if (t >= 1) {
             cm.phase = 'hold';
             cm.elapsed = 0;
@@ -767,13 +1015,11 @@ function SpotlightGrid({
           }
         } else if (cm.phase === 'fadeout') {
           const t = Math.min(cm.elapsed / FADE_OUT, 1);
-          cm.curtain = smoothIn(t); // 0→1, lazy start then accelerates
+          cm.curtain = smoothIn(t);
           if (t >= 1) {
-            /* Advance to next cell while curtain is black */
             cm.cellIdx = (cm.cellIdx + 1) % cells.length;
             const next = cells[cm.cellIdx];
             if (next) {
-              /* Instant position snap — user won't see it under the dark curtain */
               posRef.current = { ...next };
               targetRef.current = { ...next };
             }
@@ -783,20 +1029,16 @@ function SpotlightGrid({
         }
       }
 
-      /* ── Apply curtain opacity imperatively ── */
       if (curtainRef.current) {
         curtainRef.current.style.opacity = cm.curtain.toFixed(4);
       }
 
-      /* ── Lerp spotlight position ── */
       const p = posRef.current;
       const t = targetRef.current;
-      /* Fast lerp when manual, slow cinematic drift otherwise */
       const spd = cm.manual ? 0.12 : 0.055;
       p.x += (t.x - p.x) * spd;
       p.y += (t.y - p.y) * spd;
 
-      /* Skip gradient repaint if nothing moved */
       const lp = lastPaintRef.current;
       if (Math.abs(p.x - lp.x) < 0.04 && Math.abs(p.y - lp.y) < 0.04) {
         raf = requestAnimationFrame(tick);
@@ -841,51 +1083,55 @@ function SpotlightGrid({
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [introPhase, cols, rows]);
+  }, [introPhase, cols, rows, isDesktop, spotlightEnabled]);
 
-  /* ── Mouse handlers ── */
+  /* Mouse handlers — only wired on desktop */
   const manualTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    targetRef.current = {
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    };
-    const cm = cinema.current;
-    if (!cm.manual) {
-      cm.manual = true;
-      cm.curtain = 0; // drop curtain instantly when user takes over
-    }
-    if (manualTimer.current) clearTimeout(manualTimer.current);
-    manualTimer.current = setTimeout(() => {
-      /* Resume cinematic from the closest cell to current spotlight position */
-      const cells = centresRef.current;
-      const p = posRef.current;
-      let best = 0,
-        bestD = Infinity;
-      cells.forEach((c, i) => {
-        const d = (c.x - p.x) ** 2 + (c.y - p.y) ** 2;
-        if (d < bestD) {
-          bestD = d;
-          best = i;
-        }
-      });
-      cm.cellIdx = best;
-      cm.phase = 'fadein';
-      cm.elapsed = 0;
-      cm.manual = false;
-    }, 3000);
-  }, []);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isDesktop || !spotlightEnabled) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      targetRef.current = {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      };
+      const cm = cinema.current;
+      if (!cm.manual) {
+        cm.manual = true;
+        cm.curtain = 0;
+      }
+      if (manualTimer.current) clearTimeout(manualTimer.current);
+      manualTimer.current = setTimeout(() => {
+        const cells = centresRef.current;
+        const p = posRef.current;
+        let best = 0,
+          bestD = Infinity;
+        cells.forEach((c, i) => {
+          const d = (c.x - p.x) ** 2 + (c.y - p.y) ** 2;
+          if (d < bestD) {
+            bestD = d;
+            best = i;
+          }
+        });
+        cm.cellIdx = best;
+        cm.phase = 'fadein';
+        cm.elapsed = 0;
+        cm.manual = false;
+      }, 3000);
+    },
+    [isDesktop, spotlightEnabled],
+  );
 
   const handleMouseLeave = useCallback(() => {
+    if (!isDesktop || !spotlightEnabled) return;
     if (manualTimer.current) clearTimeout(manualTimer.current);
     const cm = cinema.current;
     cm.manual = false;
     cm.phase = 'fadeout';
     cm.elapsed = 0;
-  }, []);
+  }, [isDesktop, spotlightEnabled]);
 
   return (
     <div
@@ -897,19 +1143,19 @@ function SpotlightGrid({
         minHeight: 0,
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'none',
+        /* Hide cursor only when spotlight is on — otherwise show normal browser cursor */
+        cursor: isDesktop && spotlightEnabled ? 'none' : 'pointer',
       }}
     >
-      {/* Grid */}
+      {/* ── Grid — rows always 1fr to fill container on all devices ── */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           display: 'grid',
           gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gridTemplateRows:
-            cellH > 0 ? `repeat(${rows}, ${cellH}px)` : `repeat(${rows}, 1fr)`,
-          alignContent: 'center',
+          gridTemplateRows: `repeat(${rows}, 1fr)`,
+          alignContent: 'stretch',
           gap: GAP,
           padding: PAD,
         }}
@@ -922,6 +1168,7 @@ function SpotlightGrid({
             visible={visible}
             cols={cols}
             rows={rows}
+            priority={i < cols}
             onOpen={onOpen}
             cardRef={(el) => {
               cardRefs.current[i] = el;
@@ -930,74 +1177,65 @@ function SpotlightGrid({
         ))}
       </div>
 
-      {/* Dark veil — own compositor layer */}
-      <div
-        ref={veilRef}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 10,
-          willChange: 'background',
-        }}
-      />
-      {/* Accent warm glow — own compositor layer */}
-      <div
-        ref={warmRef}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: 11,
-          willChange: 'background',
-        }}
-      />
+      {/* ── Spotlight layers — desktop only ── */}
+      {isDesktop && (
+        <>
+          {/* Dark veil */}
+          <div
+            ref={veilRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 10,
+              willChange: 'background',
+            }}
+          />
+          {/* Accent warm glow */}
+          <div
+            ref={warmRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 11,
+              willChange: 'background',
+            }}
+          />
+          {/* Cinematic curtain */}
+          <div
+            ref={curtainRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(13,11,9,0.99)',
+              pointerEvents: 'none',
+              zIndex: 12,
+              opacity: 0,
+              willChange: 'opacity',
+            }}
+          />
+          {/* Intro mask */}
+          <motion.div
+            animate={{ opacity: introPhase === 'covering' ? 1 : 0 }}
+            transition={{
+              duration: introPhase === 'covering' ? 0.65 : 1.1,
+              ease: 'easeInOut',
+            }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(13,11,9,0.99)',
+              pointerEvents: 'none',
+              zIndex: 13,
+            }}
+          />
+          {/* Custom cursor — only when spotlight is on */}
+          {spotlightEnabled && <SpotlightCursor containerRef={containerRef} />}
+        </>
+      )}
 
-      {/*
-        Cinematic curtain — imperatively driven by the state machine RAF.
-        opacity=1 → pitch dark (between spotlight beats).
-        opacity=0 → spotlight fully visible.
-        Starts at 0 — invisible during cards/covering phases.
-        The RAF sets it to 1 on spotlight phase init, then sequences from there.
-      */}
-      <div
-        ref={curtainRef}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(13,11,9,0.99)',
-          pointerEvents: 'none',
-          zIndex: 12,
-          opacity: 0,
-          willChange: 'opacity',
-        }}
-      />
-
-      {/*
-        Intro mask — sits above veil+glow.
-        'idle'|'cards' → transparent (images visible during scatter-in).
-        'covering'      → fades to solid black (0.65 s), burying the images.
-        'spotlight'     → fades back out (1.1 s) while spotlight RAF starts,
-                          creating the "spotlight punches through darkness" reveal.
-      */}
-      <motion.div
-        animate={{ opacity: introPhase === 'covering' ? 1 : 0 }}
-        transition={{
-          duration: introPhase === 'covering' ? 0.65 : 1.1,
-          ease: 'easeInOut',
-        }}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(13,11,9,0.99)',
-          pointerEvents: 'none',
-          zIndex: 13,
-        }}
-      />
-
-      <SpotlightCursor containerRef={containerRef} />
-
-      {/* Edge vignette */}
+      {/* Edge vignette — all devices */}
       <div
         style={{
           position: 'absolute',
@@ -1009,20 +1247,46 @@ function SpotlightGrid({
         }}
       />
 
-      {/* 1. Film grain */}
+      {/* Film grain — all devices */}
       <GrainOverlay zIndex={25} />
 
-      {/* "Tümünü Gör" pill — appears once spotlight is running */}
+      {/* ── Bottom-right controls: spotlight toggle (desktop) + "Tümünü Gör" pill ── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={
-          introPhase === 'spotlight'
+          introPhase !== 'idle' &&
+          introPhase !== 'covering' &&
+          (introPhase === 'spotlight' || !isDesktop || !spotlightEnabled)
             ? { opacity: 1, y: 0 }
             : { opacity: 0, y: 8 }
         }
-        transition={{ delay: 1.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 40 }}
+        transition={{
+          delay: isDesktop && spotlightEnabled ? 1.2 : 0.3,
+          duration: 0.5,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+        style={{
+          position: 'absolute',
+          bottom: 14,
+          right: 14,
+          zIndex: 40,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 8,
+        }}
       >
+        {/* Spotlight toggle — desktop only, sits above the pill */}
+        {isDesktop && (
+          <NavBtn
+            onClick={() => setSpotlightEnabled((v) => !v)}
+            active={spotlightEnabled}
+          >
+            <SpotlightIcon size={15} />
+          </NavBtn>
+        )}
+
+        {/* "Tümünü Gör" pill */}
         <button
           type='button'
           onClick={() => {
@@ -1037,7 +1301,7 @@ function SpotlightGrid({
             borderRadius: 999,
             border: '1px solid rgba(255,255,255,0.14)',
             background: 'rgba(13,11,9,0.75)',
-            backdropFilter: 'blur(12px)',
+            ...(IS_TOUCH ? {} : { backdropFilter: 'blur(12px)' }),
             cursor: 'pointer',
             transition: 'border-color 0.18s, background 0.18s',
           }}
@@ -1088,10 +1352,14 @@ function SpotlightGrid({
         </button>
       </motion.div>
 
-      {/* Idle hint — appears once spotlight is running */}
+      {/* Idle hint — desktop only */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={introPhase === 'spotlight' ? { opacity: 1 } : { opacity: 0 }}
+        animate={
+          isDesktop && introPhase === 'spotlight' && spotlightEnabled
+            ? { opacity: 1 }
+            : { opacity: 0 }
+        }
         transition={{ delay: 1.8, duration: 0.7 }}
         style={{
           position: 'absolute',
@@ -1120,6 +1388,32 @@ function SpotlightGrid({
   );
 }
 
+/* ─── JSON-LD structured data ────────────────────────────────── */
+function GallerySchema() {
+  const images = gallery.slice(0, 12).map((g, i) => ({
+    '@type': 'ImageObject',
+    contentUrl:
+      typeof g.src === 'string' ? g.src : (g.src as { src: string }).src,
+    name: `Hisar Nightclub — Sahne fotoğrafı ${g.id}`,
+    description: 'Hisar International Night Club sahne ve atmosfer görüntüsü',
+    position: i + 1,
+  }));
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'ImageGallery',
+    name: 'Hisar Nightclub Fotoğraf Galerisi',
+    description:
+      'Hisar International Night Club canlı performans, sahne ve atmosfer fotoğrafları',
+    image: images,
+  };
+  return (
+    <script
+      type='application/ld+json'
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 /* ─── Main Gallery component ─────────────────────────────────── */
 export default function Gallery({ id }: Props) {
   const panelRef = useRef<HTMLElement>(null);
@@ -1134,7 +1428,6 @@ export default function Gallery({ id }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
-  /* 2. Derive accent colours from gallery images */
   const gallerySrcs = useMemo(
     () =>
       gallery.map((g) =>
@@ -1193,7 +1486,7 @@ export default function Gallery({ id }: Props) {
     };
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
-  });
+  }, [modalIndex, nextImage, prevImage, closeModal]);
 
   useEffect(() => {
     let ctx: gsap.Context;
@@ -1244,7 +1537,7 @@ export default function Gallery({ id }: Props) {
             right: '12px',
             bottom: '12px',
             borderRadius: 20,
-            ease: 'power2.inOut',
+            ease: 'power4.out',
             duration: 0.12,
           });
       }, panelRef);
@@ -1264,13 +1557,14 @@ export default function Gallery({ id }: Props) {
 
   return (
     <>
-      {/* 1. Inject global keyframes once */}
       <GlobalStyles />
+      <GallerySchema />
 
       <section
         ref={panelRef}
         id={id}
-        className='relative bg-secondaryColor'
+        aria-label='Hisar Nightclub Fotoğraf Galerisi'
+        className='relative bg-secondaryColor gallery-section'
         style={{ height: '100dvh' }}
       >
         {/* Header */}
@@ -1279,14 +1573,11 @@ export default function Gallery({ id }: Props) {
           className='absolute top-0 left-0 right-0 z-30 flex flex-col items-center text-center pt-14 xl:pt-18 pointer-events-none select-none'
         >
           <TextReveal>
-            <h2
-              className='font-bold text-white leading-[1.02] tracking-[-0.03em] whitespace-nowrap'
-              style={{ fontSize: 'clamp(2.5rem,6vw,5.5rem)' }}
-            >
-              Gecenin en güzel
+            <Headline>
+              Gecenin güzel
               <br />
               <MainToGoldFont>anları burada yaşanır</MainToGoldFont>
-            </h2>
+            </Headline>
           </TextReveal>
         </div>
 

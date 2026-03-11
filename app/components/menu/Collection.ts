@@ -12,10 +12,8 @@ export const menuData = {
     { name: `Bruichladdich` },
     { name: 'J&B' },
     { name: 'Johnnie Walker' },
-    { name: 'Talisker' },
     { name: `Jameson` },
     { name: `Royal Salute` },
-    { name: `Monkey Shoulder` },
   ],
   Rakı: [
     { name: 'Yeni Rakı' },

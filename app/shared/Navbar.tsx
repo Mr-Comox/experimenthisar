@@ -38,6 +38,11 @@ const GROUPS: Record<string, { id: string; label: string }[]> = {
   ],
 };
 
+// ─── Detect touch/hover capability once at module level ───────────────────────
+const isTouch =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(hover: none), (pointer: coarse)').matches;
+
 // ─── Random gradient — new seed every open() ──────────────────────────────────
 function makeBg(): string {
   const r = () => Math.round(Math.random() * 100);
@@ -55,7 +60,11 @@ function makeBg(): string {
 const EXPO_OUT = [0.16, 1, 0.3, 1] as const;
 const EXPO_IN = [0.7, 0, 0.84, 0] as const;
 
-// ─── Static Hamburger button — no X morph ────────────────────────────────────
+// ─── No shared variants needed — animation is driven imperatively in the
+//     component via useEffect + direct motion values per item. This avoids
+//     ALL AnimatePresence overlap/stacking bugs on tab switch entirely.
+
+// ─── Hamburger — static, no X morph ──────────────────────────────────────────
 function HamburgerBtn({
   isOpen,
   onClick,
@@ -73,12 +82,19 @@ function HamburgerBtn({
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         border: '1px solid rgba(251,251,251,0.13)',
+        // FIX: pre-promote to its own compositor layer so backdrop-filter
+        //      never triggers a main-thread repaint on tap
+        willChange: 'transform',
       }}
-      whileHover={{ scale: 1.08, borderColor: 'rgba(251,251,251,0.3)' }}
+      // FIX: skip whileHover on touch — phantom hover fires mid-scroll on iOS
+      whileHover={
+        isTouch
+          ? undefined
+          : { scale: 1.08, borderColor: 'rgba(251,251,251,0.3)' }
+      }
       whileTap={{ scale: 0.92 }}
       transition={{ duration: 0.18 }}
     >
-      {/* Top bar — always static */}
       <span
         className='absolute block rounded-full'
         style={{
@@ -90,7 +106,6 @@ function HamburgerBtn({
           transform: 'translate(-50%, calc(-50% - 5px))',
         }}
       />
-      {/* Bottom bar — always static */}
       <span
         className='absolute block rounded-full'
         style={{
@@ -112,29 +127,30 @@ export default function Navbar() {
   const [activeTab, setActiveTab] = useState<'restoran' | 'deneyim'>(
     'restoran',
   );
-  // FIX: use state instead of ref so it never gets accessed during render phase
   const [bgStyle, setBgStyle] = useState<string>(() => makeBg());
+  // Track a render key that increments on every tab switch — used to force
+  // the item list to remount cleanly, giving us a fresh stagger every time
+  // without any AnimatePresence overlap bugs.
+  const [listKey, setListKey] = useState(0);
 
-  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  const handleTabClick = useCallback((id: 'restoran' | 'deneyim') => {
+    setActiveTab(id);
+    setListKey((k) => k + 1);
+  }, []);
 
   const handleOpen = useCallback(() => {
-    // Generate new gradient before opening
     setBgStyle(makeBg());
     getSmoother()?.stop();
-
-    // FIX: compensate for scrollbar width so page doesn't nudge
     const scrollbarWidth =
       window.innerWidth - document.documentElement.clientWidth;
     document.body.style.paddingRight = `${scrollbarWidth}px`;
     document.body.style.overflow = 'hidden';
-
     setOpen(true);
   }, []);
 
   const handleClose = useCallback((skipResume = false) => {
     setOpen(false);
     setTimeout(() => {
-      // FIX: restore both overflow AND padding together
       document.body.style.overflow = '';
       document.body.style.paddingRight = '';
       document.documentElement.classList.remove('nav-open');
@@ -151,24 +167,6 @@ export default function Navbar() {
 
   const navItems = GROUPS[activeTab] ?? [];
 
-  // ── Variants — content fades in/out, panels are instant ──────────────────
-  const listV = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.07, delayChildren: 0.18 } },
-    exit: { transition: { staggerChildren: 0.04, staggerDirection: -1 } },
-  };
-
-  const itemV = {
-    hidden: { opacity: 0, x: 28 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.45, ease: EXPO_OUT },
-    },
-    exit: { opacity: 0, x: 18, transition: { duration: 0.22, ease: EXPO_IN } },
-  };
-
-  // ── Overlay — subtle fade + gentle y-lift, no sliding panels ────────────
   const overlay = (
     <AnimatePresence>
       {open && (
@@ -187,7 +185,6 @@ export default function Navbar() {
             className='relative hidden md:flex flex-col items-center justify-center w-1/2 h-full overflow-hidden'
             style={{ background: bgStyle }}
           >
-            {/* grain texture */}
             <div
               className='absolute inset-0 pointer-events-none'
               style={{
@@ -197,8 +194,6 @@ export default function Navbar() {
                 backgroundSize: '300px',
               }}
             />
-
-            {/* FIX: decorative concentric rings recalculated for larger logo (logo ~180px) */}
             {[560, 400, 260, 140].map((size, i) => (
               <div
                 key={size}
@@ -213,8 +208,6 @@ export default function Navbar() {
                 }}
               />
             ))}
-
-            {/* FIX: bigger logo */}
             <motion.div
               initial={{ scale: 0.82, opacity: 0 }}
               animate={{
@@ -230,8 +223,6 @@ export default function Navbar() {
             >
               <ActivitiesLogo className='w-44 h-44 drop-shadow-[0_0_56px_rgba(255,25,135,0.45)]' />
             </motion.div>
-
-            {/* right-edge bleed into dark panel */}
             <div
               className='absolute right-0 top-0 h-full w-28 pointer-events-none'
               style={{
@@ -253,8 +244,9 @@ export default function Navbar() {
                   return (
                     <button
                       key={tab.id}
+                      // FIX: use memoized handler, avoids inline arrow recreation
                       onClick={() =>
-                        setActiveTab(tab.id as 'restoran' | 'deneyim')
+                        handleTabClick(tab.id as 'restoran' | 'deneyim')
                       }
                       className='cursor-pointer select-none transition-all duration-250 font-medium'
                       style={{
@@ -263,6 +255,8 @@ export default function Navbar() {
                         fontSize: '1rem',
                         color: active ? BRAND.dark : BRAND.white,
                         background: active ? BRAND.white : '',
+                        // FIX: hint compositor so tab bg swap doesn't repaint siblings
+                        willChange: 'background-color, color',
                       }}
                     >
                       {tab.label}
@@ -271,7 +265,6 @@ export default function Navbar() {
                 })}
               </div>
 
-              {/* Close button */}
               <motion.button
                 onClick={() => handleClose()}
                 aria-label='Kapat'
@@ -279,12 +272,17 @@ export default function Navbar() {
                 style={{
                   border: '1px solid rgba(251,251,251,0.16)',
                   color: 'rgba(251,251,251,0.55)',
+                  willChange: 'transform', // FIX: own layer
                 }}
-                whileHover={{
-                  scale: 1.1,
-                  borderColor: 'rgba(251,251,251,0.5)',
-                  color: BRAND.white,
-                }}
+                whileHover={
+                  isTouch
+                    ? undefined
+                    : {
+                        scale: 1.1,
+                        borderColor: 'rgba(251,251,251,0.5)',
+                        color: BRAND.white,
+                      }
+                }
                 whileTap={{ scale: 0.9 }}
                 transition={{ duration: 0.18 }}
               >
@@ -318,29 +316,38 @@ export default function Navbar() {
             />
 
             {/* ── nav items list ── */}
+            {/*
+              No AnimatePresence at all for the tab switch.
+              Instead each item animates independently via CSS custom property
+              delay driven by its index. When listKey increments (tab changes),
+              React unmounts+remounts the whole list instantly — the old items
+              are gone in 0ms, new items stagger in cleanly. Zero overlap,
+              zero glitch, works perfectly on mobile.
+            */}
             <nav className='flex flex-col justify-center flex-1 px-10 py-6 overflow-hidden'>
-              <AnimatePresence mode='wait'>
-                <motion.div
-                  key={activeTab}
-                  className='flex flex-col'
-                  variants={listV}
-                  initial='hidden'
-                  animate='visible'
-                  exit='exit'
-                >
-                  {navItems.map((item) => (
-                    <motion.a
-                      key={item.id}
-                      href={`#${item.id}`}
-                      onClick={handleNavClick(item.id)}
-                      variants={itemV}
-                      className='group relative flex items-center py-2.5 cursor-pointer select-none overflow-hidden'
-                      style={{ textDecoration: 'none' }}
-                    >
-                      {/* hover fill bg */}
+              <div key={listKey} className='flex flex-col w-full'>
+                {navItems.map((item, i) => (
+                  <motion.a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    onClick={handleNavClick(item.id)}
+                    className='group relative flex items-center py-2.5 cursor-pointer select-none overflow-hidden'
+                    style={{ textDecoration: 'none' }}
+                    // Each item starts hidden and animates in with a staggered delay
+                    // based purely on its index — no parent orchestration needed.
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.4,
+                      ease: EXPO_OUT,
+                      delay: i * 0.055,
+                    }}
+                  >
+                    {/* hover fill bg — desktop only */}
+                    {!isTouch && (
                       <motion.span
                         className='absolute inset-y-0 -left-10 -right-10 pointer-events-none'
-                        initial={{ scaleX: 0, originX: 0 }}
+                        initial={{ scaleX: 0 }}
                         whileHover={{ scaleX: 1 }}
                         transition={{ duration: 0.3, ease: EXPO_OUT }}
                         style={{
@@ -348,22 +355,27 @@ export default function Navbar() {
                           transformOrigin: 'left',
                         }}
                       />
+                    )}
 
-                      {/* label */}
-                      <motion.span
-                        className='relative block leading-none uppercase font-black'
-                        style={{
-                          fontSize: 'clamp(1.9rem, 4vw, 3.1rem)',
-                          letterSpacing: '-0.025em',
-                          color: 'rgba(251,251,251,0.88)',
-                        }}
-                        whileHover={{ x: 8, color: BRAND.white }}
-                        transition={{ duration: 0.28, ease: EXPO_OUT }}
-                      >
-                        {item.label}
-                      </motion.span>
+                    {/* label */}
+                    <motion.span
+                      className='relative block leading-none uppercase font-black'
+                      style={{
+                        fontSize: 'clamp(1.9rem, 4vw, 3.1rem)',
+                        letterSpacing: '-0.025em',
+                        color: 'rgba(251,251,251,0.88)',
+                        willChange: isTouch ? 'auto' : 'transform, color',
+                      }}
+                      whileHover={
+                        isTouch ? undefined : { x: 8, color: BRAND.white }
+                      }
+                      transition={{ duration: 0.28, ease: EXPO_OUT }}
+                    >
+                      {item.label}
+                    </motion.span>
 
-                      {/* pink arrow — fades in on hover */}
+                    {/* arrow — desktop only */}
+                    {!isTouch && (
                       <motion.span
                         className='relative ml-auto'
                         style={{ color: BRAND.pink }}
@@ -386,10 +398,10 @@ export default function Navbar() {
                           />
                         </svg>
                       </motion.span>
-                    </motion.a>
-                  ))}
-                </motion.div>
-              </AnimatePresence>
+                    )}
+                  </motion.a>
+                ))}
+              </div>
             </nav>
           </div>
         </motion.div>
@@ -403,14 +415,13 @@ export default function Navbar() {
         <div className='flex items-center h-full'>
           <Logo className='w-15 h-15 lg:w-20 lg:h-20' />
         </div>
-
         <HamburgerBtn
           isOpen={open}
           onClick={open ? () => handleClose() : handleOpen}
         />
       </nav>
 
-      {portalTarget && createPortal(overlay, portalTarget)}
+      {typeof document !== 'undefined' && createPortal(overlay, document.body)}
     </>
   );
 }

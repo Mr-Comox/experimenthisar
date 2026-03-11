@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-
+@import 'tailwind-scrollbar-hide/v4';
 /* ================================================= */
 /* THEME TOKENS (Tailwind v4)                       */
 /* ================================================= */
@@ -48,15 +48,6 @@ body {
 /* ================================================= */
 
 @layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
   .animate-progress {
     animation: progressFill 6s linear forwards;
     transform-origin: left;

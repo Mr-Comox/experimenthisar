@@ -202,7 +202,7 @@ function CountdownCard() {
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
         exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
         transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-5xl mx-auto w-full'
+        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-6xl mx-auto w-full'
       >
         <div className='relative px-5 sm:px-8 py-6 sm:py-8'>
           {/* Header — always one row, text shrinks to fit on small screens */}
@@ -229,7 +229,7 @@ function CountdownCard() {
           </div>
 
           {/* Digits */}
-          <div className='flex items-end justify-center gap-2 sm:gap-4 lg:gap-8'>
+          <div className='flex items-center justify-center gap-2 sm:gap-4 lg:gap-8'>
             <CountdownUnit value={hours} label='Saat' mounted={mounted} />
             <Colon />
             <CountdownUnit value={minutes} label='Dakika' mounted={mounted} />
@@ -297,7 +297,7 @@ export default function Timeline() {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
               exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
               transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-              className='relative mb-10 rounded-2xl overflow-hidden now-card-border max-w-5xl mx-auto w-full'
+              className='relative mb-10 rounded-2xl overflow-hidden now-card-border max-w-6xl mx-auto w-full'
             >
               <div className='relative px-5 sm:px-8 py-5 sm:py-7'>
                 <div className='flex items-center justify-between mb-5'>
@@ -374,7 +374,7 @@ export default function Timeline() {
                 } ${isActive ? 'opacity-100' : isPast ? 'opacity-45' : 'opacity-60'}`}
               >
                 <span
-                  className={`font-bold tracking-[-0.04em] tabular-nums min-w-[4.4ch] ${
+                  className={`font-bold tracking-[-0.04em] tabular-nums min-w-[4.4ch] flex-1 lg:flex-none ${
                     isActive
                       ? 'text-white'
                       : isPast
@@ -385,7 +385,7 @@ export default function Timeline() {
                 >
                   {time}
                 </span>
-                <div className='relative flex-1 h-px'>
+                <div className='hidden lg:flex relative flex-1 h-px'>
                   <div className='absolute inset-0 bg-white/10 rounded-full' />
                   <div
                     className='absolute top-0 bottom-0 left-0 rounded-full transition-all duration-1000'

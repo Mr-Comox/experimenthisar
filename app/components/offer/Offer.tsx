@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import TextReveal from '@/app/utilities/TextReveal';
+import { Headline } from '@/app/utilities/Headline';
 
 /* ─────────────────────────────────────────────────────────────────
    ICONS
@@ -303,22 +304,11 @@ const Offer = ({ id }: Props) => {
         className='pt-24 xl:pt-32 pb-12'
       >
         <TextReveal>
-          <motion.h2
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.9,
-              ease: [0.25, 0.46, 0.45, 0.94],
-              delay: 0.08,
-            }}
-            className='font-bold text-white leading-[1.02] tracking-[-0.03em] whitespace-nowrap'
-            style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-          >
+          <Headline>
             Kaliteli hizmet,
             <br />
-            benzersiz ambiyans
-          </motion.h2>
+            özel ambiyans
+          </Headline>
         </TextReveal>
       </div>
 
