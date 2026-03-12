@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-// SplitText removed — replaced with CSS mask sweep (fix 3)
 gsap.registerPlugin(ScrollTrigger);
 
 const COL_IMAGES = [
@@ -24,6 +23,8 @@ const UNIQUE_IMAGES = [
 ];
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+
+const DESKTOP_BREAKPOINT = 1024;
 
 function MaskedLine({
   children,
@@ -57,19 +58,21 @@ export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
   const heroImgRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const copyRef = useRef<HTMLDivElement>(null);
   const showcaseRef = useRef<HTMLElement>(null);
   const colsRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  const gsapCleanup = useRef<(() => void) | null>(null);
+  const lastSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [ready, setReady] = useState(false);
 
   const sharedTextClass =
-    'font-black tracking-tight leading-[0.88] text-[4rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
+    'font-black tracking-tight leading-[0.88]' +
+    ' text-[4.8rem]' +
+    ' sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]' +
+    ' [@media(orientation:landscape)_and_(max-height:500px)]:text-[2.8rem]';
 
-  // ─── Fix 6: inject <link rel="preload"> for hero image so browser fetches
-  //     it as the very first network request — before JS even executes.
-  //     priority prop on Next.js Image only adds loading="eager", this is
-  //     stronger and guarantees decode before first paint.
+  // ─── Preload ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const existing = document.querySelector('link[data-hero-preload]');
     if (!existing) {
@@ -79,15 +82,12 @@ export default function Hero() {
       link.href = '/photo1.jpeg';
       link.setAttribute('fetchpriority', 'high');
       link.setAttribute('data-hero-preload', '1');
-      document.head.prepend(link); // prepend = first in <head>
+      document.head.prepend(link);
     }
-
-    // Preload all showcase images too
     UNIQUE_IMAGES.forEach((src) => {
       const img = new window.Image();
       img.src = src;
     });
-
     const hero = new window.Image();
     hero.src = '/photo1.jpeg';
     const onReady = () => setReady(true);
@@ -95,109 +95,129 @@ export default function Hero() {
     else hero.onload = onReady;
   }, []);
 
-  // ─── GSAP scroll ─────────────────────────────────────────────────────────
+  // ─── GSAP ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const initGsap = () => {
+      const heroEl = heroRef.current;
+      if (!heroEl) return;
 
-    const shrinkSize = Math.max(80, Math.round(w * 0.2));
-    const spread = Math.round(w * 0.08);
+      const w = heroEl.offsetWidth;
+      const h = heroEl.offsetHeight;
 
-    // Pre-compute col Y ranges so onUpdate only does lerp, no object creation
-    const colInitY = [h * 1.1, h * 0.55, h * 0.55, h * 1.1];
-    const colToY = [-(h * 0.55), -(h * 0.28), -(h * 0.28), -(h * 0.55)];
-    const colInitX = [0, -spread, spread, 0];
+      if (w === lastSize.current.w && h === lastSize.current.h) return;
+      lastSize.current = { w, h };
 
-    const ctx = gsap.context(() => {
-      gsap.set(heroImgRef.current, { width: w, height: h, borderRadius: 0 });
+      gsapCleanup.current?.();
 
-      const copyEl = copyRef.current?.querySelector<HTMLElement>('p');
-      if (!copyEl) return;
+      const isDesktop = w >= DESKTOP_BREAKPOINT;
+      const spread = Math.round(w * 0.08);
 
-      // ── Fix 3: CSS mask sweep — one element, one GPU op per frame ────────
-      // Instead of animating opacity on 15-20 individual SplitText word nodes,
-      // we drive a single CSS custom property that sweeps a mask-image gradient
-      // across the whole paragraph. Visually identical, ~20x fewer DOM writes.
-      gsap.set(copyEl, {
-        opacity: 1,
-        // mask-image sweep: words reveal left→right as --mp goes 0%→110%
-        maskImage:
-          'linear-gradient(to right, black calc(var(--mp) - 12%), transparent var(--mp))',
-        '--mp': '0%',
-      } as gsap.TweenVars);
+      const colInitY = [h * 1.1, h * 0.55, h * 0.55, h * 1.1];
+      const colToY = [-(h * 0.55), -(h * 0.28), -(h * 0.28), -(h * 0.55)];
+      const colInitX = [0, -spread, spread, 0];
 
-      // ── Paused timelines ──────────────────────────────────────────────────
+      const ctx = gsap.context(() => {
+        // ── Hero image initial state ────────────────────────────────────
+        if (isDesktop) {
+          gsap.set(heroImgRef.current, {
+            width: w,
+            height: h,
+            borderRadius: 0,
+            willChange: 'width, height',
+          });
+        } else {
+          gsap.set(heroImgRef.current, {
+            width: w,
+            height: h,
+            borderRadius: 0,
+            clipPath: 'inset(0% 0% 0% 0% round 0px)',
+            willChange: 'clip-path',
+          });
+        }
 
-      // 1. Header fade
-      const headerTl = gsap
-        .timeline({ paused: true })
-        .to(headerRef.current, { opacity: 0, ease: 'none', duration: 1 });
+        // 1. Header fade
+        const headerTl = gsap
+          .timeline({ paused: true })
+          .to(headerRef.current, { opacity: 0, ease: 'none', duration: 1 });
 
-      // 2. Copy reveal via mask sweep (one CSS var = one compositor update)
-      const wordTl = gsap.timeline({ paused: true }).to(copyEl, {
-        '--mp': '110%',
-        ease: 'none',
-        duration: 1,
-      } as gsap.TweenVars);
+        // 2. Shrink
+        let shrinkTl: gsap.core.Timeline;
+        if (isDesktop) {
+          const shrinkSize = Math.max(80, Math.round(w * 0.2));
+          shrinkTl = gsap.timeline({ paused: true }).to(heroImgRef.current, {
+            width: shrinkSize,
+            height: shrinkSize,
+            borderRadius: 10,
+            ease: 'none',
+            duration: 1,
+          });
+        } else {
+          const targetW = Math.max(80, Math.round(w * 0.28));
+          const insetX = ((w - targetW) / 2 / w) * 100;
+          const targetH = targetW;
+          const insetY = ((h - targetH) / 2 / h) * 100;
+          shrinkTl = gsap.timeline({ paused: true }).to(heroImgRef.current, {
+            clipPath: `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}% round 12px)`,
+            ease: 'none',
+            duration: 1,
+          });
+        }
 
-      // 3. Image shrink
-      const shrinkTl = gsap.timeline({ paused: true }).to(heroImgRef.current, {
-        width: shrinkSize,
-        height: shrinkSize,
-        borderRadius: 10,
-        ease: 'none',
-        duration: 1,
-      });
+        ScrollTrigger.create({
+          trigger: heroRef.current,
+          start: 'top top',
+          end: `+=${Math.max(h * 3.5, 2000)}`,
+          pin: true,
+          pinSpacing: false,
+          scrub: isDesktop ? 0.05 : 0.35,
+          immediateRender: false,
+          onUpdate: ({ progress: p }) => {
+            headerTl.progress(Math.min(p / 0.45, 1));
+            shrinkTl.progress(Math.max(0, Math.min((p - 0.45) / 0.55, 1)));
+          },
+        });
 
-      // 4. Copy fade out
-      const copyFadeTl = gsap
-        .timeline({ paused: true })
-        .to(copyEl, { opacity: 0, ease: 'none', duration: 1 });
-
-      // ── Fix 2: scrub: 0.3 — kills the 1-second catchup tween overhead ────
-      ScrollTrigger.create({
-        trigger: heroRef.current,
-        start: 'top top',
-        end: `+=${h * 3.5}`,
-        pin: true,
-        pinSpacing: false,
-        scrub: 0.05,
-        immediateRender: false,
-        onUpdate: ({ progress: p }) => {
-          headerTl.progress(Math.min(p / 0.29, 1));
-          wordTl.progress(Math.max(0, Math.min((p - 0.29) / 0.21, 1)));
-          copyFadeTl.progress(Math.max(0, Math.min((p - 0.5) / 0.14, 1)));
-          shrinkTl.progress(Math.max(0, Math.min((p - 0.71) / 0.29, 1)));
-        },
-      });
-
-      // ── Fix 4: single ScrollTrigger for all 4 showcase columns ───────────
-      // Previously: 4 separate ScrollTrigger instances = 4 onUpdate callbacks
-      // per scroll event. Now: 1 callback, 4 transform-only gsap.set calls.
-      // Transform is compositor-only so 4 gsap.set(transform) << 4 triggers.
-      const cols = colsRef.current;
-      cols.forEach((el, i) => {
-        if (!el) return;
-        gsap.set(el, { x: colInitX[i], y: colInitY[i] });
-      });
-
-      ScrollTrigger.create({
-        trigger: showcaseRef.current,
-        start: 'top bottom',
-        end: 'bottom top',
-        scrub: 0.3,
-        onUpdate: ({ progress: p }) => {
+        // ── Showcase columns ─────────────────────────────────────────────
+        // Desktop only: animate columns via parallax
+        // Mobile/tablet: columns rendered normally in JSX with no transforms
+        if (isDesktop) {
+          const cols = colsRef.current;
           cols.forEach((el, i) => {
             if (!el) return;
-            gsap.set(el, {
-              y: gsap.utils.interpolate(colInitY[i], colToY[i], p),
-            });
+            gsap.set(el, { x: colInitX[i], y: colInitY[i] });
           });
-        },
-      });
-    });
 
-    return () => ctx.revert();
+          ScrollTrigger.create({
+            trigger: showcaseRef.current,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: 0.3,
+            onUpdate: ({ progress: p }) => {
+              cols.forEach((el, i) => {
+                if (!el) return;
+                const y = gsap.utils.interpolate(colInitY[i], colToY[i], p);
+                el.style.transform = `translateX(${colInitX[i]}px) translateY(${y}px)`;
+              });
+            },
+          });
+        }
+      });
+
+      gsapCleanup.current = () => {
+        ctx.revert();
+        ScrollTrigger.refresh();
+      };
+    };
+
+    initGsap();
+
+    const ro = new ResizeObserver(() => initGsap());
+    if (heroRef.current) ro.observe(heroRef.current);
+
+    return () => {
+      ro.disconnect();
+      gsapCleanup.current?.();
+    };
   }, []);
 
   return (
@@ -207,7 +227,7 @@ export default function Hero() {
         <div
           ref={heroImgRef}
           className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden z-[2]'
-          style={{ willChange: 'width, height', contain: 'strict' }}
+          style={{ contain: 'paint' }}
         >
           <Image
             src='/photo1.jpeg'
@@ -235,7 +255,7 @@ export default function Hero() {
 
         <div
           ref={headerRef}
-          className='absolute inset-0 z-20 flex flex-col justify-end px-6 sm:px-10 lg:px-14 pb-14 sm:pb-16 overflow-hidden'
+          className='absolute inset-0 z-20 flex flex-col justify-center items-center text-center overflow-hidden'
           style={{ willChange: 'opacity' }}
         >
           <MaskedLine
@@ -245,38 +265,13 @@ export default function Hero() {
           >
             YENI
           </MaskedLine>
-          <div className='mb-7 sm:mb-8'>
-            <MaskedLine
-              delay={0.18}
-              ready={ready}
-              className={`text-stroke-white ${sharedTextClass}`}
-            >
-              HISAR
-            </MaskedLine>
-          </div>
-        </div>
-
-        <div
-          ref={copyRef}
-          className='absolute bottom-0 left-0 right-0 z-20 overflow-hidden px-6 sm:px-12 lg:px-24 pb-14 sm:pb-16'
-          style={{ maxHeight: '45%' }}
-        >
-          {/*
-            willChange:'mask-position' hints the browser to keep this element
-            on its own compositor layer for the mask sweep animation.
-          */}
-          <p
-            className='text-softWhite font-black tracking-[-0.025em] leading-[1.1] w-full sm:w-3/4 md:w-2/3'
-            style={{
-              opacity: 0,
-              fontSize: 'clamp(1.75rem, 3.5vw, 3.5rem)',
-              willChange: 'mask-position, opacity',
-            }}
+          <MaskedLine
+            delay={0.18}
+            ready={ready}
+            className={`text-stroke-white ${sharedTextClass}`}
           >
-            Bursanın kalbinde, zamanın durduğu o eşsiz köşede — müzik doğru anı
-            bulur, ışık tam yerini alır. Yeni Hisarda gece, açıklamaya ihtiyaç
-            duymadan kendini var eder.
-          </p>
+            HISAR
+          </MaskedLine>
         </div>
       </section>
 
@@ -284,8 +279,13 @@ export default function Hero() {
       <section
         ref={showcaseRef}
         className='relative w-full h-svh flex justify-center items-center text-center'
-        style={{ marginTop: '275svh' }}
+        style={{ marginTop: 'max(275svh, 1600px)' }}
       >
+        {/*
+          ONE column layout — same markup for all screen sizes.
+          On desktop:  GSAP animates these via colsRef (parallax scroll)
+          On mobile/tablet: no GSAP touches them — they just sit in place
+        */}
         <div className='absolute inset-0 flex justify-between items-center px-[1vw] sm:px-[2vw] lg:px-[3vw]'>
           {COL_IMAGES.map((images, colIdx) => (
             <div
@@ -294,15 +294,14 @@ export default function Hero() {
                 colsRef.current[colIdx] = el;
               }}
               className='relative h-[125%] flex flex-col justify-around'
-              style={{ willChange: 'transform' }}
             >
               {images.map((src, imgIdx) => (
                 <div
                   key={imgIdx}
                   className='relative rounded-xl overflow-hidden'
                   style={{
-                    width: 'clamp(85px, 14vw, 165px)',
-                    height: 'clamp(85px, 14vw, 165px)',
+                    width: 'clamp(70px, 14vw, 165px)',
+                    height: 'clamp(70px, 14vw, 165px)',
                     transform: 'translateZ(0)',
                   }}
                 >
@@ -310,7 +309,8 @@ export default function Hero() {
                     src={src}
                     alt=''
                     fill
-                    priority
+                    priority={colIdx < 2 && imgIdx < 2}
+                    loading={colIdx < 2 && imgIdx < 2 ? 'eager' : 'lazy'}
                     sizes='(max-width: 640px) 80px, (max-width: 1024px) 14vw, 165px'
                     unoptimized
                     draggable={false}
@@ -322,6 +322,7 @@ export default function Hero() {
           ))}
         </div>
 
+        {/* Center text */}
         <div className='relative z-10 w-[55%] max-sm:w-full max-sm:px-8'>
           <h2
             className='text-softWhite font-black tracking-[-0.025em] leading-[1.05]'
