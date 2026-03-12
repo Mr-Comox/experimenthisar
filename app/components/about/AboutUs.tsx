@@ -179,10 +179,10 @@ const AtmosphereSection = () => {
           'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
       }}
     >
-      <div className='max-w-5xl mb-20'>
+      <div className='max-w-7xl mb-20'>
         <TextReveal delay={0}>
-          <Headline className='mb-8 max-w-[14ch]'>
-            Zamanla büyüyen{'\n'} <br />
+          <Headline className='mb-8 max-w-3xl'>
+            Zamanla büyüyen <br />
             <MainColorToQuatFont>köklü bir yolculuk</MainColorToQuatFont>
           </Headline>
         </TextReveal>

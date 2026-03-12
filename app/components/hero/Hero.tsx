@@ -1,70 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { scrollTo } from '@/app/lib/scrollTo';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { SplitText } from 'gsap/SplitText';
 
-const SLIDES = [
-  { src: '/photo1.jpeg', alt: 'Yeni Hisar' },
-  { src: '/photo2.jpeg', alt: 'Yeni Hisar Sahne' },
-  { src: '/photo3.jpeg', alt: 'Yeni Hisar Atmosfer' },
-  { src: '/photo4.jpeg', alt: 'Yeni Hisar Atmosfer' },
+gsap.registerPlugin(ScrollTrigger, SplitText);
+
+const COL_IMAGES = [
+  ['/photo1.jpeg', '/photo2.jpeg', '/photo3.jpeg', '/photo4.jpeg'],
+  ['/photo3.jpeg', '/photo1.jpeg', '/photo4.jpeg', '/photo2.jpeg'],
+  ['/photo2.jpeg', '/photo4.jpeg', '/photo1.jpeg', '/photo3.jpeg'],
+  ['/photo4.jpeg', '/photo3.jpeg', '/photo2.jpeg', '/photo1.jpeg'],
 ];
 
-const SLIDE_MS = 6000;
-
-const DRIFT = [
-  { x: ['0%', '-1.8%'], y: ['0%', '-0.6%'] },
-  { x: ['-1.5%', '0%'], y: ['0%', '0.6%'] },
-  { x: ['0%', '1.5%'], y: ['-0.4%', '0.4%'] },
-  { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
-];
-
-// Expo ease — fast out, long tail
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
-// ─── Preload all slide images so the browser has them ready ───────────────────
-// Called once at module level so it runs before the component mounts.
-// This prevents the "download + decode + animate simultaneously" FPS spike.
-if (typeof window !== 'undefined') {
-  SLIDES.forEach(({ src }) => {
-    const img = new window.Image();
-    img.src = src;
-  });
-}
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-function ProgressBar({
-  active,
-  done,
-  animKey,
-  onClick,
-}: {
-  active: boolean;
-  done: boolean;
-  animKey: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label='Slayta git'
-      className='h-0.5 flex-1 relative overflow-hidden cursor-pointer bg-white/15'
-    >
-      {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
-      {active && (
-        <span
-          key={animKey}
-          className='absolute inset-0 animate-progress bg-linear-to-r from-[#FF1987] to-[#c800cc]'
-        />
-      )}
-    </button>
-  );
-}
-
-// ─── MaskedLine ───────────────────────────────────────────────────────────────
-// Wraps a single line of text in an overflow-hidden clip.
-// Only animates when `ready` is true so we never race against image decode.
 function MaskedLine({
   children,
   delay = 0,
@@ -77,7 +30,6 @@ function MaskedLine({
   className?: string;
 }) {
   return (
-    // paddingBottom gives descenders room; negative margin cancels layout shift
     <div
       className='overflow-hidden'
       style={{ paddingBottom: '0.08em', marginBottom: '-0.08em' }}
@@ -94,185 +46,263 @@ function MaskedLine({
   );
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
-  const [index, setIndex] = useState(0);
-  const [animKey, setAnimKey] = useState(0);
-  // `ready` gates ALL animations — nothing runs until the first image is loaded.
-  // This is the single biggest FPS fix: no more download + decode + animate race.
-  const [ready, setReady] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const heroRef = useRef<HTMLElement>(null);
+  const heroImgRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
+  const showcaseRef = useRef<HTMLElement>(null);
+  const colsRef = useRef<(HTMLDivElement | null)[]>([]);
 
-  const startTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIndex((i) => (i + 1) % SLIDES.length);
-      setAnimKey((k) => k + 1);
-    }, SLIDE_MS);
+  const [ready, setReady] = useState(false);
+
+  const sharedTextClass =
+    'font-black tracking-tight leading-[0.88] text-[4rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = '/photo1.jpeg';
+    const onReady = () => setReady(true);
+    if (img.complete) requestAnimationFrame(onReady);
+    else img.onload = onReady;
   }, []);
 
   useEffect(() => {
-    // If the first image is already cached (common on reload),
-    // `complete` will be true immediately — no flicker.
-    const img = new window.Image();
-    img.src = SLIDES[0].src;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
 
-    const onReady = () => {
-      setReady(true);
-      startTimer();
-    };
+    // Shrink target: 20vw, min 80px
+    const shrinkSize = Math.max(80, Math.round(w * 0.2));
 
-    if (img.complete) {
-      // Already in cache — fire synchronously next tick so React has rendered
-      requestAnimationFrame(onReady);
-    } else {
-      img.onload = onReady;
-    }
+    // Inner column spread scales with viewport so they stay visible on mobile
+    // ~8% of vw → 31px on 393px, 76px on 950px, 154px on 1920px
+    const spread = Math.round(w * 0.08);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [startTimer]);
+    const COL_CONFIGS = [
+      { initX: 0, initY: h * 1.1, toY: -(h * 0.55) },
+      { initX: -spread, initY: h * 0.55, toY: -(h * 0.28) },
+      { initX: spread, initY: h * 0.55, toY: -(h * 0.28) },
+      { initX: 0, initY: h * 1.1, toY: -(h * 0.55) },
+    ];
 
-  const goTo = (i: number) => {
-    if (i === index) return;
-    setIndex(i);
-    setAnimKey((k) => k + 1);
-    startTimer();
-  };
+    const ctx = gsap.context(() => {
+      gsap.set(heroImgRef.current, { width: w, height: h, borderRadius: 0 });
 
-  const sharedTextClass =
-    ' font-black tracking-tight leading-[0.88] text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
+      const copyEl = copyRef.current?.querySelector<HTMLElement>('p');
+      if (!copyEl) return;
+
+      const split = SplitText.create(copyEl, {
+        type: 'words',
+        wordsClass: 'word',
+      });
+      split.words.forEach((word) => gsap.set(word, { opacity: 0 }));
+      gsap.set(copyEl, { opacity: 1 });
+
+      let copyHidden = false;
+
+      ScrollTrigger.create({
+        trigger: heroRef.current,
+        start: 'top top',
+        end: `+=${h * 3.5}`,
+        pin: true,
+        pinSpacing: false,
+        scrub: 1,
+        immediateRender: false,
+        onUpdate: ({ progress: p }) => {
+          gsap.set(headerRef.current, {
+            yPercent: -Math.min(p / 0.29, 1) * 100,
+          });
+
+          const wordsP = Math.max(0, Math.min((p - 0.29) / 0.21, 1));
+          const n = split.words.length;
+          split.words.forEach((word, i) => {
+            gsap.set(word, {
+              opacity: Math.max(0, Math.min((wordsP - i / n) / (1 / n), 1)),
+            });
+          });
+
+          if (p > 0.64 && !copyHidden) {
+            copyHidden = true;
+            gsap.to(copyEl, { opacity: 0, duration: 0.2 });
+          } else if (p <= 0.64 && copyHidden) {
+            copyHidden = false;
+            gsap.to(copyEl, { opacity: 1, duration: 0.2 });
+          }
+
+          const ip = Math.max(0, Math.min((p - 0.71) / 0.29, 1));
+          gsap.set(heroImgRef.current, {
+            width: gsap.utils.interpolate(w, shrinkSize, ip),
+            height: gsap.utils.interpolate(h, shrinkSize, ip),
+            borderRadius: gsap.utils.interpolate(0, 10, ip),
+          });
+        },
+      });
+
+      colsRef.current.forEach((el, i) => {
+        if (!el) return;
+        const { initX, initY, toY } = COL_CONFIGS[i];
+        gsap.set(el, { x: initX, y: initY });
+        gsap.to(el, {
+          y: toY,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: showcaseRef.current,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+      });
+    });
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section className='relative w-full h-svh min-h-160 overflow-hidden bg-secondaryColor'>
-      {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
-      {/* Kept as-is — it's a single CSS bg with no paint cost per frame */}
-      <div
-        className='absolute inset-0 z-15 pointer-events-none opacity-[0.032] mix-blend-overlay'
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          backgroundSize: '200px 200px',
-        }}
-      />
-
-      {/* ── IMAGE LAYER ───────────────────────────────────────────────────── */}
-      {/* Only mounts after `ready` to avoid compositor layer thrash on load */}
-      <AnimatePresence mode='sync'>
-        <motion.div
-          key={index}
-          className='absolute inset-0 z-2'
-          initial={{ opacity: ready ? 0 : 1 }} // skip fade-in for the very first slide
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
+    <>
+      {/* ══════════════════════════════ HERO ══════════════════════════════ */}
+      <section ref={heroRef} className='relative w-full h-svh bg-[#111117]'>
+        <div
+          ref={heroImgRef}
+          className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden z-[2]'
+          style={{ willChange: 'width, height, border-radius' }}
         >
-          <motion.img
-            src={SLIDES[index].src}
-            alt={SLIDES[index].alt}
+          <Image
+            src='/photo1.jpeg'
+            alt='Yeni Hisar'
+            fill
+            priority
+            unoptimized
             draggable={false}
-            fetchPriority={index === 0 ? 'high' : 'auto'}
-            className='absolute inset-0 w-full h-full object-cover object-center'
-            style={{ willChange: 'transform' }}
-            initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
-            animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
-            transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
+            className='object-cover object-center'
           />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* ── OVERLAYS ──────────────────────────────────────────────────────── */}
-      {/*
-        Reduced from 3 separate gradient divs to 1.
-        3 composited layers × full-viewport × 60fps = serious paint cost.
-        One div with a single complex gradient achieves the same visual result.
-      */}
-      <div
-        className='absolute inset-0 z-10 pointer-events-none'
-        style={{
-          background: `
-            linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
-            linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
-            linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
-          `,
-          opacity: 0.85,
-        }}
-      />
-
-      {/* ── BOTTOM CONTENT ────────────────────────────────────────────────── */}
-      <div className='absolute bottom-0 left-0 z-20 pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full'>
-        {/* YENİ */}
-        <MaskedLine
-          delay={0}
-          ready={ready}
-          className={`text-[#FBFBFB] ${sharedTextClass}`}
-        >
-          YENI
-        </MaskedLine>
-
-        {/* HİSAR */}
-        <div className='mb-7 sm:mb-8'>
-          <MaskedLine
-            delay={0.18}
-            ready={ready}
-            className={`text-stroke-white ${sharedTextClass}`}
-          >
-            HISAR
-          </MaskedLine>
         </div>
 
-        {/* Bottom row */}
-        <motion.div
-          className='flex items-center justify-between gap-6'
-          initial={{ opacity: 0, y: 10 }}
-          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          style={{ willChange: 'transform, opacity' }}
-          transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
-        >
-          {/* Progress bars */}
-          <div className='flex items-center gap-2 flex-1 max-w-40'>
-            {SLIDES.map((_, i) => (
-              <ProgressBar
-                key={i}
-                active={i === index}
-                done={i < index}
-                animKey={animKey}
-                onClick={() => goTo(i)}
-              />
-            ))}
-          </div>
+        <div
+          className='absolute inset-0 z-10 pointer-events-none'
+          style={{
+            background: `
+              linear-gradient(to bottom, var(--color-secondaryColor) 0%, transparent 36%, var(--color-secondaryColor) 100%),
+              linear-gradient(to right,  var(--color-secondaryColor) 0%, transparent 58%),
+              linear-gradient(to left,   var(--color-secondaryColor) 0%, transparent 52%)
+            `,
+            opacity: 0.83,
+          }}
+        />
 
-          {/* Rezervasyon CTA */}
-          <motion.button
-            onClick={() => scrollTo('reservation')}
-            className='cursor-pointer group flex items-center gap-3 border rounded-3xl border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
-              hover:border-[#FF1987]/60 transition-colors duration-300'
-            whileTap={{ scale: 0.97 }}
+        <div
+          ref={headerRef}
+          className='absolute inset-0 z-20 flex flex-col justify-end px-6 sm:px-10 lg:px-14 pb-14 sm:pb-16 overflow-hidden'
+          style={{ willChange: 'transform' }}
+        >
+          <MaskedLine
+            delay={0}
+            ready={ready}
+            className={`text-[#FBFBFB] ${sharedTextClass}`}
           >
+            YENI
+          </MaskedLine>
+          <div className='mb-7 sm:mb-8'>
+            <MaskedLine
+              delay={0.18}
+              ready={ready}
+              className={`text-stroke-white ${sharedTextClass}`}
+            >
+              HISAR
+            </MaskedLine>
+          </div>
+        </div>
+
+        <div
+          ref={copyRef}
+          className='absolute bottom-0 left-0 right-0 z-20 overflow-hidden px-6 sm:px-12 lg:px-24 pb-14 sm:pb-16'
+          style={{ maxHeight: '45%' }}
+        >
+          <p
+            className='text-softWhite font-black tracking-[-0.025em] leading-[1.1] w-full sm:w-3/4 md:w-2/3'
+            style={{ opacity: 0, fontSize: 'clamp(1.75rem, 3.5vw, 3.5rem)' }}
+          >
+            Bursanın kalbinde, zamanın durduğu o eşsiz köşede — müzik doğru anı
+            bulur, ışık tam yerini alır. Yeni Hisarda gece, açıklamaya ihtiyaç
+            duymadan kendini var eder.
+          </p>
+        </div>
+      </section>
+
+      {/* ══════════════════════════ SHOWCASE ══════════════════════════════ */}
+      <section
+        ref={showcaseRef}
+        className='relative w-full h-svh flex justify-center items-center text-center'
+        style={{ marginTop: '275svh' }}
+      >
+        {/*
+          px uses vw-based padding so columns never hug the very edge,
+          but still leave room for all 4 to be visible.
+        */}
+        <div className='absolute inset-0 flex justify-between items-center px-[1vw] sm:px-[2vw] lg:px-[3vw]'>
+          {COL_IMAGES.map((images, colIdx) => (
+            <div
+              key={colIdx}
+              ref={(el) => {
+                colsRef.current[colIdx] = el;
+              }}
+              className='relative h-[125%] flex flex-col justify-around'
+              style={{ willChange: 'transform' }}
+            >
+              {images.map((src, imgIdx) => (
+                /*
+                  clamp(70px, 18vw, 130px):
+                  — 393px  →  70px  (hits min)
+                  — 600px  →  108px
+                  — 720px+ →  130px (hits max)
+                */
+                <div
+                  key={imgIdx}
+                  className='relative rounded-xl overflow-hidden'
+                  style={{
+                    width: 'clamp(80px, 14vw, 165px)',
+                    height: 'clamp(80px, 14vw, 165px)',
+                  }}
+                >
+                  <Image
+                    src={src}
+                    alt=''
+                    fill
+                    unoptimized
+                    draggable={false}
+                    className='object-cover'
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className='relative z-10 w-[55%] max-sm:w-full max-sm:px-8'>
+          <h2
+            className='text-softWhite font-black tracking-[-0.025em] leading-[1.05]'
+            style={{ fontSize: 'clamp(2.5rem, 5vw, 5rem)' }}
+          >
+            Ritim ve{' '}
             <span
-              className='text-[#FBFBFB]/75 group-hover:text-[#FBFBFB] uppercase font-bold
-              tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
+              style={{
+                background:
+                  'linear-gradient(135deg, #ff1987 0%, #ff6ec7 50%, #b8860b 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
             >
-              Rezervasyon
+              atmosfer.
             </span>
-            <svg
-              width='14'
-              height='14'
-              viewBox='0 0 16 16'
-              fill='none'
-              className='text-[#FF1987] translate-x-0 group-hover:translate-x-1 transition-transform duration-300'
-            >
-              <path
-                d='M1 8h14M9 2l6 6-6 6'
-                stroke='currentColor'
-                strokeWidth='1.5'
-                strokeLinecap='round'
-                strokeLinejoin='round'
-              />
-            </svg>
-          </motion.button>
-        </motion.div>
-      </div>
-    </section>
+          </h2>
+          <p
+            className='text-white/55 leading-[1.72] mt-6'
+            style={{ fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)' }}
+          >
+            Unutulmaz bir gecenin saatlerinden süzülen anlara tanıklık edin.
+          </p>
+        </div>
+      </section>
+    </>
   );
 }
