@@ -161,7 +161,7 @@ export default function Hero() {
         end: `+=${h * 3.5}`,
         pin: true,
         pinSpacing: false,
-        scrub: 0.3,
+        scrub: 0.5,
         immediateRender: false,
         onUpdate: ({ progress: p }) => {
           headerTl.progress(Math.min(p / 0.29, 1));
