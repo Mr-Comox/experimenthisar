@@ -301,8 +301,8 @@ export default function Hero() {
                   key={imgIdx}
                   className='relative rounded-xl overflow-hidden'
                   style={{
-                    width: 'clamp(80px, 14vw, 165px)',
-                    height: 'clamp(80px, 14vw, 165px)',
+                    width: 'clamp(90px, 14vw, 165px)',
+                    height: 'clamp(90px, 14vw, 165px)',
                     transform: 'translateZ(0)',
                   }}
                 >
