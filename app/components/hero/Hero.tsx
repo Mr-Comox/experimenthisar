@@ -16,6 +16,13 @@ const COL_IMAGES = [
   ['/photo4.jpeg', '/photo3.jpeg', '/photo2.jpeg', '/photo1.jpeg'],
 ];
 
+const UNIQUE_IMAGES = [
+  '/photo1.jpeg',
+  '/photo2.jpeg',
+  '/photo3.jpeg',
+  '/photo4.jpeg',
+];
+
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
 function MaskedLine({
@@ -59,23 +66,25 @@ export default function Hero() {
   const sharedTextClass =
     'font-black tracking-tight leading-[0.88] text-[4rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
 
+  // ─── Preload all images on mount so showcase is never blank ─────────────
   useEffect(() => {
-    const img = new window.Image();
-    img.src = '/photo1.jpeg';
+    UNIQUE_IMAGES.forEach((src) => {
+      const img = new window.Image();
+      img.src = src;
+    });
+    const hero = new window.Image();
+    hero.src = '/photo1.jpeg';
     const onReady = () => setReady(true);
-    if (img.complete) requestAnimationFrame(onReady);
-    else img.onload = onReady;
+    if (hero.complete) requestAnimationFrame(onReady);
+    else hero.onload = onReady;
   }, []);
 
+  // ─── GSAP scroll ─────────────────────────────────────────────────────────
   useEffect(() => {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    // Shrink target: 20vw, min 80px
     const shrinkSize = Math.max(80, Math.round(w * 0.2));
-
-    // Inner column spread scales with viewport so they stay visible on mobile
-    // ~8% of vw → 31px on 393px, 76px on 950px, 154px on 1920px
     const spread = Math.round(w * 0.08);
 
     const COL_CONFIGS = [
@@ -86,6 +95,11 @@ export default function Hero() {
     ];
 
     const ctx = gsap.context(() => {
+      // Original width/height — Tailwind handles centering so no GSAP
+      // transform conflict at all. CSS `contain: strict` on the element
+      // (set in JSX style below) tells the browser the reflow is fully
+      // isolated to this box — changing width/height never triggers a
+      // full-page layout recalc.
       gsap.set(heroImgRef.current, { width: w, height: h, borderRadius: 0 });
 
       const copyEl = copyRef.current?.querySelector<HTMLElement>('p');
@@ -98,6 +112,8 @@ export default function Hero() {
       split.words.forEach((word) => gsap.set(word, { opacity: 0 }));
       gsap.set(copyEl, { opacity: 1 });
 
+      // Dirty-check: only write to DOM when opacity actually changes (>0.5%)
+      const wordOpacities = new Float32Array(split.words.length);
       let copyHidden = false;
 
       ScrollTrigger.create({
@@ -109,18 +125,23 @@ export default function Hero() {
         scrub: 1,
         immediateRender: false,
         onUpdate: ({ progress: p }) => {
+          // 1. Header slide up
           gsap.set(headerRef.current, {
             yPercent: -Math.min(p / 0.29, 1) * 100,
           });
 
+          // 2. SplitText word reveal — dirty-checked, skips unchanged words
           const wordsP = Math.max(0, Math.min((p - 0.29) / 0.21, 1));
           const n = split.words.length;
-          split.words.forEach((word, i) => {
-            gsap.set(word, {
-              opacity: Math.max(0, Math.min((wordsP - i / n) / (1 / n), 1)),
-            });
-          });
+          for (let i = 0; i < n; i++) {
+            const next = Math.max(0, Math.min((wordsP - i / n) / (1 / n), 1));
+            if (Math.abs(next - wordOpacities[i]) > 0.005) {
+              wordOpacities[i] = next;
+              gsap.set(split.words[i], { opacity: next });
+            }
+          }
 
+          // 3. Copy fade-out toggle
           if (p > 0.64 && !copyHidden) {
             copyHidden = true;
             gsap.to(copyEl, { opacity: 0, duration: 0.2 });
@@ -129,6 +150,7 @@ export default function Hero() {
             gsap.to(copyEl, { opacity: 1, duration: 0.2 });
           }
 
+          // 4. Width/height shrink — identical to original
           const ip = Math.max(0, Math.min((p - 0.71) / 0.29, 1));
           gsap.set(heroImgRef.current, {
             width: gsap.utils.interpolate(w, shrinkSize, ip),
@@ -138,6 +160,7 @@ export default function Hero() {
         },
       });
 
+      // ── Showcase column parallax
       colsRef.current.forEach((el, i) => {
         if (!el) return;
         const { initX, initY, toY } = COL_CONFIGS[i];
@@ -162,16 +185,23 @@ export default function Hero() {
     <>
       {/* ══════════════════════════════ HERO ══════════════════════════════ */}
       <section ref={heroRef} className='relative w-full h-svh bg-[#111117]'>
+        {/*
+          `contain: strict` is the key perf unlock for width/height animation.
+          It declares this element as a layout containment boundary — the
+          browser knows its resize can never affect anything outside the box,
+          so it skips the full-page reflow and only repaints this element.
+        */}
         <div
           ref={heroImgRef}
           className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden z-[2]'
-          style={{ willChange: 'width, height, border-radius' }}
+          style={{ willChange: 'width, height', contain: 'strict' }}
         >
           <Image
             src='/photo1.jpeg'
             alt='Yeni Hisar'
             fill
             priority
+            sizes='100vw'
             unoptimized
             draggable={false}
             className='object-cover object-center'
@@ -235,10 +265,6 @@ export default function Hero() {
         className='relative w-full h-svh flex justify-center items-center text-center'
         style={{ marginTop: '275svh' }}
       >
-        {/*
-          px uses vw-based padding so columns never hug the very edge,
-          but still leave room for all 4 to be visible.
-        */}
         <div className='absolute inset-0 flex justify-between items-center px-[1vw] sm:px-[2vw] lg:px-[3vw]'>
           {COL_IMAGES.map((images, colIdx) => (
             <div
@@ -250,12 +276,6 @@ export default function Hero() {
               style={{ willChange: 'transform' }}
             >
               {images.map((src, imgIdx) => (
-                /*
-                  clamp(70px, 18vw, 130px):
-                  — 393px  →  70px  (hits min)
-                  — 600px  →  108px
-                  — 720px+ →  130px (hits max)
-                */
                 <div
                   key={imgIdx}
                   className='relative rounded-xl overflow-hidden'
@@ -268,6 +288,8 @@ export default function Hero() {
                     src={src}
                     alt=''
                     fill
+                    priority
+                    sizes='(max-width: 640px) 80px, (max-width: 1024px) 14vw, 165px'
                     unoptimized
                     draggable={false}
                     className='object-cover'
