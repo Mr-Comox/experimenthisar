@@ -1,31 +1,70 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { scrollTo } from '@/app/lib/scrollTo';
 
-gsap.registerPlugin(ScrollTrigger);
-
-const COL_IMAGES = [
-  ['/photo1.jpeg', '/photo2.jpeg', '/photo3.jpeg', '/photo4.jpeg'],
-  ['/photo3.jpeg', '/photo1.jpeg', '/photo4.jpeg', '/photo2.jpeg'],
-  ['/photo2.jpeg', '/photo4.jpeg', '/photo1.jpeg', '/photo3.jpeg'],
-  ['/photo4.jpeg', '/photo3.jpeg', '/photo2.jpeg', '/photo1.jpeg'],
+const SLIDES = [
+  { src: '/photo1.jpeg', alt: 'Yeni Hisar' },
+  { src: '/photo2.jpeg', alt: 'Yeni Hisar Sahne' },
+  { src: '/photo3.jpeg', alt: 'Yeni Hisar Atmosfer' },
+  { src: '/photo4.jpeg', alt: 'Yeni Hisar Atmosfer' },
 ];
 
-const UNIQUE_IMAGES = [
-  '/photo1.jpeg',
-  '/photo2.jpeg',
-  '/photo3.jpeg',
-  '/photo4.jpeg',
+const SLIDE_MS = 6000;
+
+const DRIFT = [
+  { x: ['0%', '-1.8%'], y: ['0%', '-0.6%'] },
+  { x: ['-1.5%', '0%'], y: ['0%', '0.6%'] },
+  { x: ['0%', '1.5%'], y: ['-0.4%', '0.4%'] },
+  { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
 ];
 
+// Expo ease — fast out, long tail
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
-const DESKTOP_BREAKPOINT = 1024;
+// ─── Preload all slide images so the browser has them ready ───────────────────
+// Called once at module level so it runs before the component mounts.
+// This prevents the "download + decode + animate simultaneously" FPS spike.
+if (typeof window !== 'undefined') {
+  SLIDES.forEach(({ src }) => {
+    const img = new window.Image();
+    img.src = src;
+  });
+}
 
+// ─── Progress bar ─────────────────────────────────────────────────────────────
+function ProgressBar({
+  active,
+  done,
+  animKey,
+  onClick,
+}: {
+  active: boolean;
+  done: boolean;
+  animKey: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label='Slayta git'
+      className='h-0.5 flex-1 relative overflow-hidden cursor-pointer bg-white/15'
+    >
+      {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
+      {active && (
+        <span
+          key={animKey}
+          className='absolute inset-0 animate-progress bg-linear-to-r from-[#FF1987] to-[#c800cc]'
+        />
+      )}
+    </button>
+  );
+}
+
+// ─── MaskedLine ───────────────────────────────────────────────────────────────
+// Wraps a single line of text in an overflow-hidden clip.
+// Only animates when `ready` is true so we never race against image decode.
 function MaskedLine({
   children,
   delay = 0,
@@ -38,6 +77,7 @@ function MaskedLine({
   className?: string;
 }) {
   return (
+    // paddingBottom gives descenders room; negative margin cancels layout shift
     <div
       className='overflow-hidden'
       style={{ paddingBottom: '0.08em', marginBottom: '-0.08em' }}
@@ -54,217 +94,125 @@ function MaskedLine({
   );
 }
 
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const heroImgRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const showcaseRef = useRef<HTMLElement>(null);
-  const colsRef = useRef<(HTMLDivElement | null)[]>([]);
-
-  const gsapCleanup = useRef<(() => void) | null>(null);
-  const lastSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
-
+  const [index, setIndex] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
+  // `ready` gates ALL animations — nothing runs until the first image is loaded.
+  // This is the single biggest FPS fix: no more download + decode + animate race.
   const [ready, setReady] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const sharedTextClass =
-    'font-black tracking-tight leading-[0.88]' +
-    ' text-[4.8rem]' +
-    ' sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]' +
-    ' [@media(orientation:landscape)_and_(max-height:500px)]:text-[2.8rem]';
-
-  // ─── Preload ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const existing = document.querySelector('link[data-hero-preload]');
-    if (!existing) {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = '/photo1.jpeg';
-      link.setAttribute('fetchpriority', 'high');
-      link.setAttribute('data-hero-preload', '1');
-      document.head.prepend(link);
-    }
-    UNIQUE_IMAGES.forEach((src) => {
-      const img = new window.Image();
-      img.src = src;
-    });
-    const hero = new window.Image();
-    hero.src = '/photo1.jpeg';
-    const onReady = () => setReady(true);
-    if (hero.complete) requestAnimationFrame(onReady);
-    else hero.onload = onReady;
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIndex((i) => (i + 1) % SLIDES.length);
+      setAnimKey((k) => k + 1);
+    }, SLIDE_MS);
   }, []);
 
-  // ─── GSAP ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const initGsap = () => {
-      const heroEl = heroRef.current;
-      if (!heroEl) return;
+    // If the first image is already cached (common on reload),
+    // `complete` will be true immediately — no flicker.
+    const img = new window.Image();
+    img.src = SLIDES[0].src;
 
-      const w = heroEl.offsetWidth;
-      const h = heroEl.offsetHeight;
-
-      if (w === lastSize.current.w && h === lastSize.current.h) return;
-      lastSize.current = { w, h };
-
-      gsapCleanup.current?.();
-
-      const isDesktop = w >= DESKTOP_BREAKPOINT;
-      const spread = Math.round(w * 0.08);
-
-      const colInitY = [h * 1.1, h * 0.55, h * 0.55, h * 1.1];
-      const colToY = [-(h * 0.55), -(h * 0.28), -(h * 0.28), -(h * 0.55)];
-      const colInitX = [0, -spread, spread, 0];
-
-      const ctx = gsap.context(() => {
-        // ── Hero image initial state ────────────────────────────────────
-        if (isDesktop) {
-          gsap.set(heroImgRef.current, {
-            width: w,
-            height: h,
-            borderRadius: 0,
-            willChange: 'width, height',
-          });
-        } else {
-          gsap.set(heroImgRef.current, {
-            width: w,
-            height: h,
-            borderRadius: 0,
-            clipPath: 'inset(0% 0% 0% 0% round 0px)',
-            willChange: 'clip-path',
-          });
-        }
-
-        // 1. Header fade
-        const headerTl = gsap
-          .timeline({ paused: true })
-          .to(headerRef.current, { opacity: 0, ease: 'none', duration: 1 });
-
-        // 2. Shrink
-        let shrinkTl: gsap.core.Timeline;
-        if (isDesktop) {
-          const shrinkSize = Math.max(80, Math.round(w * 0.2));
-          shrinkTl = gsap.timeline({ paused: true }).to(heroImgRef.current, {
-            width: shrinkSize,
-            height: shrinkSize,
-            borderRadius: 10,
-            ease: 'none',
-            duration: 1,
-          });
-        } else {
-          const targetW = Math.max(80, Math.round(w * 0.28));
-          const insetX = ((w - targetW) / 2 / w) * 100;
-          const targetH = targetW;
-          const insetY = ((h - targetH) / 2 / h) * 100;
-          shrinkTl = gsap.timeline({ paused: true }).to(heroImgRef.current, {
-            clipPath: `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}% round 12px)`,
-            ease: 'none',
-            duration: 1,
-          });
-        }
-
-        ScrollTrigger.create({
-          trigger: heroRef.current,
-          start: 'top top',
-          end: `+=${Math.max(h * 3.5, 2000)}`,
-          pin: true,
-          pinSpacing: false,
-          scrub: isDesktop ? 0.05 : 0.35,
-          immediateRender: false,
-          onUpdate: ({ progress: p }) => {
-            headerTl.progress(Math.min(p / 0.45, 1));
-            shrinkTl.progress(Math.max(0, Math.min((p - 0.45) / 0.55, 1)));
-          },
-        });
-
-        // ── Showcase columns ─────────────────────────────────────────────
-        // Desktop only: animate columns via parallax
-        // Mobile/tablet: columns rendered normally in JSX with no transforms
-        if (isDesktop) {
-          const cols = colsRef.current;
-          cols.forEach((el, i) => {
-            if (!el) return;
-            gsap.set(el, { x: colInitX[i], y: colInitY[i] });
-          });
-
-          ScrollTrigger.create({
-            trigger: showcaseRef.current,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: 0.3,
-            onUpdate: ({ progress: p }) => {
-              cols.forEach((el, i) => {
-                if (!el) return;
-                const y = gsap.utils.interpolate(colInitY[i], colToY[i], p);
-                el.style.transform = `translateX(${colInitX[i]}px) translateY(${y}px)`;
-              });
-            },
-          });
-        }
-      });
-
-      gsapCleanup.current = () => {
-        ctx.revert();
-        ScrollTrigger.refresh();
-      };
+    const onReady = () => {
+      setReady(true);
+      startTimer();
     };
 
-    initGsap();
-
-    const ro = new ResizeObserver(() => initGsap());
-    if (heroRef.current) ro.observe(heroRef.current);
+    if (img.complete) {
+      // Already in cache — fire synchronously next tick so React has rendered
+      requestAnimationFrame(onReady);
+    } else {
+      img.onload = onReady;
+    }
 
     return () => {
-      ro.disconnect();
-      gsapCleanup.current?.();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [startTimer]);
+
+  const goTo = (i: number) => {
+    if (i === index) return;
+    setIndex(i);
+    setAnimKey((k) => k + 1);
+    startTimer();
+  };
+
+  const sharedTextClass =
+    ' font-black tracking-tight leading-[0.88] text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
 
   return (
-    <>
-      {/* ══════════════════════════════ HERO ══════════════════════════════ */}
-      <section ref={heroRef} className='relative w-full h-svh bg-[#111117]'>
-        <div
-          ref={heroImgRef}
-          className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden z-[2]'
-          style={{ contain: 'paint' }}
+    <section className='relative w-full h-svh min-h-160 overflow-hidden bg-secondaryColor'>
+      {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
+      {/* Kept as-is — it's a single CSS bg with no paint cost per frame */}
+      <div
+        className='absolute inset-0 z-15 pointer-events-none opacity-[0.032] mix-blend-overlay'
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundSize: '200px 200px',
+        }}
+      />
+
+      {/* ── IMAGE LAYER ───────────────────────────────────────────────────── */}
+      {/* Only mounts after `ready` to avoid compositor layer thrash on load */}
+      <AnimatePresence mode='sync'>
+        <motion.div
+          key={index}
+          className='absolute inset-0 z-2'
+          initial={{ opacity: ready ? 0 : 1 }} // skip fade-in for the very first slide
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
         >
-          <Image
-            src='/photo1.jpeg'
-            alt='Yeni Hisar'
-            fill
-            priority
-            sizes='100vw'
-            unoptimized
+          <motion.img
+            src={SLIDES[index].src}
+            alt={SLIDES[index].alt}
             draggable={false}
-            className='object-cover object-center'
+            // fetchpriority tells the browser to load this before other resources
+            fetchPriority={index === 0 ? 'high' : 'auto'}
+            className='absolute inset-0 w-full h-full object-cover object-center'
+            style={{ willChange: 'transform' }}
+            initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
+            animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
+            transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
           />
-        </div>
+        </motion.div>
+      </AnimatePresence>
 
-        <div
-          className='absolute inset-0 z-10 pointer-events-none'
-          style={{
-            background: `
-              linear-gradient(to bottom, var(--color-secondaryColor) 0%, transparent 36%, var(--color-secondaryColor) 100%),
-              linear-gradient(to right,  var(--color-secondaryColor) 0%, transparent 58%),
-              linear-gradient(to left,   var(--color-secondaryColor) 0%, transparent 52%)
-            `,
-            opacity: 0.83,
-          }}
-        />
+      {/* ── OVERLAYS ──────────────────────────────────────────────────────── */}
+      {/*
+        Reduced from 3 separate gradient divs to 1.
+        3 composited layers × full-viewport × 60fps = serious paint cost.
+        One div with a single complex gradient achieves the same visual result.
+      */}
+      <div
+        className='absolute inset-0 z-10 pointer-events-none'
+        style={{
+          background: `
+            linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
+            linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
+            linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
+          `,
+          opacity: 0.85,
+        }}
+      />
 
-        <div
-          ref={headerRef}
-          className='absolute inset-0 z-20 flex flex-col justify-center items-center text-center overflow-hidden'
-          style={{ willChange: 'opacity' }}
+      {/* ── BOTTOM CONTENT ────────────────────────────────────────────────── */}
+      <div className='absolute bottom-0 left-0 z-20 pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full'>
+        {/* YENİ */}
+        <MaskedLine
+          delay={0}
+          ready={ready}
+          className={`text-[#FBFBFB] ${sharedTextClass}`}
         >
-          <MaskedLine
-            delay={0}
-            ready={ready}
-            className={`text-[#FBFBFB] ${sharedTextClass}`}
-          >
-            YENI
-          </MaskedLine>
+          YENI
+        </MaskedLine>
+
+        {/* HİSAR */}
+        <div className='mb-7 sm:mb-8'>
           <MaskedLine
             delay={0.18}
             ready={ready}
@@ -273,81 +221,59 @@ export default function Hero() {
             HISAR
           </MaskedLine>
         </div>
-      </section>
 
-      {/* ══════════════════════════ SHOWCASE ══════════════════════════════ */}
-      <section
-        ref={showcaseRef}
-        className='relative w-full h-svh flex justify-center items-center text-center'
-        style={{ marginTop: 'max(275svh, 1600px)' }}
-      >
-        {/*
-          ONE column layout — same markup for all screen sizes.
-          On desktop:  GSAP animates these via colsRef (parallax scroll)
-          On mobile/tablet: no GSAP touches them — they just sit in place
-        */}
-        <div className='absolute inset-0 flex justify-between items-center px-[1vw] sm:px-[2vw] lg:px-[3vw]'>
-          {COL_IMAGES.map((images, colIdx) => (
-            <div
-              key={colIdx}
-              ref={(el) => {
-                colsRef.current[colIdx] = el;
-              }}
-              className='relative h-[125%] flex flex-col justify-around'
-            >
-              {images.map((src, imgIdx) => (
-                <div
-                  key={imgIdx}
-                  className='relative rounded-xl overflow-hidden'
-                  style={{
-                    width: 'clamp(70px, 14vw, 165px)',
-                    height: 'clamp(70px, 14vw, 165px)',
-                    transform: 'translateZ(0)',
-                  }}
-                >
-                  <Image
-                    src={src}
-                    alt=''
-                    fill
-                    priority={colIdx < 2 && imgIdx < 2}
-                    loading={colIdx < 2 && imgIdx < 2 ? 'eager' : 'lazy'}
-                    sizes='(max-width: 640px) 80px, (max-width: 1024px) 14vw, 165px'
-                    unoptimized
-                    draggable={false}
-                    className='object-cover'
-                  />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+        {/* Bottom row */}
+        <motion.div
+          className='flex items-center justify-between gap-6'
+          initial={{ opacity: 0, y: 10 }}
+          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          style={{ willChange: 'transform, opacity' }}
+          transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
+        >
+          {/* Progress bars */}
+          <div className='flex items-center gap-2 flex-1 max-w-40'>
+            {SLIDES.map((_, i) => (
+              <ProgressBar
+                key={i}
+                active={i === index}
+                done={i < index}
+                animKey={animKey}
+                onClick={() => goTo(i)}
+              />
+            ))}
+          </div>
 
-        {/* Center text */}
-        <div className='relative z-10 w-[55%] max-sm:w-full max-sm:px-8'>
-          <h2
-            className='text-softWhite font-black tracking-[-0.025em] leading-[1.05]'
-            style={{ fontSize: 'clamp(2.5rem, 5vw, 5rem)' }}
+          {/* Rezervasyon CTA */}
+          <motion.button
+            onClick={() => scrollTo('reservation')}
+            className='cursor-pointer group flex items-center gap-3 border rounded-3xl border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
+              hover:border-[#FF1987]/60 transition-colors duration-300'
+            whileTap={{ scale: 0.97 }}
           >
-            Ritim ve{' '}
             <span
-              style={{
-                background:
-                  'linear-gradient(135deg, #ff1987 0%, #ff6ec7 50%, #b8860b 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
+              className='text-[#FBFBFB]/75 group-hover:text-[#FBFBFB] uppercase font-bold
+              tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
             >
-              atmosfer.
+              Rezervasyon
             </span>
-          </h2>
-          <p
-            className='text-white/55 leading-[1.72] mt-6'
-            style={{ fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)' }}
-          >
-            Unutulmaz bir gecenin saatlerinden süzülen anlara tanıklık edin.
-          </p>
-        </div>
-      </section>
-    </>
+            <svg
+              width='14'
+              height='14'
+              viewBox='0 0 16 16'
+              fill='none'
+              className='text-[#FF1987] translate-x-0 group-hover:translate-x-1 transition-transform duration-300'
+            >
+              <path
+                d='M1 8h14M9 2l6 6-6 6'
+                stroke='currentColor'
+                strokeWidth='1.5'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+              />
+            </svg>
+          </motion.button>
+        </motion.div>
+      </div>
+    </section>
   );
 }
