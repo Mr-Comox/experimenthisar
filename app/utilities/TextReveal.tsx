@@ -23,13 +23,18 @@ export default function TextReveal({
   const elementRef = useRef<Element[]>([]);
   const splitRef = useRef<InstanceType<typeof SplitText>[]>([]);
   const lines = useRef<Element[]>([]);
-  const hasPlayed = useRef(false); // ← track whether animation has fired
+  const hasPlayed = useRef(false);
 
   useGSAP(
     () => {
       if (!containerRef.current) return;
 
       const setup = () => {
+        // Kill any ScrollTriggers bound to this container before re-creating
+        ScrollTrigger.getAll()
+          .filter((t) => t.trigger === containerRef.current)
+          .forEach((t) => t.kill());
+
         splitRef.current.forEach((s) => s?.revert());
         splitRef.current = [];
         elementRef.current = [];
@@ -65,8 +70,7 @@ export default function TextReveal({
           lines.current.push(...split.lines);
         });
 
-        // If animation already played (e.g. resize after scroll past), just
-        // snap to visible immediately — no replay, no new ScrollTrigger.
+        // Animation already played — snap visible, no replay
         if (hasPlayed.current) {
           gsap.set(lines.current, { y: '0%' });
           return;
@@ -80,8 +84,10 @@ export default function TextReveal({
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
-          onComplete: () => {
-            hasPlayed.current = true; // ← mark as done once it finishes
+          // Mark as played the moment it starts, not when it ends.
+          // This way a resize mid-animation won't reset lines to y:100%.
+          onStart: () => {
+            hasPlayed.current = true;
           },
         };
 

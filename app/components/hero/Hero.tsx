@@ -79,7 +79,9 @@ const DRIFT = [
 
 const DISSOLVE_COLOR = '#070707';
 
-const SHADER_SPEED = 2;
+// Lower = slower dissolve. 2 = full wipe at 50% scroll (too fast on mobile).
+// 1.1 = full wipe at ~91% scroll — user can actually appreciate the effect.
+const SHADER_SPEED = 1.1;
 const SHADER_SPREAD = 0.5;
 
 const DESCRIPTION =
@@ -364,14 +366,14 @@ export default function Hero() {
   const sharedTextClass =
     'font-black tracking-tight leading-[0.88] ' +
     'text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem] ' +
-    // landscape: scale off vw (plenty of width) capped so two lines still fit in short viewport
-    'landscape:max-lg:text-[clamp(3.5rem,13vw,6rem)]';
+    // landscape: 6.5vw gives ~60px on 926px wide — readable but not overwhelming
+    'landscape:max-lg:text-[clamp(2rem,6.5vw,3.8rem)]';
 
   return (
     <section
       ref={sectionRef}
       className='relative w-full overflow-hidden bg-secondaryColor'
-      style={{ height: '170svh' }}
+      style={{ height: '175svh' }}
     >
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
       <div
@@ -445,7 +447,7 @@ export default function Hero() {
             HISAR
           </MaskedLine>
           <motion.p
-            className='text-[#FBFBFB]/60 text-sm sm:text-base tracking-[0.3em] uppercase mt-3'
+            className='text-[#FBFBFB]/60 text-sm sm:text-base landscape:max-lg:text-[0.6rem] tracking-[0.3em] landscape:max-lg:tracking-[0.2em] uppercase mt-3 landscape:max-lg:mt-1'
             initial={{ opacity: 0, y: 8 }}
             animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
             transition={{ duration: 0.8, delay: 0.4, ease: EASE_OUT_EXPO }}
@@ -456,7 +458,7 @@ export default function Hero() {
 
         {/* Progress bars + CTA */}
         <motion.div
-          className='absolute bottom-0 left-0 z-[20] pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full
+          className='absolute bottom-0 left-0 z-[20] pb-8 sm:pb-10 landscape:max-lg:pb-4 px-6 sm:px-10 lg:px-14 w-full
                      flex items-center justify-between gap-6 transition-opacity duration-300'
           initial={{ opacity: 0, y: 10 }}
           animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
@@ -483,7 +485,7 @@ export default function Hero() {
           <motion.button
             onClick={() => scrollTo('reservation')}
             className='cursor-pointer group flex items-center gap-3 border rounded-3xl
-                       border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
+                       border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4 landscape:max-lg:px-3 landscape:max-lg:py-2
                        hover:border-[#FF1987]/60 transition-colors duration-300'
             whileTap={{ scale: 0.97 }}
           >
@@ -525,7 +527,7 @@ export default function Hero() {
             opacity: 0,
             // mobile/tablet: starts at 1.6rem (was 1.1rem), fluid up to 4.5rem on desktop
             // 5vw hits ~1.9rem on 375px phone, ~3rem on 600px tablet — much more readable
-            fontSize: 'clamp(2rem, 5.5vw, 4.7rem)',
+            fontSize: 'clamp(1.6rem, 5vw, 3rem)',
           }}
           className='text-center text-[#FBFBFB] uppercase font-black tracking-tight leading-[0.9]
                      w-[85%] sm:w-[78%] lg:w-[70%]
