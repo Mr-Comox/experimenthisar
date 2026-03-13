@@ -4,6 +4,63 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrollTo } from '@/app/lib/scrollTo';
 
+// ─── Shaders ────────────────────────────────────────────────────────────────
+const VERTEX_SHADER = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const FRAGMENT_SHADER = `
+  uniform float uProgress;
+  uniform vec2 uResolution;
+  uniform vec3 uColor;
+  uniform float uSpread;
+  varying vec2 vUv;
+
+  float Hash(vec2 p) {
+    vec3 p2 = vec3(p.xy, 1.0);
+    return fract(sin(dot(p2, vec3(37.1, 61.7, 12.4))) * 3758.5453123);
+  }
+
+  float noise(in vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f *= f * (3.0 - 2.0 * f);
+    return mix(
+      mix(Hash(i + vec2(0.0, 0.0)), Hash(i + vec2(1.0, 0.0)), f.x),
+      mix(Hash(i + vec2(0.0, 1.0)), Hash(i + vec2(1.0, 1.0)), f.x),
+      f.y
+    );
+  }
+
+  float fbm(vec2 p) {
+    float v = 0.0;
+    v += noise(p * 1.0) * 0.5;
+    v += noise(p * 2.0) * 0.25;
+    v += noise(p * 4.0) * 0.125;
+    return v;
+  }
+
+  void main() {
+    vec2 uv = vUv;
+    float aspect = uResolution.x / uResolution.y;
+    vec2 centeredUv = (uv - 0.5) * vec2(aspect, 1.0);
+
+    float dissolveEdge = uv.y - uProgress * 1.2;
+    float noiseValue = fbm(centeredUv * 15.0);
+    float d = dissolveEdge + noiseValue * uSpread;
+
+    float pixelSize = 1.0 / uResolution.y;
+    float alpha = 1.0 - smoothstep(-pixelSize, pixelSize, d);
+
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
+
+// ─── Config ───────────────────────────────────────────────────────────────────
 const SLIDES = [
   { src: '/photo1.jpeg', alt: 'Yeni Hisar' },
   { src: '/photo2.jpeg', alt: 'Yeni Hisar Sahne' },
@@ -20,12 +77,18 @@ const DRIFT = [
   { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
 ];
 
-// Expo ease — fast out, long tail
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+// The dissolve overlay color — should match your page background
+// so the wipe feels like the image "dissolves into" the next section
+const DISSOLVE_COLOR = '#0f0f0f'; // swap to your --secondaryColor hex value
 
-// ─── Preload all slide images so the browser has them ready ───────────────────
-// Called once at module level so it runs before the component mounts.
-// This prevents the "download + decode + animate simultaneously" FPS spike.
+const SHADER_SPEED = 2;
+const SHADER_SPREAD = 0.5;
+
+// Description text that reveals word-by-word on scroll (edit as you like)
+const DESCRIPTION =
+  "Şehrin kalbinde, gecenin en özgün atmosferinde buluşuyoruz. Müzik, ışık ve enerjinin mükemmel uyumunu keşfetmek için sizi Yeni Hisar'a bekliyoruz.";
+
+// Preload slides before component mounts
 if (typeof window !== 'undefined') {
   SLIDES.forEach(({ src }) => {
     const img = new window.Image();
@@ -33,7 +96,9 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// ─── Progress bar ─────────────────────────────────────────────────────────────
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+
+// ─── ProgressBar ─────────────────────────────────────────────────────────────
 function ProgressBar({
   active,
   done,
@@ -63,8 +128,6 @@ function ProgressBar({
 }
 
 // ─── MaskedLine ───────────────────────────────────────────────────────────────
-// Wraps a single line of text in an overflow-hidden clip.
-// Only animates when `ready` is true so we never race against image decode.
 function MaskedLine({
   children,
   delay = 0,
@@ -77,7 +140,6 @@ function MaskedLine({
   className?: string;
 }) {
   return (
-    // paddingBottom gives descenders room; negative margin cancels layout shift
     <div
       className='overflow-hidden'
       style={{ paddingBottom: '0.08em', marginBottom: '-0.08em' }}
@@ -98,11 +160,14 @@ function MaskedLine({
 export default function Hero() {
   const [index, setIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
-  // `ready` gates ALL animations — nothing runs until the first image is loaded.
-  // This is the single biggest FPS fix: no more download + decode + animate race.
   const [ready, setReady] = useState(false);
+
+  const sectionRef = useRef<HTMLElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const descRef = useRef<HTMLHeadingElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ── Slideshow timer ────────────────────────────────────────────────────────
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -111,9 +176,8 @@ export default function Hero() {
     }, SLIDE_MS);
   }, []);
 
+  // ── Wait for first image before animating ─────────────────────────────────
   useEffect(() => {
-    // If the first image is already cached (common on reload),
-    // `complete` will be true immediately — no flicker.
     const img = new window.Image();
     img.src = SLIDES[0].src;
 
@@ -123,7 +187,6 @@ export default function Hero() {
     };
 
     if (img.complete) {
-      // Already in cache — fire synchronously next tick so React has rendered
       requestAnimationFrame(onReady);
     } else {
       img.onload = onReady;
@@ -134,6 +197,146 @@ export default function Hero() {
     };
   }, [startTimer]);
 
+  // ── Three.js dissolve shader ───────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const section = sectionRef.current;
+    if (!canvas || !section) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let renderer: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let material: any;
+    let rafId: number;
+    let scrollProgress = 0;
+
+    const init = async () => {
+      const THREE = await import('three');
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: false,
+      });
+
+      const setSize = () => {
+        const w = section.offsetWidth;
+        const h = window.innerHeight; // match the sticky viewport height
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        if (material) material.uniforms.uResolution.value.set(w, h);
+      };
+
+      setSize();
+
+      const hex = DISSOLVE_COLOR.replace('#', '');
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      material = new THREE.ShaderMaterial({
+        vertexShader: VERTEX_SHADER,
+        fragmentShader: FRAGMENT_SHADER,
+        uniforms: {
+          uProgress: { value: 0 },
+          uResolution: {
+            value: new THREE.Vector2(section.offsetWidth, window.innerHeight),
+          },
+          uColor: { value: new THREE.Vector3(r, g, b) },
+          uSpread: { value: SHADER_SPREAD },
+        },
+        transparent: true,
+      });
+
+      scene.add(new THREE.Mesh(geometry, material));
+
+      const tick = () => {
+        material.uniforms.uProgress.value = scrollProgress;
+        renderer.render(scene, camera);
+        rafId = requestAnimationFrame(tick);
+      };
+      tick();
+
+      window.addEventListener('resize', setSize);
+    };
+
+    const onScroll = () => {
+      if (!section) return;
+      const heroHeight = section.offsetHeight;
+      const windowHeight = window.innerHeight;
+      const maxScroll = heroHeight - windowHeight;
+      const scroll = window.scrollY;
+      scrollProgress =
+        maxScroll > 0 ? Math.min((scroll / maxScroll) * SHADER_SPEED, 1.1) : 0;
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    init();
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', onScroll);
+      renderer?.dispose();
+    };
+  }, []);
+
+  // ── GSAP word-reveal for description ──────────────────────────────────────
+  useEffect(() => {
+    if (!ready) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ctx: any;
+
+    const setup = async () => {
+      const { default: gsap } = await import('gsap');
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger');
+      const { SplitText } = await import('gsap/SplitText');
+      gsap.registerPlugin(ScrollTrigger, SplitText);
+
+      const el = descRef.current;
+      if (!el) return;
+
+      const split = new SplitText(el, { type: 'words' });
+      const words = split.words as HTMLElement[];
+      gsap.set(words, { opacity: 0 });
+
+      ctx = gsap.context(() => {
+        ScrollTrigger.create({
+          trigger: '.hero-desc',
+          start: 'top 25%',
+          end: 'bottom 100%',
+          onUpdate: (self) => {
+            const progress = self.progress;
+            const total = words.length;
+
+            words.forEach((word, i) => {
+              const start = i / total;
+              const end = (i + 1) / total;
+              let opacity = 0;
+
+              if (progress >= end) {
+                opacity = 1;
+              } else if (progress >= start) {
+                opacity = (progress - start) / (end - start);
+              }
+
+              gsap.to(word, { opacity, duration: 0.1, overwrite: true });
+            });
+          },
+        });
+      });
+    };
+
+    setup();
+    return () => {
+      ctx?.revert();
+    };
+  }, [ready]);
+
   const goTo = (i: number) => {
     if (i === index) return;
     setIndex(i);
@@ -142,77 +345,79 @@ export default function Hero() {
   };
 
   const sharedTextClass =
-    ' font-black tracking-tight leading-[0.88] text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
+    'font-black tracking-tight leading-[0.88] text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem]';
 
   return (
-    <section className='relative w-full h-svh min-h-160 overflow-hidden bg-secondaryColor'>
+    /*
+     * 170svh = scroll canvas for two effects:
+     *   - dissolve wipe (first ~100svh of scroll)
+     *   - word reveal    (last  ~70svh of scroll)
+     *
+     * The sticky inner div keeps the slideshow pinned to the viewport
+     * while scroll position advances through the 170svh.
+     */
+    <section
+      ref={sectionRef}
+      className='relative w-full overflow-hidden bg-secondaryColor'
+      style={{ height: '170svh' }}
+    >
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
-      {/* Kept as-is — it's a single CSS bg with no paint cost per frame */}
       <div
-        className='absolute inset-0 z-15 pointer-events-none opacity-[0.032] mix-blend-overlay'
+        className='absolute inset-0 z-[15] pointer-events-none opacity-[0.032] mix-blend-overlay'
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           backgroundSize: '200px 200px',
         }}
       />
 
-      {/* ── IMAGE LAYER ───────────────────────────────────────────────────── */}
-      {/* Only mounts after `ready` to avoid compositor layer thrash on load */}
-      <AnimatePresence mode='sync'>
-        <motion.div
-          key={index}
-          className='absolute inset-0 z-2'
-          initial={{ opacity: ready ? 0 : 1 }} // skip fade-in for the very first slide
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
-        >
-          <motion.img
-            src={SLIDES[index].src}
-            alt={SLIDES[index].alt}
-            draggable={false}
-            // fetchpriority tells the browser to load this before other resources
-            fetchPriority={index === 0 ? 'high' : 'auto'}
-            className='absolute inset-0 w-full h-full object-cover object-center'
-            style={{ willChange: 'transform' }}
-            initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
-            animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
-            transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
-          />
-        </motion.div>
-      </AnimatePresence>
+      {/* ── STICKY IMAGE + OVERLAYS + CANVAS ─────────────────────────────── */}
+      <div className='sticky top-0 w-full h-svh overflow-hidden'>
+        {/* Slideshow */}
+        <AnimatePresence mode='sync'>
+          <motion.div
+            key={index}
+            className='absolute inset-0 z-[2]'
+            initial={{ opacity: ready ? 0 : 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+          >
+            <motion.img
+              src={SLIDES[index].src}
+              alt={SLIDES[index].alt}
+              draggable={false}
+              fetchPriority={index === 0 ? 'high' : 'auto'}
+              className='absolute inset-0 w-full h-full object-cover object-center'
+              style={{ willChange: 'transform' }}
+              initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
+              animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
+              transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
+            />
+          </motion.div>
+        </AnimatePresence>
 
-      {/* ── OVERLAYS ──────────────────────────────────────────────────────── */}
-      {/*
-        Reduced from 3 separate gradient divs to 1.
-        3 composited layers × full-viewport × 60fps = serious paint cost.
-        One div with a single complex gradient achieves the same visual result.
-      */}
-      <div
-        className='absolute inset-0 z-10 pointer-events-none'
-        style={{
-          background: `
-            linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
-            linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
-            linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
-          `,
-          opacity: 0.85,
-        }}
-      />
+        {/* Gradient overlay */}
+        <div
+          className='absolute inset-0 z-[10] pointer-events-none'
+          style={{
+            background: `
+              linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
+              linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
+              linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
+            `,
+            opacity: 0.85,
+          }}
+        />
 
-      {/* ── BOTTOM CONTENT ────────────────────────────────────────────────── */}
-      <div className='absolute bottom-0 left-0 z-20 pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full'>
-        {/* YENİ */}
-        <MaskedLine
-          delay={0}
-          ready={ready}
-          className={`text-[#FBFBFB] ${sharedTextClass}`}
-        >
-          YENI
-        </MaskedLine>
-
-        {/* HİSAR */}
-        <div className='mb-7 sm:mb-8'>
+        {/* Centered title */}
+        <div className='absolute inset-0 z-[20] flex flex-col items-center justify-center text-center pointer-events-none'>
+          <MaskedLine
+            delay={0}
+            ready={ready}
+            className={`text-[#FBFBFB] ${sharedTextClass}`}
+          >
+            YENI
+          </MaskedLine>
           <MaskedLine
             delay={0.18}
             ready={ready}
@@ -220,17 +425,25 @@ export default function Hero() {
           >
             HISAR
           </MaskedLine>
+          <motion.p
+            className='text-[#FBFBFB]/60 text-sm sm:text-base tracking-[0.3em] uppercase mt-3'
+            initial={{ opacity: 0, y: 8 }}
+            animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: EASE_OUT_EXPO }}
+          >
+            International Night Club
+          </motion.p>
         </div>
 
-        {/* Bottom row */}
+        {/* Progress bars + CTA */}
         <motion.div
-          className='flex items-center justify-between gap-6'
+          className='absolute bottom-0 left-0 z-[20] pb-8 sm:pb-10 px-6 sm:px-10 lg:px-14 w-full
+                     flex items-center justify-between gap-6'
           initial={{ opacity: 0, y: 10 }}
           animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           style={{ willChange: 'transform, opacity' }}
           transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
         >
-          {/* Progress bars */}
           <div className='flex items-center gap-2 flex-1 max-w-40'>
             {SLIDES.map((_, i) => (
               <ProgressBar
@@ -243,16 +456,16 @@ export default function Hero() {
             ))}
           </div>
 
-          {/* Rezervasyon CTA */}
           <motion.button
             onClick={() => scrollTo('reservation')}
-            className='cursor-pointer group flex items-center gap-3 border rounded-3xl border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
-              hover:border-[#FF1987]/60 transition-colors duration-300'
+            className='cursor-pointer group flex items-center gap-3 border rounded-3xl
+                       border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
+                       hover:border-[#FF1987]/60 transition-colors duration-300'
             whileTap={{ scale: 0.97 }}
           >
             <span
               className='text-[#FBFBFB]/75 group-hover:text-[#FBFBFB] uppercase font-bold
-              tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
+                             tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
             >
               Rezervasyon
             </span>
@@ -273,6 +486,34 @@ export default function Hero() {
             </svg>
           </motion.button>
         </motion.div>
+
+        {/*
+         * Dissolve canvas — z-[30] sits above everything.
+         * The shader paints DISSOLVE_COLOR from the top down as you scroll,
+         * wiping the photo away to reveal the bg behind it.
+         * pointer-events-none so it doesn't block the CTA button.
+         */}
+        <canvas
+          ref={canvasRef}
+          className='absolute inset-0 z-[30] w-full h-full pointer-events-none'
+        />
+      </div>
+
+      {/*
+       * ── DESCRIPTION ──────────────────────────────────────────────────────
+       * Lives in the lower 70svh of the 170svh section.
+       * NOT sticky — it scrolls normally so ScrollTrigger can measure it.
+       * bg-secondaryColor fills in as the dissolve wipe completes above.
+       */}
+      <div className='hero-desc absolute bottom-0 left-0 w-full h-[70svh] flex items-center justify-center bg-secondaryColor'>
+        <h2
+          ref={descRef}
+          className='w-[75%] text-center text-[#FBFBFB] uppercase font-black tracking-tight leading-[0.9]
+                     text-[2rem] sm:text-[3rem] md:text-[4rem] lg:text-[4.5rem] xl:text-[5rem]
+                     max-[1000px]:w-[calc(100%-4rem)]'
+        >
+          {DESCRIPTION}
+        </h2>
       </div>
     </section>
   );

@@ -266,7 +266,7 @@ const HistorySection = () => {
         <div className='text-center max-w-4xl mx-auto mb-24'>
           <TextReveal delay={0}>
             <Headline center className='mb-8 max-w-3xl'>
-              Nesiller boyu bir{' '}
+              Nesiller boyu bir <br />
               <MainColorToQuatFont> sahne mirası.</MainColorToQuatFont>
             </Headline>
           </TextReveal>
