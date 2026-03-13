@@ -23,13 +23,13 @@ export default function TextReveal({
   const elementRef = useRef<Element[]>([]);
   const splitRef = useRef<InstanceType<typeof SplitText>[]>([]);
   const lines = useRef<Element[]>([]);
+  const hasPlayed = useRef(false); // ← track whether animation has fired
 
   useGSAP(
     () => {
       if (!containerRef.current) return;
 
       const setup = () => {
-        // Revert any existing splits first
         splitRef.current.forEach((s) => s?.revert());
         splitRef.current = [];
         elementRef.current = [];
@@ -65,6 +65,13 @@ export default function TextReveal({
           lines.current.push(...split.lines);
         });
 
+        // If animation already played (e.g. resize after scroll past), just
+        // snap to visible immediately — no replay, no new ScrollTrigger.
+        if (hasPlayed.current) {
+          gsap.set(lines.current, { y: '0%' });
+          return;
+        }
+
         gsap.set(lines.current, { y: '100%' });
 
         const animationProps: gsap.TweenVars = {
@@ -73,6 +80,9 @@ export default function TextReveal({
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
+          onComplete: () => {
+            hasPlayed.current = true; // ← mark as done once it finishes
+          },
         };
 
         if (animateOnScroll) {
@@ -91,7 +101,6 @@ export default function TextReveal({
 
       setup();
 
-      // Re-split on resize/orientation change so lines match the new viewport
       let resizeTimer: ReturnType<typeof setTimeout>;
       const handleResize = () => {
         clearTimeout(resizeTimer);
