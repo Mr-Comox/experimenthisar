@@ -79,8 +79,13 @@ const DRIFT = [
 
 const DISSOLVE_COLOR = '#070707';
 
+// Lower = slower dissolve. 2 = full wipe at 50% scroll (too fast on mobile).
+// 1.1 = full wipe at ~91% scroll — user can actually appreciate the effect.
 const SHADER_SPEED = 1.1;
 const SHADER_SPREAD = 0.5;
+
+const DESCRIPTION =
+  "Şehrin kalbinde, gecenin en özgün atmosferinde buluşuyoruz. Müzik, ışık ve enerjinin mükemmel uyumunu keşfetmek için sizi Yeni Hisar'a bekliyoruz.";
 
 if (typeof window !== 'undefined') {
   SLIDES.forEach(({ src }) => {
@@ -154,10 +159,13 @@ export default function Hero() {
   const [index, setIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [ready, setReady] = useState(false);
+  // true once scroll-dissolve starts — disables pills + CTA so user can't
+  // accidentally tap them while the wipe is happening
   const [dissolving, setDissolving] = useState(false);
 
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const descRef = useRef<HTMLHeadingElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const startTimer = useCallback(() => {
@@ -263,6 +271,7 @@ export default function Hero() {
       const progress =
         maxScroll > 0 ? Math.min((scroll / maxScroll) * SHADER_SPEED, 1.1) : 0;
       scrollProgress = progress;
+      // Disable controls as soon as dissolve begins (progress > small threshold)
       setDissolving(progress > 0.04);
     };
 
@@ -276,6 +285,74 @@ export default function Hero() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!ready) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ctx: any;
+    let fallbackTimer: ReturnType<typeof setTimeout>;
+
+    const setup = async () => {
+      const { default: gsap } = await import('gsap');
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger');
+      const { SplitText } = await import('gsap/SplitText');
+      gsap.registerPlugin(ScrollTrigger, SplitText);
+
+      const el = descRef.current;
+      if (!el) return;
+
+      const split = new SplitText(el, { type: 'words' });
+      const words = split.words as HTMLElement[];
+
+      // ── FIX 2: prevent flash ───────────────────────────────────────────────
+      // Hide words THEN show container — text is invisible from first paint,
+      // so there is no flash even on reload. GSAP controls opacity from here.
+      gsap.set(words, { opacity: 0 });
+      gsap.set(el, { opacity: 1 });
+
+      // Safety fallback: on short viewports (landscape phones, small tablets)
+      // ScrollTrigger may never fire because the section is unreachable.
+      // After 1.5s, fade all words in so text is never permanently hidden.
+      fallbackTimer = setTimeout(() => {
+        gsap.to(words, { opacity: 1, duration: 0.8, stagger: 0.03 });
+      }, 1500);
+
+      ctx = gsap.context(() => {
+        ScrollTrigger.create({
+          trigger: '.hero-desc',
+          start: 'top 80%',
+          end: 'bottom 20%',
+          onEnter: () => clearTimeout(fallbackTimer),
+          onUpdate: (self) => {
+            clearTimeout(fallbackTimer);
+            const progress = self.progress;
+            const total = words.length;
+
+            words.forEach((word, i) => {
+              const start = i / total;
+              const end = (i + 1) / total;
+              let opacity = 0;
+
+              if (progress >= end) {
+                opacity = 1;
+              } else if (progress >= start) {
+                opacity = (progress - start) / (end - start);
+              }
+
+              gsap.to(word, { opacity, duration: 0.1, overwrite: true });
+            });
+          },
+        });
+      });
+    };
+
+    setup();
+    return () => {
+      clearTimeout(fallbackTimer);
+      ctx?.revert();
+    };
+  }, [ready]);
+
   const goTo = (i: number) => {
     if (i === index) return;
     setIndex(i);
@@ -283,16 +360,20 @@ export default function Hero() {
     startTimer();
   };
 
+  // ── FIX 1: landscape responsiveness ───────────────────────────────────────
+  // portrait:  5rem → 12rem  (your original, unchanged)
+  // landscape: drops to 3rem on phones so both lines fit in short vh
   const sharedTextClass =
     'font-black tracking-tight leading-[0.88] ' +
     'text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem] ' +
+    // landscape: 6.5vw gives ~60px on 926px wide — readable but not overwhelming
     'landscape:max-lg:text-[clamp(2rem,6.5vw,3.8rem)]';
 
   return (
     <section
       ref={sectionRef}
       className='relative w-full overflow-hidden bg-secondaryColor'
-      style={{ height: '104svh' }}
+      style={{ height: '175svh' }}
     >
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
       <div
@@ -383,6 +464,7 @@ export default function Hero() {
           animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           style={{
             willChange: 'transform, opacity',
+            // Fade out and block all interaction as soon as dissolve starts
             opacity: dissolving ? 0 : undefined,
             pointerEvents: dissolving ? 'none' : undefined,
           }}
@@ -435,6 +517,24 @@ export default function Hero() {
           ref={canvasRef}
           className='absolute inset-0 z-[30] w-full h-full pointer-events-none'
         />
+      </div>
+
+      {/* ── DESCRIPTION ───────────────────────────────────────────────────── */}
+      <div className='hero-desc absolute bottom-0 left-0 w-full h-[70svh] flex items-center justify-center bg-secondaryColor'>
+        <h2
+          ref={descRef}
+          style={{
+            opacity: 0,
+            // mobile/tablet: starts at 1.6rem (was 1.1rem), fluid up to 4.5rem on desktop
+            // 5vw hits ~1.9rem on 375px phone, ~3rem on 600px tablet — much more readable
+            fontSize: 'clamp(1.6rem, 5vw, 3rem)',
+          }}
+          className='text-center text-[#FBFBFB] uppercase font-black tracking-tight leading-[0.9]
+                     w-[85%] sm:w-[78%] lg:w-[70%]
+                     max-[1000px]:w-[calc(100%-3rem)]'
+        >
+          {DESCRIPTION}
+        </h2>
       </div>
     </section>
   );
