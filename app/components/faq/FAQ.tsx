@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { faq } from './Collection';
 
-export default function FAQSection() {
+export default function FAQ() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const toggleAccordion = (index: number) => {

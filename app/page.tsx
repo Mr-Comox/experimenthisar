@@ -17,6 +17,7 @@ import Testimonials from './components/testimonials/Testimonials';
 import Location from './components/location/Location';
 import Reservation from './components/reservation/Reservation';
 import Footer from './components/footer/Footer';
+import FAQ from './components/faq/FAQ';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -98,6 +99,7 @@ export default function Home() {
         <Testimonials id='testimonials' />
         <Location id='location' />
         <Reservation id='reservation' />
+        <FAQ />
         <Footer />
       </div>
     </main>
