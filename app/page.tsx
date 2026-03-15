@@ -89,13 +89,13 @@ export default function Home() {
         <AboutUs id='about' />
         <Offer id='offer' />
         <Activities id='activities' />
+        <Menu id='menu' />
       </div>
 
       {/* Gallery uses GSAP pin:true — must be outside overflow-x-hidden */}
       <Gallery id='gallery' />
 
       <div className='overflow-x-hidden'>
-        <Menu id='menu' />
         <Testimonials id='testimonials' />
         <Location id='location' />
         <Reservation id='reservation' />

@@ -1,10 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type SeatingType = 'lounge' | 'vip' | 'masa';
+
 interface UserInfo {
   name: string;
   surname: string;
@@ -12,7 +20,32 @@ interface UserInfo {
   email: string;
 }
 
-const STEP_LABELS = ['Kişi', 'Oturma', 'Tarih & Saat', 'İletişim', 'Özet'];
+// ─── Static constants ─────────────────────────────────────────────────────────
+const STEP_LABELS = [
+  'Kişi',
+  'Oturma',
+  'Tarih & Saat',
+  'İletişim',
+  'Özet',
+] as const;
+const TOTAL_STEPS = STEP_LABELS.length;
+const EASING = [0.25, 0.46, 0.45, 0.94] as const;
+
+const CONTENT_VARIANTS = {
+  enter: (d: number) => ({ opacity: 0, y: d > 0 ? 16 : -16 }),
+  center: { opacity: 1, y: 0 },
+  exit: (d: number) => ({ opacity: 0, y: d > 0 ? -10 : 10 }),
+};
+const CONTENT_TRANSITION = {
+  enter: { duration: 0.26, ease: EASING },
+  center: { duration: 0.26, ease: EASING },
+  exit: { duration: 0.12, ease: [0.4, 0, 1, 1] as const },
+};
+const PANEL_VARIANTS = {
+  enter: (d: number) => ({ opacity: 0, y: d > 0 ? 14 : -14, scale: 0.98 }),
+  center: { opacity: 1, y: 0, scale: 1 },
+  exit: (d: number) => ({ opacity: 0, y: d > 0 ? -14 : 14, scale: 0.98 }),
+};
 
 const SEATING_OPTIONS = [
   {
@@ -79,10 +112,69 @@ const SEATING_OPTIONS = [
       </svg>
     ),
   },
-];
+] as const;
 
+const WEEK_DAYS = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'] as const;
+
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const validatePhone = (p: string) => /^[0-9+\s()-]{10,}$/.test(p);
+
+function generateTimeSlots(): { time: string; period: 'Gece' | 'Sabah' }[] {
+  const slots: { time: string; period: 'Gece' | 'Sabah' }[] = [];
+  for (let min = 0; min < 60; min += 15)
+    slots.push({ time: `23:${String(min).padStart(2, '0')}`, period: 'Gece' });
+  for (let h = 0; h <= 5; h++) {
+    const maxMin = h === 5 ? 0 : 45;
+    for (let min = 0; min <= maxMin; min += 15)
+      slots.push({
+        time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+        period: h < 3 ? 'Gece' : 'Sabah',
+      });
+  }
+  return slots;
+}
+
+const ALL_TIME_SLOTS = generateTimeSlots();
+const NIGHT_SLOTS = ALL_TIME_SLOTS.filter((s) => s.period === 'Gece');
+const MORNING_SLOTS = ALL_TIME_SLOTS.filter((s) => s.period === 'Sabah');
+
+function buildCalendar(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const days: { date: Date; isCurrentMonth: boolean }[] = [];
+  let startOffset = firstDay.getDay() - 1;
+  if (startOffset < 0) startOffset = 6;
+  for (let i = 0; i < startOffset; i++)
+    days.push({
+      date: new Date(year, month, -startOffset + i + 1),
+      isCurrentMonth: false,
+    });
+  for (let i = 1; i <= lastDay.getDate(); i++)
+    days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+  while (days.length < 42)
+    days.push({
+      date: new Date(
+        year,
+        month + 1,
+        days.length - lastDay.getDate() - startOffset + 1,
+      ),
+      isCurrentMonth: false,
+    });
+  return days;
+}
+
+function seatingLabel(s: SeatingType | null) {
+  if (s === 'vip') return 'VIP Loca';
+  if (s === 'lounge') return 'Lounge Bar';
+  if (s === 'masa') return 'Masa';
+  return null;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function ReservationPage() {
   const router = useRouter();
+
   const [direction, setDirection] = useState(1);
   const [currentStep, setCurrentStep] = useState(1);
   const [guests, setGuests] = useState(2);
@@ -90,8 +182,10 @@ export default function ReservationPage() {
   const [seatingType, setSeatingType] = useState<SeatingType | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [viewingMonth, setViewingMonth] = useState(new Date().getMonth());
-  const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
+  const [viewingMonth, setViewingMonth] = useState(() => new Date().getMonth());
+  const [viewingYear, setViewingYear] = useState(() =>
+    new Date().getFullYear(),
+  );
   const [userInfo, setUserInfo] = useState<UserInfo>({
     name: '',
     surname: '',
@@ -99,178 +193,158 @@ export default function ReservationPage() {
     email: '',
   });
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [hoveredCount, setHoveredCount] = useState<number | null>(null);
 
-  const totalSteps = 5;
+  // Refs for programmatic scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const innerScrollRef = useRef<HTMLDivElement>(null);
+  const timeNoticeRef = useRef<HTMLDivElement>(null);
 
-  const goNext = () => {
+  // Scroll BOTH containers to top on every step change
+  useEffect(() => {
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    if (innerScrollRef.current) innerScrollRef.current.scrollTop = 0;
+  }, [currentStep]);
+
+  // ── Derived / memoised ──────────────────────────────────────────────────────
+  const isFullWidth = currentStep === 3 || currentStep === 5;
+
+  const calendarDays = useMemo(
+    () => buildCalendar(viewingYear, viewingMonth),
+    [viewingYear, viewingMonth],
+  );
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const isTimeSlotPast = useCallback(
+    (slotTime: string): boolean => {
+      if (!selectedDate) return false;
+      const now = new Date();
+      const [slotH, slotM] = slotTime.split(':').map(Number);
+      const todayMidnight = new Date(now);
+      todayMidnight.setHours(0, 0, 0, 0);
+      const selMidnight = new Date(selectedDate);
+      selMidnight.setHours(0, 0, 0, 0);
+      if (selMidnight.getTime() !== todayMidnight.getTime()) return false;
+      const nowH = now.getHours(),
+        nowM = now.getMinutes();
+      if (nowH === 23) {
+        if (slotH !== 23) return false;
+        return nowH * 60 + nowM >= slotH * 60 + slotM;
+      }
+      if (nowH <= 5) {
+        if (slotH === 23) return true;
+        return nowH * 60 + nowM >= slotH * 60 + slotM;
+      }
+      return false;
+    },
+    [selectedDate],
+  );
+
+  const effectiveTime =
+    selectedTime && isTimeSlotPast(selectedTime) ? null : selectedTime;
+
+  const summaryDate = useMemo(() => {
+    if (!selectedDate || !effectiveTime) return selectedDate;
+    const [slotH] = effectiveTime.split(':').map(Number);
+    if (slotH > 5) return selectedDate;
+    const now = new Date();
+    const todayMid = new Date(now);
+    todayMid.setHours(0, 0, 0, 0);
+    const selMid = new Date(selectedDate);
+    selMid.setHours(0, 0, 0, 0);
+    if (selMid.getTime() === todayMid.getTime() && now.getHours() <= 5)
+      return selectedDate;
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    return next;
+  }, [selectedDate, effectiveTime]);
+
+  // When an early-morning slot is chosen scroll the notice into view
+  // (syncing with the DOM — this is the correct useEffect pattern)
+  useEffect(() => {
+    if (!effectiveTime) return;
+    const [h] = effectiveTime.split(':').map(Number);
+    if (h <= 5) {
+      const id = setTimeout(() => {
+        timeNoticeRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }, 180);
+      return () => clearTimeout(id);
+    }
+  }, [effectiveTime]);
+
+  const canProceed = useCallback((): boolean => {
+    switch (currentStep) {
+      case 1:
+        return guestSelected;
+      case 2:
+        return seatingType !== null;
+      case 3:
+        return selectedDate !== null && effectiveTime !== null;
+      case 4:
+        return (
+          userInfo.name.trim().length >= 2 &&
+          userInfo.surname.trim().length >= 2 &&
+          validatePhone(userInfo.phone) &&
+          validateEmail(userInfo.email)
+        );
+      default:
+        return true;
+    }
+  }, [
+    currentStep,
+    guestSelected,
+    seatingType,
+    selectedDate,
+    effectiveTime,
+    userInfo,
+  ]);
+
+  // ── Navigation ──────────────────────────────────────────────────────────────
+  const goNext = useCallback(() => {
     setDirection(1);
-    if (currentStep < totalSteps) setCurrentStep((s) => s + 1);
-  };
-  const goBack = () => {
+    setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  }, []);
+
+  const goBack = useCallback(() => {
     if (currentStep === 1) {
       router.back();
       return;
     }
     setDirection(-1);
     setCurrentStep((s) => s - 1);
-  };
+  }, [currentStep, router]);
 
-  const nextMonth = () =>
-    viewingMonth === 11
-      ? (setViewingMonth(0), setViewingYear((y) => y + 1))
-      : setViewingMonth((m) => m + 1);
-  const prevMonth = () =>
-    viewingMonth === 0
-      ? (setViewingMonth(11), setViewingYear((y) => y - 1))
-      : setViewingMonth((m) => m - 1);
+  const nextMonth = useCallback(() => {
+    if (viewingMonth === 11) {
+      setViewingMonth(0);
+      setViewingYear((y) => y + 1);
+    } else setViewingMonth((m) => m + 1);
+  }, [viewingMonth]);
 
-  const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-  const validatePhone = (p: string) => /^[0-9+\s()-]{10,}$/.test(p);
+  const prevMonth = useCallback(() => {
+    if (viewingMonth === 0) {
+      setViewingMonth(11);
+      setViewingYear((y) => y - 1);
+    } else setViewingMonth((m) => m - 1);
+  }, [viewingMonth]);
 
-  const canProceed = () => {
-    if (currentStep === 1) return guestSelected;
-    if (currentStep === 2) return seatingType !== null;
-    if (currentStep === 3)
-      return selectedDate !== null && selectedTime !== null;
-    if (currentStep === 4)
-      return (
-        userInfo.name.trim().length >= 2 &&
-        userInfo.surname.trim().length >= 2 &&
-        validatePhone(userInfo.phone) &&
-        validateEmail(userInfo.email)
-      );
-    return true;
-  };
+  const handleUserInfoChange = useCallback(
+    (key: keyof UserInfo, value: string) =>
+      setUserInfo((prev) => ({ ...prev, [key]: value })),
+    [],
+  );
 
-  const generateCalendar = () => {
-    const firstDay = new Date(viewingYear, viewingMonth, 1);
-    const lastDay = new Date(viewingYear, viewingMonth + 1, 0);
-    const days: { date: Date; isCurrentMonth: boolean }[] = [];
-    let startOffset = firstDay.getDay() - 1;
-    if (startOffset < 0) startOffset = 6;
-    for (let i = 0; i < startOffset; i++)
-      days.push({
-        date: new Date(viewingYear, viewingMonth, -startOffset + i + 1),
-        isCurrentMonth: false,
-      });
-    for (let i = 1; i <= lastDay.getDate(); i++)
-      days.push({
-        date: new Date(viewingYear, viewingMonth, i),
-        isCurrentMonth: true,
-      });
-    while (days.length < 42)
-      days.push({
-        date: new Date(
-          viewingYear,
-          viewingMonth + 1,
-          days.length - lastDay.getDate() - startOffset + 1,
-        ),
-        isCurrentMonth: false,
-      });
-    return days;
-  };
-
-  const generateTimeSlots = () => {
-    const slots: { time: string; period: string }[] = [];
-    for (let min = 0; min < 60; min += 15)
-      slots.push({
-        time: `23:${String(min).padStart(2, '0')}`,
-        period: 'Gece',
-      });
-    for (let h = 0; h <= 5; h++) {
-      const maxMin = h === 5 ? 0 : 45;
-      for (let min = 0; min <= maxMin; min += 15)
-        slots.push({
-          time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
-          period: h < 3 ? 'Gece' : 'Sabah',
-        });
-    }
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
-  const nightSlots = timeSlots.filter((s) => s.period === 'Gece');
-  const morningSlots = timeSlots.filter((s) => s.period === 'Sabah');
-
-  const isTimeSlotPast = (slotTime: string): boolean => {
-    if (!selectedDate) return false;
-    const now = new Date();
-    const [slotH, slotM] = slotTime.split(':').map(Number);
-    const todayMidnight = new Date(now);
-    todayMidnight.setHours(0, 0, 0, 0);
-    const selMidnight = new Date(selectedDate);
-    selMidnight.setHours(0, 0, 0, 0);
-    if (selMidnight.getTime() !== todayMidnight.getTime()) return false;
-    const nowH = now.getHours(),
-      nowM = now.getMinutes();
-    if (nowH === 23) {
-      if (slotH !== 23) return false;
-      return nowH * 60 + nowM >= slotH * 60 + slotM;
-    }
-    if (nowH <= 5) {
-      if (slotH === 23) return true;
-      return nowH * 60 + nowM >= slotH * 60 + slotM;
-    }
-    return false;
-  };
-
-  useEffect(() => {
-    if (selectedTime && isTimeSlotPast(selectedTime)) setSelectedTime(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, selectedTime]);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const easing = [0.25, 0.46, 0.45, 0.94] as const;
-
-  // FIX step 4→5 linger: fast exit (0.12s), normal enter (0.26s)
-  const contentVariants = {
-    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 16 : -16 }),
-    center: { opacity: 1, y: 0 },
-    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -10 : 10 }),
-  };
-  const contentTransition = {
-    enter: { duration: 0.26, ease: easing },
-    center: { duration: 0.26, ease: easing },
-    exit: { duration: 0.12, ease: [0.4, 0, 1, 1] as const }, // snap out
-  };
-
-  const panelVariants = {
-    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 14 : -14, scale: 0.98 }),
-    center: { opacity: 1, y: 0, scale: 1 },
-    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -14 : 14, scale: 0.98 }),
-  };
-
-  const summaryDate = (() => {
-    if (!selectedDate || !selectedTime) return selectedDate;
-    const [slotH] = selectedTime.split(':').map(Number);
-    if (slotH > 5) return selectedDate;
-    const now = new Date();
-    const todayMidnight = new Date(now);
-    todayMidnight.setHours(0, 0, 0, 0);
-    const selMidnight = new Date(selectedDate);
-    selMidnight.setHours(0, 0, 0, 0);
-    if (
-      selMidnight.getTime() === todayMidnight.getTime() &&
-      now.getHours() <= 5
-    )
-      return selectedDate;
-    const next = new Date(selectedDate);
-    next.setDate(next.getDate() + 1);
-    return next;
-  })();
-
-  const isFullWidth = currentStep === 3 || currentStep === 5;
-
-  /* ────────────────────────────────────────────────────────────
-     RIGHT PANEL
-     FIX centering: motion.div is absolute inset-0 with flex
-     center so it always fills the aside exactly.
-     Pulse rings live inside a dedicated centering wrapper
-     so the CSS @keyframes scale doesn't fight with translate.
-  ──────────────────────────────────────────────────────────── */
+  // ── Right panel ─────────────────────────────────────────────────────────────
   const renderRightPanel = () => {
-    /* ── STEP 1 ── */
+    /* Step 1 — original big number */
     if (currentStep === 1) {
       return (
         <div className='w-full flex flex-col items-center text-center gap-4'>
@@ -318,11 +392,12 @@ export default function ReservationPage() {
                   Kaç kişisiniz?
                 </p>
                 <p className='text-softWhite/10 text-[0.62rem]'>
-                  Bir sayı seçin
+                  Bir masa seçin
                 </p>
               </motion.div>
             )}
           </AnimatePresence>
+
           {guestSelected && (
             <>
               <div className='text-softWhite/20 text-[0.58rem] uppercase tracking-[0.45em] font-medium'>
@@ -348,7 +423,7 @@ export default function ReservationPage() {
       );
     }
 
-    /* ── STEP 2 ── */
+    /* Step 2 */
     if (currentStep === 2) {
       const selected = SEATING_OPTIONS.find((o) => o.value === seatingType);
       return (
@@ -432,7 +507,7 @@ export default function ReservationPage() {
       );
     }
 
-    /* ── STEP 4 ── */
+    /* Step 4 — preview card (no time/date row) */
     if (currentStep === 4) {
       const hasAny =
         userInfo.name || userInfo.surname || userInfo.phone || userInfo.email;
@@ -464,39 +539,54 @@ export default function ReservationPage() {
               </p>
             </div>
             <div className='divide-y divide-softWhite/[0.04]'>
-              {[
-                {
-                  label: 'Kişi',
-                  value: guestSelected ? `${guests} kişi` : null,
-                  filled: guestSelected,
-                  mono: false,
-                },
-                {
-                  label: 'Oturma',
-                  value:
-                    seatingType === 'vip'
-                      ? 'VIP Loca'
-                      : seatingType === 'lounge'
-                        ? 'Lounge Bar'
-                        : seatingType === 'masa'
-                          ? 'Masa'
-                          : null,
-                  filled: !!seatingType,
-                  mono: false,
-                },
-                {
-                  label: 'Telefon',
-                  value: validatePhone(userInfo.phone) ? userInfo.phone : null,
-                  filled: validatePhone(userInfo.phone),
-                  mono: true,
-                },
-                {
-                  label: 'E-posta',
-                  value: validateEmail(userInfo.email) ? userInfo.email : null,
-                  filled: validateEmail(userInfo.email),
-                  mono: false,
-                },
-              ].map(({ label, value, filled, mono }) => (
+              {(
+                [
+                  {
+                    label: 'Kişi',
+                    value: guestSelected ? `${guests} kişi` : null,
+                    filled: guestSelected,
+                    mono: false,
+                  },
+                  {
+                    label: 'Oturma',
+                    value: seatingLabel(seatingType),
+                    filled: !!seatingType,
+                    mono: false,
+                  },
+                  {
+                    label: 'Tarih',
+                    value: selectedDate
+                      ? selectedDate.toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'long',
+                        })
+                      : null,
+                    filled: !!selectedDate,
+                    mono: false,
+                  },
+                  {
+                    label: 'Telefon',
+                    value: validatePhone(userInfo.phone)
+                      ? userInfo.phone
+                      : null,
+                    filled: validatePhone(userInfo.phone),
+                    mono: true,
+                  },
+                  {
+                    label: 'E-posta',
+                    value: validateEmail(userInfo.email)
+                      ? userInfo.email
+                      : null,
+                    filled: validateEmail(userInfo.email),
+                    mono: false,
+                  },
+                ] satisfies {
+                  label: string;
+                  value: string | null;
+                  filled: boolean;
+                  mono: boolean;
+                }[]
+              ).map(({ label, value, filled, mono }) => (
                 <div
                   key={label}
                   className='flex items-center justify-between px-5 py-4'
@@ -525,13 +615,12 @@ export default function ReservationPage() {
     return null;
   };
 
-  /* ────────────────────────── JSX ────────────────────────── */
+  // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
     <main className='bg-secondaryColor min-h-screen lg:h-screen lg:overflow-hidden'>
       <style>{`
         * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
         *::-webkit-scrollbar { display: none !important; }
-        /* FIX pulse rings: no translate in keyframes — parent flex centers them */
         @keyframes ringPulse {
           from { transform: scale(0.95); opacity: 0.35; }
           to   { transform: scale(1.05); opacity: 0.85; }
@@ -562,69 +651,47 @@ export default function ReservationPage() {
         />
       </div>
 
-      {/* ── HEADER ── */}
+      {/* ── Header — dots only, no text labels on any device ── */}
       <header className='fixed top-0 inset-x-0 z-50 h-14 flex items-center justify-center bg-secondaryColor/80 backdrop-blur-2xl border-b border-softWhite/[0.045]'>
-        <div className='flex flex-col items-center gap-[5px]'>
-          <div className='flex items-center'>
-            {STEP_LABELS.map((label, i) => {
-              const stepNum = i + 1;
-              const isActive = stepNum === currentStep;
-              const isDone = stepNum < currentStep;
-              return (
-                <React.Fragment key={label}>
+        <div className='flex items-center'>
+          {STEP_LABELS.map((label, i) => {
+            const stepNum = i + 1;
+            const isActive = stepNum === currentStep;
+            const isDone = stepNum < currentStep;
+            return (
+              <React.Fragment key={label}>
+                <motion.div
+                  animate={{
+                    backgroundColor: isActive
+                      ? 'var(--color-mainColor)'
+                      : isDone
+                        ? 'rgba(255,25,135,0.4)'
+                        : 'rgba(255,255,255,0.08)',
+                    scale: isActive ? 1.35 : 1,
+                  }}
+                  transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                  className='w-[6px] h-[6px] rounded-full flex-shrink-0'
+                />
+                {i < STEP_LABELS.length - 1 && (
                   <motion.div
                     animate={{
-                      backgroundColor: isActive
-                        ? 'var(--color-mainColor)'
-                        : isDone
-                          ? 'rgba(255,25,135,0.4)'
-                          : 'rgba(255,255,255,0.08)',
-                      scale: isActive ? 1.35 : 1,
+                      backgroundColor: isDone
+                        ? 'rgba(255,25,135,0.22)'
+                        : 'rgba(255,255,255,0.05)',
                     }}
-                    transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-                    className='w-[6px] h-[6px] rounded-full flex-shrink-0'
+                    transition={{ duration: 0.4 }}
+                    className='w-5 sm:w-8 md:w-11 h-px flex-shrink-0'
                   />
-                  {i < STEP_LABELS.length - 1 && (
-                    <motion.div
-                      animate={{
-                        backgroundColor: isDone
-                          ? 'rgba(255,25,135,0.22)'
-                          : 'rgba(255,255,255,0.05)',
-                      }}
-                      transition={{ duration: 0.4 }}
-                      className='w-5 sm:w-8 md:w-11 h-px flex-shrink-0'
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-          <div className='hidden xl:flex items-center'>
-            {STEP_LABELS.map((label, i) => {
-              const stepNum = i + 1;
-              const isActive = stepNum === currentStep;
-              const isDone = stepNum < currentStep;
-              return (
-                <React.Fragment key={label}>
-                  <div className='w-[6px] flex-shrink-0 flex justify-center'>
-                    <span
-                      className={`text-[0.42rem] uppercase tracking-[0.12em] font-medium whitespace-nowrap transition-colors ${isActive ? 'text-mainColor/65' : isDone ? 'text-softWhite/25' : 'text-softWhite/12'}`}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                  {i < STEP_LABELS.length - 1 && (
-                    <div className='w-5 sm:w-8 md:w-11 flex-shrink-0' />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </header>
 
-      {/* ── MAIN LAYOUT ── */}
+      {/* ── Main scroll container (ref for scroll-to-top) ── */}
       <div
+        ref={scrollContainerRef}
         className='flex min-h-screen lg:h-screen pt-14 pb-[64px] justify-center'
         style={{
           overflowY: 'scroll',
@@ -635,7 +702,7 @@ export default function ReservationPage() {
         <div
           className={`flex w-full ${currentStep === 3 ? 'max-w-5xl' : isFullWidth ? 'max-w-3xl' : 'max-w-[1060px] xl:max-w-[1140px]'}`}
         >
-          {/* ── CONTENT COLUMN ── */}
+          {/* ── Content column ── */}
           <div
             className={`flex-1 flex flex-col min-w-0 ${!isFullWidth ? 'lg:border-r border-softWhite/[0.04]' : ''}`}
             style={{ overflow: 'hidden' }}
@@ -649,7 +716,7 @@ export default function ReservationPage() {
                   initial={{ opacity: 0, y: direction > 0 ? 12 : -12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.22, ease: easing }}
+                  transition={{ duration: 0.22, ease: EASING }}
                   className='px-5 sm:px-8 xl:px-12 pt-5 sm:pt-9 pb-4 sm:pb-6 shrink-0'
                 >
                   <p className='text-mainColor/50 text-[0.56rem] uppercase tracking-[0.42em] mb-2 sm:mb-3 font-semibold'>
@@ -661,24 +728,28 @@ export default function ReservationPage() {
                     style={{ fontSize: 'clamp(1.7rem, 4.5vw, 3.6rem)' }}
                   >
                     {
-                      [
-                        'Kaç kişisiniz?',
-                        'Nerede\noturmak istersiniz?',
-                        'Geceyi planlayın.',
-                        'Sizi nasıl bulalım?',
-                        'Her şey hazır.',
-                      ][currentStep - 1]
+                      (
+                        [
+                          'Kaç kişisiniz?',
+                          'Nerede\noturmak istersiniz?',
+                          'Geceyi planlayın.',
+                          'Sizi nasıl bulalım?',
+                          'Her şey hazır.',
+                        ] as const
+                      )[currentStep - 1]
                     }
                   </h1>
                   <p className='text-softWhite/28 text-[0.8rem] mt-1.5 leading-snug'>
                     {
-                      [
-                        'Masanızı kişi sayısına göre hazırlayalım.',
-                        'Size en uygun deneyimi seçin.',
-                        'Tarih ve saatinizi belirleyin.',
-                        'Rezervasyonunuzu tamamlamak için bilgilerinizi girin.',
-                        'Rezervasyonunuzu gözden geçirin ve onaylayın.',
-                      ][currentStep - 1]
+                      (
+                        [
+                          'Masanızı kişi sayısına göre hazırlayalım.',
+                          'Size en uygun deneyimi seçin.',
+                          'Tarih ve saatinizi belirleyin.',
+                          'Rezervasyonunuzu tamamlamak için bilgilerinizi girin.',
+                          'Rezervasyonunuzu gözden geçirin ve onaylayın.',
+                        ] as const
+                      )[currentStep - 1]
                     }
                   </p>
                 </motion.div>
@@ -686,20 +757,17 @@ export default function ReservationPage() {
 
               <div className='w-full h-px bg-softWhite/[0.045] shrink-0' />
 
-              {/* ── STEP BODY ──
-                  FIX: items-start so content is LEFT-aligned (matching header text above).
-                  Step 5 uses its own inner flex center.
-                  overflow:hidden on this div clips the exit animation so step 4
-                  can't bleed through when step 5 mounts. */}
+              {/* Step body */}
               <AnimatePresence mode='wait' custom={direction}>
                 <motion.div
+                  ref={innerScrollRef}
                   key={`b-${currentStep}`}
                   custom={direction}
-                  variants={contentVariants}
+                  variants={CONTENT_VARIANTS}
                   initial='enter'
                   animate='center'
                   exit='exit'
-                  transition={contentTransition.enter}
+                  transition={CONTENT_TRANSITION.enter}
                   className='lg:flex-1 flex flex-col items-start px-5 sm:px-8 xl:px-12 pb-10 pt-8 sm:pt-10'
                   style={{
                     overflowY: 'scroll',
@@ -707,58 +775,283 @@ export default function ReservationPage() {
                     scrollbarWidth: 'none',
                   }}
                 >
-                  {/* ══ STEP 1 ══ */}
-                  {currentStep === 1 && (
-                    <div className='flex flex-col gap-5 sm:gap-7 w-full'>
-                      {/* FIX: rounded-2xl back (not rounded-full) */}
-                      <div className='grid grid-cols-4 gap-3 w-full max-w-xs sm:max-w-sm'>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => {
-                          const isSelected = guestSelected && guests === n;
-                          return (
-                            <button
-                              key={n}
-                              onClick={() => {
-                                setGuests(n);
-                                setGuestSelected(true);
-                              }}
-                              className='aspect-square rounded-2xl text-lg sm:text-xl font-bold border transition-colors duration-100'
+                  {/* ══ Step 1 — Rectangle table selector ══ */}
+                  {currentStep === 1 &&
+                    (() => {
+                      const activeCount =
+                        hoveredCount ?? (guestSelected ? guests : 0);
+
+                      // 3 top (1-2-3), right (4), 3 bottom (5-6-7), left (8)
+                      const W = 560,
+                        H = 270;
+                      const TABLE = { x: 70, y: 82, w: 420, h: 106, rx: 6 };
+                      const TX = TABLE.x + TABLE.w / 2; // 280
+                      const TY = TABLE.y + TABLE.h / 2; // 129
+                      const topXs = [160, 280, 400];
+                      const SEATS = [
+                        // top row — 1 2 3
+                        { x: topXs[0], y: TABLE.y - 28, rot: 0, n: 1 },
+                        { x: topXs[1], y: TABLE.y - 28, rot: 0, n: 2 },
+                        { x: topXs[2], y: TABLE.y - 28, rot: 0, n: 3 },
+                        // right side — 4
+                        { x: TABLE.x + TABLE.w + 28, y: TY, rot: 90, n: 4 },
+                        // bottom row — 7 6 5  (reversed so 1↔7, 2↔6, 3↔5)
+                        {
+                          x: topXs[0],
+                          y: TABLE.y + TABLE.h + 28,
+                          rot: 180,
+                          n: 7,
+                        },
+                        {
+                          x: topXs[1],
+                          y: TABLE.y + TABLE.h + 28,
+                          rot: 180,
+                          n: 6,
+                        },
+                        {
+                          x: topXs[2],
+                          y: TABLE.y + TABLE.h + 28,
+                          rot: 180,
+                          n: 5,
+                        },
+                        // left side — 8
+                        { x: TABLE.x - 28, y: TY, rot: -90, n: 8 },
+                      ] as const;
+
+                      return (
+                        <div className='flex flex-col gap-5 w-full max-w-xl'>
+                          <div
+                            className='w-full relative'
+                            style={{ touchAction: 'manipulation' }}
+                          >
+                            <svg
+                              viewBox={`0 0 ${W} ${H}`}
+                              fill='none'
+                              xmlns='http://www.w3.org/2000/svg'
+                              className='w-full h-auto'
                               style={{
-                                backgroundColor: isSelected
-                                  ? 'var(--color-mainColor)'
-                                  : 'rgba(255,255,255,0.035)',
-                                borderColor: isSelected
-                                  ? 'var(--color-mainColor)'
-                                  : 'rgba(255,255,255,0.06)',
-                                color: isSelected
-                                  ? 'white'
-                                  : 'rgba(255,255,255,0.3)',
+                                overflow: 'visible',
+                                WebkitTapHighlightColor: 'transparent',
                               }}
                             >
-                              {n}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {/* mobile-only confirmation — desktop has the right panel */}
-                      {guestSelected && (
-                        <motion.p
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className='lg:hidden text-softWhite/20 text-[0.68rem] tracking-wide'
-                        >
-                          {guests} kişilik rezervasyon seçildi
-                        </motion.p>
-                      )}
-                    </div>
-                  )}
+                              {/* ── Table surface ── */}
+                              <rect
+                                x={TABLE.x}
+                                y={TABLE.y}
+                                width={TABLE.w}
+                                height={TABLE.h}
+                                rx={TABLE.rx}
+                                fill='rgba(255,255,255,0.022)'
+                                stroke='rgba(255,255,255,0.08)'
+                                strokeWidth='1.5'
+                              />
+                              {/* ── Chairs ── */}
+                              {SEATS.map(({ x, y, rot, n }) => {
+                                const isActive = n <= activeCount;
+                                const isChosen =
+                                  guestSelected &&
+                                  guests === n &&
+                                  hoveredCount === null;
+                                return (
+                                  <g
+                                    key={n}
+                                    transform={`translate(${x},${y}) rotate(${rot})`}
+                                    style={{
+                                      cursor: 'pointer',
+                                      WebkitTapHighlightColor: 'transparent',
+                                    }}
+                                    onClick={() => {
+                                      setGuests(n);
+                                      setGuestSelected(true);
+                                      setHoveredCount(null);
+                                    }}
+                                    onTouchEnd={(e) => {
+                                      e.preventDefault();
+                                      setGuests(n);
+                                      setGuestSelected(true);
+                                      setHoveredCount(null);
+                                    }}
+                                    onMouseEnter={() => setHoveredCount(n)}
+                                    onMouseLeave={() => setHoveredCount(null)}
+                                  >
+                                    {/* Hit area — enlarged for finger-sized touch targets */}
+                                    <rect
+                                      x='-32'
+                                      y='-38'
+                                      width='64'
+                                      height='62'
+                                      fill='transparent'
+                                    />
+                                    {/* Chair back — taller, more visible */}
+                                    <rect
+                                      x='-18'
+                                      y='-32'
+                                      width='36'
+                                      height='14'
+                                      rx='5'
+                                      fill={
+                                        isActive
+                                          ? 'rgba(255,25,135,0.25)'
+                                          : 'rgba(255,255,255,0.05)'
+                                      }
+                                      stroke={
+                                        isActive
+                                          ? 'rgba(255,25,135,0.9)'
+                                          : 'rgba(255,255,255,0.18)'
+                                      }
+                                      strokeWidth={isChosen ? '2' : '1.4'}
+                                      style={{ transition: 'all 0.15s ease' }}
+                                    />
+                                    {/* Chair seat — wider, more visible */}
+                                    <rect
+                                      x='-16'
+                                      y='-15'
+                                      width='32'
+                                      height='14'
+                                      rx='4'
+                                      fill={
+                                        isActive
+                                          ? 'rgba(255,25,135,0.15)'
+                                          : 'rgba(255,255,255,0.04)'
+                                      }
+                                      stroke={
+                                        isActive
+                                          ? 'rgba(255,25,135,0.5)'
+                                          : 'rgba(255,255,255,0.1)'
+                                      }
+                                      strokeWidth='1.2'
+                                      style={{ transition: 'all 0.15s ease' }}
+                                    />
+                                    {/* Chosen glow */}
+                                    {isChosen && (
+                                      <rect
+                                        x='-18'
+                                        y='-32'
+                                        width='36'
+                                        height='31'
+                                        rx='5'
+                                        fill='none'
+                                        stroke='rgba(255,25,135,0.5)'
+                                        strokeWidth='5'
+                                        style={{
+                                          filter: 'blur(6px)',
+                                          opacity: 0.7,
+                                        }}
+                                      />
+                                    )}
+                                    {/* Seat number — bigger, punchy */}
+                                    <text
+                                      x='0'
+                                      y='-22'
+                                      textAnchor='middle'
+                                      fontSize='8'
+                                      fontWeight='700'
+                                      fill={
+                                        isActive
+                                          ? 'rgba(255,255,255,0.9)'
+                                          : 'rgba(255,255,255,0.25)'
+                                      }
+                                      fontFamily='inherit'
+                                      style={{
+                                        transition: 'fill 0.15s ease',
+                                        userSelect: 'none',
+                                      }}
+                                    >
+                                      {n}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                            {/* Centre count — mobile/tablet only */}
+                            <AnimatePresence mode='wait'>
+                              {activeCount > 0 && (
+                                <motion.div
+                                  key={activeCount}
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.8 }}
+                                  transition={{
+                                    duration: 0.14,
+                                    ease: [0.16, 1, 0.3, 1],
+                                  }}
+                                  className='lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none'
+                                >
+                                  <span
+                                    className='font-black tabular-nums leading-none tracking-[-0.04em] select-none'
+                                    style={{
+                                      fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
+                                      color:
+                                        guestSelected && hoveredCount === null
+                                          ? 'rgba(255,255,255,0.75)'
+                                          : 'rgba(255,255,255,0.3)',
+                                      textShadow:
+                                        guestSelected && hoveredCount === null
+                                          ? '0 0 40px rgba(255,25,135,0.35)'
+                                          : 'none',
+                                      transition:
+                                        'color 0.2s ease, text-shadow 0.2s ease',
+                                    }}
+                                  >
+                                    {activeCount}
+                                  </span>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
 
-                  {/* ══ STEP 2 ══ */}
+                          {/* Confirmation — mobile/tablet only (desktop has the right panel) */}
+                          <AnimatePresence mode='wait'>
+                            {guestSelected ? (
+                              <motion.div
+                                key='confirmed'
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.18 }}
+                                className='lg:hidden flex items-center gap-3 justify-end pt-4'
+                              >
+                                <div className='flex gap-1.5'>
+                                  {Array.from({ length: 8 }).map((_, i) => (
+                                    <div
+                                      key={i}
+                                      className='rounded-full transition-all duration-150'
+                                      style={{
+                                        width: i < guests ? '7px' : '5px',
+                                        height: i < guests ? '7px' : '5px',
+                                        backgroundColor:
+                                          i < guests
+                                            ? 'var(--color-mainColor)'
+                                            : 'rgba(255,255,255,0.07)',
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                <span className='text-softWhite/25 text-[0.65rem] tracking-[0.2em] uppercase'>
+                                  {guests} kişilik masa
+                                </span>
+                              </motion.div>
+                            ) : (
+                              <motion.p
+                                key='hint'
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className='lg:hidden text-softWhite/15 text-[0.68rem] tracking-wide w-full text-right pt-4'
+                              >
+                                Bir koltuğa tıklayın
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })()}
+
+                  {/* ══ Step 2 — Seating type ══ */}
                   {currentStep === 2 && (
                     <div className='space-y-2 w-full max-w-xl'>
                       {SEATING_OPTIONS.map(
                         ({ value, num, label, desc, icon }) => (
-                          // FIX: no stagger delay & no y on initial — pure opacity fade to avoid mobile flash
                           <motion.button
                             key={value}
                             onClick={() => setSeatingType(value)}
@@ -767,7 +1060,11 @@ export default function ReservationPage() {
                             transition={{ duration: 0.2, ease: 'easeOut' }}
                             whileTap={{ scale: 0.985 }}
                             className={`cursor-pointer w-full text-left rounded-xl border transition-colors duration-150 overflow-hidden
-                            ${seatingType === value ? 'border-mainColor/30 bg-mainColor/[0.035]' : 'border-softWhite/[0.055] bg-softWhite/[0.012] active:bg-softWhite/[0.05] hover:bg-softWhite/[0.028] hover:border-softWhite/10'}`}
+                            ${
+                              seatingType === value
+                                ? 'border-mainColor/30 bg-mainColor/[0.035]'
+                                : 'border-softWhite/[0.055] bg-softWhite/[0.012] hover:bg-softWhite/[0.028] hover:border-softWhite/10'
+                            }`}
                           >
                             <div className='flex items-center gap-4 px-5 py-4'>
                               <span
@@ -801,7 +1098,6 @@ export default function ReservationPage() {
                                   {desc}
                                 </p>
                               </div>
-                              {/* FIX: plain CSS circle, no framer spring — avoids iOS animation jank */}
                               <div
                                 className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all duration-150 ${seatingType === value ? 'border-mainColor' : 'border-softWhite/15'}`}
                               >
@@ -817,7 +1113,6 @@ export default function ReservationPage() {
                                 />
                               </div>
                             </div>
-                            {/* accent line — simple opacity, no layout animation */}
                             <div
                               className='h-px transition-opacity duration-150'
                               style={{
@@ -832,10 +1127,10 @@ export default function ReservationPage() {
                     </div>
                   )}
 
-                  {/* ══ STEP 3 ══ */}
+                  {/* ══ Step 3 — Date & time ══ */}
                   {currentStep === 3 && (
                     <div className='grid lg:grid-cols-[440px_1fr] gap-5 xl:gap-7 w-full pt-2'>
-                      {/* Calendar */}
+                      {/* ─ Calendar ─ */}
                       <div
                         className='rounded-2xl border border-softWhite/[0.08] bg-softWhite/[0.018] self-start w-full max-w-[360px] mx-auto lg:mx-0 lg:max-w-none'
                         style={{ padding: 'clamp(1rem, 2.5vw, 1.75rem)' }}
@@ -856,10 +1151,12 @@ export default function ReservationPage() {
                             })}
                           </span>
                           <div className='flex gap-1'>
-                            {[
-                              { fn: prevMonth, c: '‹' },
-                              { fn: nextMonth, c: '›' },
-                            ].map(({ fn, c }) => (
+                            {(
+                              [
+                                { fn: prevMonth, c: '‹' },
+                                { fn: nextMonth, c: '›' },
+                              ] as const
+                            ).map(({ fn, c }) => (
                               <button
                                 key={c}
                                 onClick={fn}
@@ -870,23 +1167,23 @@ export default function ReservationPage() {
                             ))}
                           </div>
                         </div>
+
                         <div className='grid grid-cols-7 mb-2'>
-                          {['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map(
-                            (d) => (
-                              <div
-                                key={d}
-                                className='text-center text-softWhite/20 font-medium py-2'
-                                style={{
-                                  fontSize: 'clamp(0.6rem, 1vw, 0.68rem)',
-                                }}
-                              >
-                                {d}
-                              </div>
-                            ),
-                          )}
+                          {WEEK_DAYS.map((d) => (
+                            <div
+                              key={d}
+                              className='text-center text-softWhite/20 font-medium py-2'
+                              style={{
+                                fontSize: 'clamp(0.6rem, 1vw, 0.68rem)',
+                              }}
+                            >
+                              {d}
+                            </div>
+                          ))}
                         </div>
+
                         <div className='grid grid-cols-7 gap-1'>
-                          {generateCalendar().map((day, i) => {
+                          {calendarDays.map((day, i) => {
                             const isSel =
                               selectedDate?.toDateString() ===
                               day.date.toDateString();
@@ -921,64 +1218,69 @@ export default function ReservationPage() {
                         </div>
                       </div>
 
-                      {/* Time slots */}
+                      {/* ─ Time slots ─ */}
                       <div className='space-y-5 min-w-0 pt-1'>
                         {selectedDate ? (
                           <>
-                            {selectedTime &&
-                              (() => {
-                                const [slotH] = selectedTime
-                                  .split(':')
-                                  .map(Number);
-                                if (slotH > 5) return null;
-                                const now = new Date();
-                                const todayMid = new Date(now);
-                                todayMid.setHours(0, 0, 0, 0);
-                                const selMid = new Date(selectedDate);
-                                selMid.setHours(0, 0, 0, 0);
-                                if (
-                                  selMid.getTime() === todayMid.getTime() &&
-                                  now.getHours() <= 5
-                                )
-                                  return null;
-                                const nextDay = new Date(selectedDate);
-                                nextDay.setDate(nextDay.getDate() + 1);
-                                return (
-                                  <motion.div
-                                    initial={{ opacity: 0, y: -6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className='flex items-center gap-2.5 rounded-xl border border-mainColor/15 bg-mainColor/[0.03] px-3.5 py-2.5'
-                                  >
-                                    <svg
-                                      className='w-3 h-3 text-mainColor/50 shrink-0'
-                                      fill='none'
-                                      viewBox='0 0 24 24'
-                                      stroke='currentColor'
+                            {/* Notice anchor — scrollIntoView when a past-midnight time is picked */}
+                            <div ref={timeNoticeRef}>
+                              {effectiveTime &&
+                                (() => {
+                                  const [slotH] = effectiveTime
+                                    .split(':')
+                                    .map(Number);
+                                  if (slotH > 5) return null;
+                                  const now = new Date();
+                                  const todayMid = new Date(now);
+                                  todayMid.setHours(0, 0, 0, 0);
+                                  const selMid = new Date(selectedDate);
+                                  selMid.setHours(0, 0, 0, 0);
+                                  if (
+                                    selMid.getTime() === todayMid.getTime() &&
+                                    now.getHours() <= 5
+                                  )
+                                    return null;
+                                  const nextDay = new Date(selectedDate);
+                                  nextDay.setDate(nextDay.getDate() + 1);
+                                  return (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -6 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                      className='flex items-center gap-2.5 rounded-xl border border-mainColor/15 bg-mainColor/[0.03] px-3.5 py-2.5'
                                     >
-                                      <path
-                                        strokeLinecap='round'
-                                        strokeLinejoin='round'
-                                        strokeWidth={2}
-                                        d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                                      />
-                                    </svg>
-                                    <p className='text-[0.68rem] text-softWhite/40 leading-snug'>
-                                      <span className='text-mainColor/70 font-medium'>
-                                        {selectedTime}
-                                      </span>{' '}
-                                      seçtiniz —{' '}
-                                      <span className='text-softWhite/55'>
-                                        {nextDay.toLocaleDateString('tr-TR', {
-                                          day: 'numeric',
-                                          month: 'long',
-                                        })}{' '}
-                                        sabahı için geçerli
-                                      </span>
-                                    </p>
-                                  </motion.div>
-                                );
-                              })()}
+                                      <svg
+                                        className='w-3 h-3 text-mainColor/50 shrink-0'
+                                        fill='none'
+                                        viewBox='0 0 24 24'
+                                        stroke='currentColor'
+                                      >
+                                        <path
+                                          strokeLinecap='round'
+                                          strokeLinejoin='round'
+                                          strokeWidth={2}
+                                          d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+                                        />
+                                      </svg>
+                                      <p className='text-[0.68rem] text-softWhite/40 leading-snug'>
+                                        <span className='text-mainColor/70 font-medium'>
+                                          {effectiveTime}
+                                        </span>{' '}
+                                        seçtiniz —{' '}
+                                        <span className='text-softWhite/55'>
+                                          {nextDay.toLocaleDateString('tr-TR', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                          })}{' '}
+                                          sabahı için geçerli
+                                        </span>
+                                      </p>
+                                    </motion.div>
+                                  );
+                                })()}
+                            </div>
+
+                            {/* "Continuation of last night" notice */}
                             {(() => {
                               const now = new Date();
                               const nowH = now.getHours();
@@ -1009,18 +1311,21 @@ export default function ReservationPage() {
                                 </p>
                               );
                             })()}
-                            {[
-                              {
-                                label: 'Gece',
-                                range: '23:00 – 02:45',
-                                slots: nightSlots,
-                              },
-                              {
-                                label: 'Sabah',
-                                range: '03:00 – 05:00',
-                                slots: morningSlots,
-                              },
-                            ].map(({ label, range, slots }) => (
+
+                            {(
+                              [
+                                {
+                                  label: 'Gece',
+                                  range: '23:00 – 02:45',
+                                  slots: NIGHT_SLOTS,
+                                },
+                                {
+                                  label: 'Sabah',
+                                  range: '03:00 – 05:00',
+                                  slots: MORNING_SLOTS,
+                                },
+                              ] as const
+                            ).map(({ label, range, slots }) => (
                               <div key={label}>
                                 <div className='flex items-baseline gap-2 mb-3'>
                                   <span className='text-softWhite/25 text-[0.58rem] uppercase tracking-[0.28em]'>
@@ -1033,7 +1338,7 @@ export default function ReservationPage() {
                                 <div className='grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5 gap-2'>
                                   {slots.map(({ time }) => {
                                     const isPast = isTimeSlotPast(time);
-                                    const isSel = selectedTime === time;
+                                    const isSel = effectiveTime === time;
                                     return (
                                       <motion.button
                                         key={time}
@@ -1045,7 +1350,13 @@ export default function ReservationPage() {
                                           !isPast ? { scale: 0.91 } : {}
                                         }
                                         className={`cursor-pointer py-3 px-2 rounded-xl text-[0.8rem] tracking-wide transition-all duration-150
-                                          ${isSel ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25' : isPast ? 'bg-softWhite/[0.01] text-softWhite/[0.08] border border-softWhite/[0.03] cursor-not-allowed line-through' : 'bg-softWhite/[0.04] hover:bg-softWhite/[0.075] text-softWhite/45 border border-softWhite/[0.055] hover:text-softWhite/75'}`}
+                                          ${
+                                            isSel
+                                              ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25'
+                                              : isPast
+                                                ? 'bg-softWhite/[0.01] text-softWhite/[0.08] border border-softWhite/[0.03] cursor-not-allowed line-through'
+                                                : 'bg-softWhite/[0.04] hover:bg-softWhite/[0.075] text-softWhite/45 border border-softWhite/[0.055] hover:text-softWhite/75'
+                                          }`}
                                       >
                                         {time}
                                       </motion.button>
@@ -1081,39 +1392,40 @@ export default function ReservationPage() {
                     </div>
                   )}
 
-                  {/* ══ STEP 4 ══ */}
+                  {/* ══ Step 4 — Contact info ══ */}
                   {currentStep === 4 && (
                     <div className='w-full space-y-3'>
                       <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                        {[
-                          {
-                            key: 'name',
-                            label: 'Ad',
-                            type: 'text',
-                            valid: userInfo.name.trim().length >= 2,
-                          },
-                          {
-                            key: 'surname',
-                            label: 'Soyad',
-                            type: 'text',
-                            valid: userInfo.surname.trim().length >= 2,
-                          },
-                          {
-                            key: 'phone',
-                            label: 'Telefon',
-                            type: 'tel',
-                            valid: validatePhone(userInfo.phone),
-                          },
-                          {
-                            key: 'email',
-                            label: 'E-posta',
-                            type: 'email',
-                            valid: validateEmail(userInfo.email),
-                          },
-                        ].map(({ key, label, type, valid }) => {
+                        {(
+                          [
+                            {
+                              key: 'name',
+                              label: 'Ad',
+                              type: 'text',
+                              valid: userInfo.name.trim().length >= 2,
+                            },
+                            {
+                              key: 'surname',
+                              label: 'Soyad',
+                              type: 'text',
+                              valid: userInfo.surname.trim().length >= 2,
+                            },
+                            {
+                              key: 'phone',
+                              label: 'Telefon',
+                              type: 'tel',
+                              valid: validatePhone(userInfo.phone),
+                            },
+                            {
+                              key: 'email',
+                              label: 'E-posta',
+                              type: 'email',
+                              valid: validateEmail(userInfo.email),
+                            },
+                          ] as const
+                        ).map(({ key, label, type, valid }) => {
                           const isFoc = focusedField === key;
-                          const hasVal =
-                            userInfo[key as keyof UserInfo].length > 0;
+                          const hasVal = userInfo[key].length > 0;
                           const lifted = isFoc || hasVal;
                           return (
                             <div key={key} className='relative'>
@@ -1129,12 +1441,9 @@ export default function ReservationPage() {
                               </label>
                               <input
                                 type={type}
-                                value={userInfo[key as keyof UserInfo]}
+                                value={userInfo[key]}
                                 onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    [key]: e.target.value,
-                                  })
+                                  handleUserInfoChange(key, e.target.value)
                                 }
                                 onFocus={() => setFocusedField(key)}
                                 onBlur={() => setFocusedField(null)}
@@ -1188,13 +1497,13 @@ export default function ReservationPage() {
                     </div>
                   )}
 
-                  {/* ══ STEP 5 — self-centered ══ */}
+                  {/* ══ Step 5 — Summary ══ */}
                   {currentStep === 5 && (
                     <div className='w-full flex items-center justify-center'>
                       <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.38, ease: easing }}
+                        transition={{ duration: 0.38, ease: EASING }}
                         className='w-full max-w-2xl'
                       >
                         <div
@@ -1213,47 +1522,58 @@ export default function ReservationPage() {
                             </p>
                           </div>
                           <div className='divide-y divide-softWhite/[0.04]'>
-                            {[
-                              {
-                                label: 'Kişi',
-                                value: `${guests} kişi`,
-                                hi: false,
-                              },
-                              {
-                                label: 'Oturma',
-                                value:
-                                  seatingType === 'vip'
-                                    ? 'VIP Loca'
-                                    : seatingType === 'lounge'
-                                      ? 'Lounge Bar'
-                                      : 'Masa',
-                                hi: false,
-                              },
-                              {
-                                label: 'Tarih',
-                                value: summaryDate?.toLocaleDateString(
-                                  'tr-TR',
-                                  {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric',
-                                  },
-                                ),
-                                hi: false,
-                              },
-                              { label: 'Saat', value: selectedTime, hi: true },
-                              {
-                                label: 'Telefon',
-                                value: userInfo.phone,
-                                hi: false,
-                                mono: true,
-                              },
-                              {
-                                label: 'E-posta',
-                                value: userInfo.email,
-                                hi: false,
-                              },
-                            ].map(({ label, value, hi, mono }) => (
+                            {(
+                              [
+                                {
+                                  label: 'Kişi',
+                                  value: `${guests} kişi`,
+                                  hi: false,
+                                  mono: false,
+                                },
+                                {
+                                  label: 'Oturma',
+                                  value: seatingLabel(seatingType),
+                                  hi: false,
+                                  mono: false,
+                                },
+                                {
+                                  label: 'Tarih',
+                                  value: summaryDate?.toLocaleDateString(
+                                    'tr-TR',
+                                    {
+                                      day: 'numeric',
+                                      month: 'long',
+                                      year: 'numeric',
+                                    },
+                                  ),
+                                  hi: false,
+                                  mono: false,
+                                },
+                                {
+                                  label: 'Saat',
+                                  value: effectiveTime,
+                                  hi: true,
+                                  mono: false,
+                                },
+                                {
+                                  label: 'Telefon',
+                                  value: userInfo.phone,
+                                  hi: false,
+                                  mono: true,
+                                },
+                                {
+                                  label: 'E-posta',
+                                  value: userInfo.email,
+                                  hi: false,
+                                  mono: false,
+                                },
+                              ] satisfies {
+                                label: string;
+                                value: string | null | undefined;
+                                hi: boolean;
+                                mono: boolean;
+                              }[]
+                            ).map(({ label, value, hi, mono }) => (
                               <div
                                 key={label}
                                 className='flex items-center justify-between px-6 sm:px-8 py-3.5'
@@ -1284,15 +1604,9 @@ export default function ReservationPage() {
             </div>
           </div>
 
-          {/* ── RIGHT PANEL ──
-              FIX centering: motion.div is "absolute inset-0 flex items-center justify-center"
-              so it always perfectly fills and centers within the aside.
-              Pulse rings: live inside a "absolute inset-0 flex items-center justify-center"
-              wrapper — rings are position:absolute but auto-centered by the flex parent,
-              so @keyframes only scales from center, no translate() collision. */}
+          {/* ── Right panel ── */}
           {!isFullWidth && (
             <aside className='hidden lg:flex w-[300px] xl:w-[360px] shrink-0 relative overflow-hidden'>
-              {/* Divider */}
               <div
                 className='absolute left-0 top-[15%] bottom-[15%] w-px pointer-events-none'
                 style={{
@@ -1300,9 +1614,6 @@ export default function ReservationPage() {
                     'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.04) 70%, transparent 100%)',
                 }}
               />
-
-              {/* Pulse rings — step 1 only
-                  Centered via a flex wrapper, no translate in animation */}
               {currentStep === 1 && (
                 <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
                   {[1, 2, 3].map((i) => (
@@ -1319,16 +1630,15 @@ export default function ReservationPage() {
                   ))}
                 </div>
               )}
-
               <AnimatePresence mode='wait' custom={direction}>
                 <motion.div
                   key={`p-${currentStep}`}
                   custom={direction}
-                  variants={panelVariants}
+                  variants={PANEL_VARIANTS}
                   initial='enter'
                   animate='center'
                   exit='exit'
-                  transition={{ duration: 0.26, ease: easing }}
+                  transition={{ duration: 0.26, ease: EASING }}
                   className='absolute inset-0 flex flex-col items-center justify-center px-6 xl:px-8'
                 >
                   {renderRightPanel()}
@@ -1339,7 +1649,7 @@ export default function ReservationPage() {
         </div>
       </div>
 
-      {/* ── BOTTOM BAR ── */}
+      {/* ── Bottom bar ── */}
       <div
         className='fixed bottom-0 inset-x-0 z-50 bg-secondaryColor/85 backdrop-blur-2xl border-t border-softWhite/[0.045]'
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
@@ -1349,9 +1659,7 @@ export default function ReservationPage() {
             onClick={goBack}
             whileTap={{ scale: 0.88, opacity: 0.65 }}
             transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-            className='flex items-center justify-center gap-2 h-11 px-5 min-w-[110px] rounded-xl border border-softWhite/[0.09]
-              text-softWhite/45 hover:text-softWhite/80 hover:border-softWhite/18
-              text-[0.72rem] font-semibold uppercase tracking-[0.16em] transition-colors duration-150 select-none'
+            className='flex items-center justify-center gap-2 h-11 px-5 min-w-[110px] rounded-xl border border-softWhite/[0.09] text-softWhite/45 hover:text-softWhite/80 hover:border-softWhite/18 text-[0.72rem] font-semibold uppercase tracking-[0.16em] transition-colors duration-150 select-none'
             style={
               {
                 touchAction: 'manipulation',
@@ -1377,15 +1685,14 @@ export default function ReservationPage() {
 
           <motion.button
             onClick={
-              currentStep === totalSteps
+              currentStep === TOTAL_STEPS
                 ? () => alert('Rezervasyon tamamlandı!')
                 : goNext
             }
             disabled={!canProceed()}
             whileTap={canProceed() ? { scale: 0.88, opacity: 0.8 } : {}}
             transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-            className={`flex items-center justify-center gap-2 h-11 px-6 min-w-[140px] rounded-xl
-              text-[0.72rem] font-semibold uppercase tracking-[0.16em] select-none transition-all duration-200
+            className={`flex items-center justify-center gap-2 h-11 px-6 min-w-[140px] rounded-xl text-[0.72rem] font-semibold uppercase tracking-[0.16em] select-none transition-all duration-200
               ${canProceed() ? 'bg-mainColor text-white hover:bg-mainColor/88 shadow-lg shadow-mainColor/20' : 'bg-softWhite/[0.035] text-softWhite/12 cursor-not-allowed'}`}
             style={
               {
@@ -1394,7 +1701,7 @@ export default function ReservationPage() {
               } as React.CSSProperties
             }
           >
-            {currentStep === totalSteps ? 'Tamamla' : 'Devam Et'}
+            {currentStep === TOTAL_STEPS ? 'Tamamla' : 'Devam Et'}
             {canProceed() && (
               <svg
                 className='w-3.5 h-3.5 shrink-0'

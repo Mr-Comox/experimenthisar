@@ -180,7 +180,7 @@ const AtmosphereSection = () => {
       }}
     >
       <div className='max-w-7xl mb-20'>
-        <TextReveal delay={0}>
+        <TextReveal>
           <Headline className='mb-8 max-w-3xl'>
             Zamanla büyüyen <br />
             <MainColorToQuatFont>köklü bir yolculuk</MainColorToQuatFont>

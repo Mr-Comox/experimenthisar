@@ -412,8 +412,8 @@ export default function Navbar() {
   return (
     <>
       <nav className='flex w-full fixed top-5 px-6 py-5 z-9998 items-center justify-between h-20'>
-        <div className='flex items-center h-full'>
-          <Logo className='w-15 h-15 lg:w-20 lg:h-20' />
+        <div>
+          <ActivitiesLogo className='w-15 h-15' />
         </div>
         <HamburgerBtn
           isOpen={open}
