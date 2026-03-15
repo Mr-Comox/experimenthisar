@@ -145,7 +145,7 @@ export default function ReservationPage() {
   const generateCalendar = () => {
     const firstDay = new Date(viewingYear, viewingMonth, 1);
     const lastDay = new Date(viewingYear, viewingMonth + 1, 0);
-    const days = [];
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
     let startOffset = firstDay.getDay() - 1;
     if (startOffset < 0) startOffset = 6;
     for (let i = 0; i < startOffset; i++)
@@ -223,16 +223,22 @@ export default function ReservationPage() {
   today.setHours(0, 0, 0, 0);
   const easing = [0.25, 0.46, 0.45, 0.94] as const;
 
+  // FIX step 4→5 linger: fast exit (0.12s), normal enter (0.26s)
   const contentVariants = {
-    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 20 : -20 }),
+    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 16 : -16 }),
     center: { opacity: 1, y: 0 },
-    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -20 : 20 }),
+    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -10 : 10 }),
+  };
+  const contentTransition = {
+    enter: { duration: 0.26, ease: easing },
+    center: { duration: 0.26, ease: easing },
+    exit: { duration: 0.12, ease: [0.4, 0, 1, 1] as const }, // snap out
   };
 
   const panelVariants = {
-    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 16 : -16, scale: 0.98 }),
+    enter: (d: number) => ({ opacity: 0, y: d > 0 ? 14 : -14, scale: 0.98 }),
     center: { opacity: 1, y: 0, scale: 1 },
-    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -16 : 16, scale: 0.98 }),
+    exit: (d: number) => ({ opacity: 0, y: d > 0 ? -14 : 14, scale: 0.98 }),
   };
 
   const summaryDate = (() => {
@@ -256,111 +262,105 @@ export default function ReservationPage() {
 
   const isFullWidth = currentStep === 3 || currentStep === 5;
 
+  /* ────────────────────────────────────────────────────────────
+     RIGHT PANEL
+     FIX centering: motion.div is absolute inset-0 with flex
+     center so it always fills the aside exactly.
+     Pulse rings live inside a dedicated centering wrapper
+     so the CSS @keyframes scale doesn't fight with translate.
+  ──────────────────────────────────────────────────────────── */
   const renderRightPanel = () => {
+    /* ── STEP 1 ── */
     if (currentStep === 1) {
       return (
-        <div className='flex flex-col items-center justify-center h-full gap-4 relative'>
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className='absolute rounded-full border border-mainColor/10'
-              style={{
-                width: `${160 + i * 60}px`,
-                height: `${160 + i * 60}px`,
-                animation: `pulse ${2.5 + i * 0.6}s ease-in-out ${i * 0.4}s infinite alternate`,
-                opacity: 0.5 - i * 0.12,
-              }}
-            />
-          ))}
-          <div className='relative text-center z-10'>
-            <AnimatePresence mode='wait'>
-              {guestSelected ? (
-                <motion.div
-                  key={guests}
-                  initial={{ scale: 0.75, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 1.2, opacity: 0 }}
-                  transition={{ duration: 0.13, ease: [0.16, 1, 0.3, 1] }}
-                  className='font-black tabular-nums leading-none tracking-[-0.06em] text-softWhite select-none'
-                  style={{
-                    fontSize: 'clamp(6rem, 14vw, 11rem)',
-                    textShadow: '0 0 80px rgba(255,25,135,0.2)',
-                  }}
-                >
-                  {guests}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key='empty'
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.16 }}
-                  className='text-center space-y-3'
-                >
-                  <div className='w-12 h-12 rounded-full border border-softWhite/[0.06] flex items-center justify-center mx-auto'>
-                    <svg
-                      className='w-5 h-5 text-softWhite/12'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                    >
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={1.5}
-                        d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'
-                      />
-                    </svg>
-                  </div>
-                  <p className='text-softWhite/18 text-[0.7rem] tracking-[0.2em] uppercase'>
-                    Kaç kişisiniz?
-                  </p>
-                  <p className='text-softWhite/10 text-[0.62rem]'>
-                    Bir sayı seçin
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {guestSelected && (
-              <>
-                <div className='mt-2 text-softWhite/20 text-[0.58rem] uppercase tracking-[0.45em] font-medium'>
-                  kişilik rezervasyon
-                </div>
-                <div className='flex gap-1.5 justify-center mt-4'>
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{
-                        backgroundColor:
-                          i < guests
-                            ? 'var(--color-mainColor)'
-                            : 'rgba(255,255,255,0.06)',
-                      }}
-                      transition={{ duration: 0.2 }}
-                      className='w-2 h-2 rounded-full'
+        <div className='w-full flex flex-col items-center text-center gap-4'>
+          <AnimatePresence mode='wait'>
+            {guestSelected ? (
+              <motion.div
+                key={guests}
+                initial={{ scale: 0.75, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 1.15, opacity: 0 }}
+                transition={{ duration: 0.13, ease: [0.16, 1, 0.3, 1] }}
+                className='font-black tabular-nums leading-none tracking-[-0.06em] text-softWhite select-none'
+                style={{
+                  fontSize: 'clamp(6rem, 14vw, 11rem)',
+                  textShadow: '0 0 80px rgba(255,25,135,0.2)',
+                }}
+              >
+                {guests}
+              </motion.div>
+            ) : (
+              <motion.div
+                key='empty'
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16 }}
+                className='flex flex-col items-center space-y-3'
+              >
+                <div className='w-12 h-12 rounded-full border border-softWhite/[0.06] flex items-center justify-center'>
+                  <svg
+                    className='w-5 h-5 text-softWhite/12'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={1.5}
+                      d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'
                     />
-                  ))}
+                  </svg>
                 </div>
-              </>
+                <p className='text-softWhite/18 text-[0.7rem] tracking-[0.2em] uppercase'>
+                  Kaç kişisiniz?
+                </p>
+                <p className='text-softWhite/10 text-[0.62rem]'>
+                  Bir sayı seçin
+                </p>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+          {guestSelected && (
+            <>
+              <div className='text-softWhite/20 text-[0.58rem] uppercase tracking-[0.45em] font-medium'>
+                kişilik rezervasyon
+              </div>
+              <div className='flex gap-1.5 justify-center'>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className='w-2 h-2 rounded-full transition-colors duration-150'
+                    style={{
+                      backgroundColor:
+                        i < guests
+                          ? 'var(--color-mainColor)'
+                          : 'rgba(255,255,255,0.06)',
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       );
     }
 
+    /* ── STEP 2 ── */
     if (currentStep === 2) {
       const selected = SEATING_OPTIONS.find((o) => o.value === seatingType);
       return (
-        <div className='flex flex-col justify-center h-full px-2'>
+        <div className='w-full'>
           <AnimatePresence mode='wait'>
             {selected ? (
               <motion.div
                 key={selected.value}
-                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                initial={{ opacity: 0, y: 10, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -14, scale: 0.97 }}
-                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                exit={{ opacity: 0, y: -10, scale: 0.97 }}
+                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                 className='space-y-5'
               >
                 <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-mainColor/25 bg-mainColor/[0.06]'>
@@ -379,7 +379,7 @@ export default function ReservationPage() {
                   >
                     {selected.label}
                   </h3>
-                  <p className='text-softWhite/35 text-sm leading-relaxed max-w-xs'>
+                  <p className='text-softWhite/35 text-sm leading-relaxed'>
                     {selected.detail}
                   </p>
                 </div>
@@ -390,7 +390,7 @@ export default function ReservationPage() {
                       'linear-gradient(to right, var(--color-mainColor) 0%, transparent 100%)',
                   }}
                 />
-                <p className='text-softWhite/18 text-xs leading-relaxed max-w-xs'>
+                <p className='text-softWhite/18 text-xs leading-relaxed'>
                   {selected.desc}
                 </p>
               </motion.div>
@@ -400,9 +400,9 @@ export default function ReservationPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className='text-center space-y-4'
+                className='flex flex-col items-center space-y-4 text-center'
               >
-                <div className='w-14 h-14 rounded-full border border-softWhite/[0.06] flex items-center justify-center mx-auto'>
+                <div className='w-14 h-14 rounded-full border border-softWhite/[0.06] flex items-center justify-center'>
                   <svg
                     className='w-5 h-5 text-softWhite/12'
                     fill='none'
@@ -432,98 +432,92 @@ export default function ReservationPage() {
       );
     }
 
+    /* ── STEP 4 ── */
     if (currentStep === 4) {
       const hasAny =
         userInfo.name || userInfo.surname || userInfo.phone || userInfo.email;
       return (
-        <div className='flex flex-col justify-center h-full px-1'>
-          <div className='space-y-4'>
-            <p className='text-softWhite/18 text-[0.58rem] uppercase tracking-[0.28em] mb-4'>
-              Rezervasyon önizlemesi
-            </p>
-            <div
-              className='rounded-2xl border border-softWhite/[0.07] overflow-hidden'
-              style={{
-                background:
-                  'linear-gradient(160deg, rgba(255,25,135,0.03) 0%, rgba(255,25,135,0.01) 100%)',
-              }}
-            >
-              <div className='px-5 py-4 border-b border-softWhite/[0.05]'>
-                <div className='flex items-center gap-2 mb-1.5'>
-                  <div className='w-1.5 h-1.5 rounded-full bg-mainColor/50' />
-                  <span className='text-softWhite/25 text-[0.6rem] uppercase tracking-[0.25em]'>
-                    Yeni Hisar
+        <div className='w-full space-y-4'>
+          <p className='text-softWhite/18 text-[0.58rem] uppercase tracking-[0.28em]'>
+            Rezervasyon önizlemesi
+          </p>
+          <div
+            className='rounded-2xl border border-softWhite/[0.08] overflow-hidden'
+            style={{
+              background:
+                'linear-gradient(160deg, rgba(255,25,135,0.05) 0%, rgba(255,25,135,0.01) 100%)',
+            }}
+          >
+            <div className='px-5 py-5 border-b border-softWhite/[0.05]'>
+              <div className='flex items-center gap-2 mb-2'>
+                <div className='w-1.5 h-1.5 rounded-full bg-mainColor/50' />
+                <span className='text-softWhite/25 text-[0.62rem] uppercase tracking-[0.25em]'>
+                  Yeni Hisar
+                </span>
+              </div>
+              <p className='text-softWhite/80 font-semibold text-xl tracking-[-0.02em] min-h-[28px]'>
+                {userInfo.name || userInfo.surname ? (
+                  `${userInfo.name} ${userInfo.surname}`.trim()
+                ) : (
+                  <span className='text-softWhite/15'>Ad Soyad</span>
+                )}
+              </p>
+            </div>
+            <div className='divide-y divide-softWhite/[0.04]'>
+              {[
+                {
+                  label: 'Kişi',
+                  value: guestSelected ? `${guests} kişi` : null,
+                  filled: guestSelected,
+                  mono: false,
+                },
+                {
+                  label: 'Oturma',
+                  value:
+                    seatingType === 'vip'
+                      ? 'VIP Loca'
+                      : seatingType === 'lounge'
+                        ? 'Lounge Bar'
+                        : seatingType === 'masa'
+                          ? 'Masa'
+                          : null,
+                  filled: !!seatingType,
+                  mono: false,
+                },
+                {
+                  label: 'Telefon',
+                  value: validatePhone(userInfo.phone) ? userInfo.phone : null,
+                  filled: validatePhone(userInfo.phone),
+                  mono: true,
+                },
+                {
+                  label: 'E-posta',
+                  value: validateEmail(userInfo.email) ? userInfo.email : null,
+                  filled: validateEmail(userInfo.email),
+                  mono: false,
+                },
+              ].map(({ label, value, filled, mono }) => (
+                <div
+                  key={label}
+                  className='flex items-center justify-between px-5 py-4'
+                >
+                  <span className='text-softWhite/22 text-[0.65rem] uppercase tracking-[0.12em] shrink-0'>
+                    {label}
+                  </span>
+                  <span
+                    className={`text-[0.82rem] font-medium max-w-[150px] truncate text-right ${mono ? 'font-mono' : ''} ${filled && value ? 'text-softWhite/70' : 'text-softWhite/12'}`}
+                  >
+                    {value ?? '—'}
                   </span>
                 </div>
-                <p className='text-softWhite/80 font-semibold text-base tracking-[-0.02em] min-h-[24px]'>
-                  {userInfo.name || userInfo.surname ? (
-                    `${userInfo.name} ${userInfo.surname}`.trim()
-                  ) : (
-                    <span className='text-softWhite/15'>Ad Soyad</span>
-                  )}
-                </p>
-              </div>
-              <div className='divide-y divide-softWhite/[0.04]'>
-                {[
-                  {
-                    label: 'Oturma',
-                    value:
-                      seatingType === 'vip'
-                        ? 'VIP Loca'
-                        : seatingType === 'lounge'
-                          ? 'Lounge Bar'
-                          : seatingType === 'masa'
-                            ? 'Masa'
-                            : null,
-                    filled: !!seatingType,
-                  },
-                  {
-                    label: 'Tarih',
-                    value:
-                      selectedDate?.toLocaleDateString('tr-TR', {
-                        day: 'numeric',
-                        month: 'short',
-                      }) ?? null,
-                    filled: !!selectedDate,
-                  },
-                  {
-                    label: 'Telefon',
-                    value: validatePhone(userInfo.phone)
-                      ? userInfo.phone
-                      : null,
-                    filled: validatePhone(userInfo.phone),
-                    mono: true,
-                  },
-                  {
-                    label: 'E-posta',
-                    value: validateEmail(userInfo.email)
-                      ? userInfo.email
-                      : null,
-                    filled: validateEmail(userInfo.email),
-                  },
-                ].map(({ label, value, filled, mono }) => (
-                  <div
-                    key={label}
-                    className='flex items-center justify-between px-5 py-3'
-                  >
-                    <span className='text-softWhite/22 text-[0.62rem] uppercase tracking-[0.12em] shrink-0'>
-                      {label}
-                    </span>
-                    <span
-                      className={`text-[0.74rem] font-medium max-w-[145px] truncate text-right ${mono ? 'font-mono' : ''} ${filled && value ? 'text-softWhite/65' : 'text-softWhite/12'}`}
-                    >
-                      {value ?? '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
-            {!hasAny && (
-              <p className='text-softWhite/12 text-[0.6rem] text-center tracking-wide'>
-                Formu doldurdukça burada güncellenir
-              </p>
-            )}
           </div>
+          {!hasAny && (
+            <p className='text-softWhite/12 text-[0.6rem] text-center tracking-wide'>
+              Formu doldurdukça burada güncellenir
+            </p>
+          )}
         </div>
       );
     }
@@ -531,19 +525,21 @@ export default function ReservationPage() {
     return null;
   };
 
+  /* ────────────────────────── JSX ────────────────────────── */
   return (
-    <main className='h-screen bg-secondaryColor' style={{ overflow: 'hidden' }}>
+    <main className='bg-secondaryColor min-h-screen lg:h-screen lg:overflow-hidden'>
       <style>{`
         * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
         *::-webkit-scrollbar { display: none !important; }
-        @keyframes pulse {
-          from { transform: scale(0.97); opacity: 0.4; }
-          to   { transform: scale(1.03); opacity: 0.9; }
+        /* FIX pulse rings: no translate in keyframes — parent flex centers them */
+        @keyframes ringPulse {
+          from { transform: scale(0.95); opacity: 0.35; }
+          to   { transform: scale(1.05); opacity: 0.85; }
         }
         button, [role="button"] { cursor: pointer; }
       `}</style>
 
-      {/* Ambient bg */}
+      {/* Ambient */}
       <div className='fixed inset-0 pointer-events-none'>
         <motion.div
           key={currentStep}
@@ -569,7 +565,6 @@ export default function ReservationPage() {
       {/* ── HEADER ── */}
       <header className='fixed top-0 inset-x-0 z-50 h-14 flex items-center justify-center bg-secondaryColor/80 backdrop-blur-2xl border-b border-softWhite/[0.045]'>
         <div className='flex flex-col items-center gap-[5px]'>
-          {/* Dots + connectors row */}
           <div className='flex items-center'>
             {STEP_LABELS.map((label, i) => {
               const stepNum = i + 1;
@@ -604,8 +599,7 @@ export default function ReservationPage() {
               );
             })}
           </div>
-          {/* Labels row */}
-          <div className='hidden sm:flex items-center'>
+          <div className='hidden xl:flex items-center'>
             {STEP_LABELS.map((label, i) => {
               const stepNum = i + 1;
               const isActive = stepNum === currentStep;
@@ -614,13 +608,7 @@ export default function ReservationPage() {
                 <React.Fragment key={label}>
                   <div className='w-[6px] flex-shrink-0 flex justify-center'>
                     <span
-                      className={`text-[0.42rem] uppercase tracking-[0.12em] font-medium whitespace-nowrap transition-colors ${
-                        isActive
-                          ? 'text-mainColor/65'
-                          : isDone
-                            ? 'text-softWhite/25'
-                            : 'text-softWhite/12'
-                      }`}
+                      className={`text-[0.42rem] uppercase tracking-[0.12em] font-medium whitespace-nowrap transition-colors ${isActive ? 'text-mainColor/65' : isDone ? 'text-softWhite/25' : 'text-softWhite/12'}`}
                     >
                       {label}
                     </span>
@@ -637,25 +625,22 @@ export default function ReservationPage() {
 
       {/* ── MAIN LAYOUT ── */}
       <div
-        className='flex h-screen pt-14 pb-[58px] justify-center'
-        style={{ overflow: 'hidden' }}
+        className='flex min-h-screen lg:h-screen pt-14 pb-[64px] justify-center'
+        style={{
+          overflowY: 'scroll',
+          overflowX: 'hidden',
+          scrollbarWidth: 'none',
+        }}
       >
         <div
-          className={`flex w-full ${
-            currentStep === 3
-              ? 'max-w-5xl'
-              : isFullWidth
-                ? 'max-w-3xl'
-                : 'max-w-[1060px] xl:max-w-[1140px]'
-          }`}
+          className={`flex w-full ${currentStep === 3 ? 'max-w-5xl' : isFullWidth ? 'max-w-3xl' : 'max-w-[1060px] xl:max-w-[1140px]'}`}
         >
-          {/* Center content */}
+          {/* ── CONTENT COLUMN ── */}
           <div
             className={`flex-1 flex flex-col min-w-0 ${!isFullWidth ? 'lg:border-r border-softWhite/[0.04]' : ''}`}
             style={{ overflow: 'hidden' }}
           >
-            {/* Inner wrapper: my-auto centers whole block on mobile; flex-1 fills on desktop */}
-            <div className='flex flex-col my-auto lg:my-0 lg:flex-1 lg:overflow-hidden'>
+            <div className='flex flex-col lg:flex-1 lg:overflow-hidden'>
               {/* Step header */}
               <AnimatePresence mode='wait' custom={direction}>
                 <motion.div
@@ -663,8 +648,8 @@ export default function ReservationPage() {
                   custom={direction}
                   initial={{ opacity: 0, y: direction > 0 ? 12 : -12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: direction > 0 ? -12 : 12 }}
-                  transition={{ duration: 0.24, ease: easing }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.22, ease: easing }}
                   className='px-5 sm:px-8 xl:px-12 pt-5 sm:pt-9 pb-4 sm:pb-6 shrink-0'
                 >
                   <p className='text-mainColor/50 text-[0.56rem] uppercase tracking-[0.42em] mb-2 sm:mb-3 font-semibold'>
@@ -701,7 +686,11 @@ export default function ReservationPage() {
 
               <div className='w-full h-px bg-softWhite/[0.045] shrink-0' />
 
-              {/* ── Step body — CENTERED for all steps ── */}
+              {/* ── STEP BODY ──
+                  FIX: items-start so content is LEFT-aligned (matching header text above).
+                  Step 5 uses its own inner flex center.
+                  overflow:hidden on this div clips the exit animation so step 4
+                  can't bleed through when step 5 mounts. */}
               <AnimatePresence mode='wait' custom={direction}>
                 <motion.div
                   key={`b-${currentStep}`}
@@ -710,51 +699,53 @@ export default function ReservationPage() {
                   initial='enter'
                   animate='center'
                   exit='exit'
-                  transition={{ duration: 0.26, ease: easing }}
-                  className='lg:flex-1 flex flex-col items-center justify-center px-5 sm:px-8 xl:px-12 py-5 sm:py-7'
-                  style={{ overflowY: 'auto', overflowX: 'hidden' }}
+                  transition={contentTransition.enter}
+                  className='lg:flex-1 flex flex-col items-start px-5 sm:px-8 xl:px-12 pb-10 pt-8 sm:pt-10'
+                  style={{
+                    overflowY: 'scroll',
+                    overflowX: 'hidden',
+                    scrollbarWidth: 'none',
+                  }}
                 >
                   {/* ══ STEP 1 ══ */}
                   {currentStep === 1 && (
-                    <div className='flex flex-col items-center gap-5 sm:gap-7 w-full'>
-                      <div className='grid grid-cols-4 gap-2.5 sm:gap-3 w-full max-w-xs sm:max-w-sm'>
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                          <motion.button
-                            key={n}
-                            onClick={() => {
-                              setGuests(n);
-                              setGuestSelected(true);
-                            }}
-                            whileTap={{ scale: 0.85 }}
-                            animate={{
-                              backgroundColor:
-                                guestSelected && guests === n
+                    <div className='flex flex-col gap-5 sm:gap-7 w-full'>
+                      {/* FIX: rounded-2xl back (not rounded-full) */}
+                      <div className='grid grid-cols-4 gap-3 w-full max-w-xs sm:max-w-sm'>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => {
+                          const isSelected = guestSelected && guests === n;
+                          return (
+                            <button
+                              key={n}
+                              onClick={() => {
+                                setGuests(n);
+                                setGuestSelected(true);
+                              }}
+                              className='aspect-square rounded-2xl text-lg sm:text-xl font-bold border transition-colors duration-100'
+                              style={{
+                                backgroundColor: isSelected
                                   ? 'var(--color-mainColor)'
                                   : 'rgba(255,255,255,0.035)',
-                              borderColor:
-                                guestSelected && guests === n
+                                borderColor: isSelected
                                   ? 'var(--color-mainColor)'
                                   : 'rgba(255,255,255,0.06)',
-                            }}
-                            transition={{ duration: 0.16 }}
-                            className='cursor-pointer aspect-square rounded-2xl text-lg sm:text-xl font-bold border transition-colors'
-                            style={{
-                              color:
-                                guestSelected && guests === n
+                                color: isSelected
                                   ? 'white'
                                   : 'rgba(255,255,255,0.3)',
-                            }}
-                          >
-                            {n}
-                          </motion.button>
-                        ))}
+                              }}
+                            >
+                              {n}
+                            </button>
+                          );
+                        })}
                       </div>
+                      {/* mobile-only confirmation — desktop has the right panel */}
                       {guestSelected && (
                         <motion.p
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.18 }}
-                          className='text-softWhite/20 text-[0.68rem] tracking-wide text-center'
+                          className='lg:hidden text-softWhite/20 text-[0.68rem] tracking-wide'
                         >
                           {guests} kişilik rezervasyon seçildi
                         </motion.p>
@@ -766,27 +757,21 @@ export default function ReservationPage() {
                   {currentStep === 2 && (
                     <div className='space-y-2 w-full max-w-xl'>
                       {SEATING_OPTIONS.map(
-                        ({ value, num, label, desc, icon }, i) => (
+                        ({ value, num, label, desc, icon }) => (
+                          // FIX: no stagger delay & no y on initial — pure opacity fade to avoid mobile flash
                           <motion.button
                             key={value}
                             onClick={() => setSeatingType(value)}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{
-                              delay: i * 0.07,
-                              duration: 0.3,
-                              ease: [0.16, 1, 0.3, 1],
-                            }}
-                            whileTap={{ scale: 0.993 }}
-                            className={`cursor-pointer w-full text-left rounded-xl border transition-all duration-300 overflow-hidden ${
-                              seatingType === value
-                                ? 'border-mainColor/30 bg-mainColor/[0.035]'
-                                : 'border-softWhite/[0.055] bg-softWhite/[0.012] hover:bg-softWhite/[0.028] hover:border-softWhite/10'
-                            }`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            whileTap={{ scale: 0.985 }}
+                            className={`cursor-pointer w-full text-left rounded-xl border transition-colors duration-150 overflow-hidden
+                            ${seatingType === value ? 'border-mainColor/30 bg-mainColor/[0.035]' : 'border-softWhite/[0.055] bg-softWhite/[0.012] active:bg-softWhite/[0.05] hover:bg-softWhite/[0.028] hover:border-softWhite/10'}`}
                           >
                             <div className='flex items-center gap-4 px-5 py-4'>
                               <span
-                                className={`font-mono font-black tabular-nums shrink-0 transition-colors duration-300 ${seatingType === value ? 'text-mainColor/40' : 'text-softWhite/[0.06]'}`}
+                                className={`font-mono font-black tabular-nums shrink-0 transition-colors duration-150 ${seatingType === value ? 'text-mainColor/40' : 'text-softWhite/[0.06]'}`}
                                 style={{
                                   fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)',
                                 }}
@@ -794,17 +779,17 @@ export default function ReservationPage() {
                                 {num}
                               </span>
                               <div
-                                className={`w-px self-stretch transition-colors duration-300 ${seatingType === value ? 'bg-mainColor/15' : 'bg-softWhite/[0.04]'}`}
+                                className={`w-px self-stretch transition-colors duration-150 ${seatingType === value ? 'bg-mainColor/15' : 'bg-softWhite/[0.04]'}`}
                               />
                               <div className='flex-1 min-w-0'>
                                 <div className='flex items-center gap-2 mb-0.5'>
                                   <span
-                                    className={`transition-colors duration-200 ${seatingType === value ? 'text-mainColor/65' : 'text-softWhite/18'}`}
+                                    className={`transition-colors duration-150 ${seatingType === value ? 'text-mainColor/65' : 'text-softWhite/18'}`}
                                   >
                                     {icon}
                                   </span>
                                   <span
-                                    className={`font-semibold tracking-[-0.01em] transition-colors ${seatingType === value ? 'text-softWhite/90' : 'text-softWhite/65'}`}
+                                    className={`font-semibold tracking-[-0.01em] transition-colors duration-150 ${seatingType === value ? 'text-softWhite/90' : 'text-softWhite/65'}`}
                                     style={{
                                       fontSize: 'clamp(0.88rem, 1.6vw, 1rem)',
                                     }}
@@ -816,33 +801,31 @@ export default function ReservationPage() {
                                   {desc}
                                 </p>
                               </div>
+                              {/* FIX: plain CSS circle, no framer spring — avoids iOS animation jank */}
                               <div
-                                className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${seatingType === value ? 'border-mainColor' : 'border-softWhite/15'}`}
+                                className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all duration-150 ${seatingType === value ? 'border-mainColor' : 'border-softWhite/15'}`}
                               >
-                                {seatingType === value && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{
-                                      type: 'spring',
-                                      stiffness: 600,
-                                      damping: 25,
-                                    }}
-                                    className='w-2 h-2 rounded-full bg-mainColor'
-                                  />
-                                )}
+                                <div
+                                  className='w-2 h-2 rounded-full bg-mainColor transition-all duration-150'
+                                  style={{
+                                    transform:
+                                      seatingType === value
+                                        ? 'scale(1)'
+                                        : 'scale(0)',
+                                    opacity: seatingType === value ? 1 : 0,
+                                  }}
+                                />
                               </div>
                             </div>
-                            {seatingType === value && (
-                              <motion.div
-                                layoutId='seat-accent'
-                                className='h-px'
-                                style={{
-                                  background:
-                                    'linear-gradient(to right, var(--color-mainColor) 0%, rgba(255,25,135,0.15) 70%, transparent 100%)',
-                                }}
-                              />
-                            )}
+                            {/* accent line — simple opacity, no layout animation */}
+                            <div
+                              className='h-px transition-opacity duration-150'
+                              style={{
+                                background:
+                                  'linear-gradient(to right, var(--color-mainColor) 0%, rgba(255,25,135,0.15) 70%, transparent 100%)',
+                                opacity: seatingType === value ? 1 : 0,
+                              }}
+                            />
                           </motion.button>
                         ),
                       )}
@@ -851,7 +834,7 @@ export default function ReservationPage() {
 
                   {/* ══ STEP 3 ══ */}
                   {currentStep === 3 && (
-                    <div className='grid lg:grid-cols-[440px_1fr] gap-5 xl:gap-7 w-full'>
+                    <div className='grid lg:grid-cols-[440px_1fr] gap-5 xl:gap-7 w-full pt-2'>
                       {/* Calendar */}
                       <div
                         className='rounded-2xl border border-softWhite/[0.08] bg-softWhite/[0.018] self-start w-full max-w-[360px] mx-auto lg:mx-0 lg:max-w-none'
@@ -923,10 +906,10 @@ export default function ReservationPage() {
                                 }
                                 disabled={isPast || !day.isCurrentMonth}
                                 className={`cursor-pointer rounded-xl transition-all duration-150 font-medium h-9 lg:h-10 xl:h-11
-                                ${!day.isCurrentMonth || isPast ? 'text-softWhite/[0.07] cursor-not-allowed' : ''}
-                                ${isSel ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25' : ''}
-                                ${!isSel && !isPast && day.isCurrentMonth ? 'hover:bg-softWhite/[0.07] text-softWhite/50 hover:text-softWhite/80' : ''}
-                                ${isToday && !isSel ? 'ring-1 ring-mainColor/35' : ''}`}
+                                  ${!day.isCurrentMonth || isPast ? 'text-softWhite/[0.07] cursor-not-allowed' : ''}
+                                  ${isSel ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25' : ''}
+                                  ${!isSel && !isPast && day.isCurrentMonth ? 'hover:bg-softWhite/[0.07] text-softWhite/50 hover:text-softWhite/80' : ''}
+                                  ${isToday && !isSel ? 'ring-1 ring-mainColor/35' : ''}`}
                                 style={{
                                   fontSize: 'clamp(0.68rem, 1.2vw, 0.78rem)',
                                 }}
@@ -939,7 +922,7 @@ export default function ReservationPage() {
                       </div>
 
                       {/* Time slots */}
-                      <div className='space-y-4 min-w-0'>
+                      <div className='space-y-5 min-w-0 pt-1'>
                         {selectedDate ? (
                           <>
                             {selectedTime &&
@@ -981,7 +964,7 @@ export default function ReservationPage() {
                                       />
                                     </svg>
                                     <p className='text-[0.68rem] text-softWhite/40 leading-snug'>
-                                      <span className='text-mainColor/70 font-mono font-medium'>
+                                      <span className='text-mainColor/70 font-medium'>
                                         {selectedTime}
                                       </span>{' '}
                                       seçtiniz —{' '}
@@ -996,7 +979,6 @@ export default function ReservationPage() {
                                   </motion.div>
                                 );
                               })()}
-
                             {(() => {
                               const now = new Date();
                               const nowH = now.getHours();
@@ -1027,7 +1009,6 @@ export default function ReservationPage() {
                                 </p>
                               );
                             })()}
-
                             {[
                               {
                                 label: 'Gece',
@@ -1045,11 +1026,11 @@ export default function ReservationPage() {
                                   <span className='text-softWhite/25 text-[0.58rem] uppercase tracking-[0.28em]'>
                                     {label}
                                   </span>
-                                  <span className='text-softWhite/12 text-[0.55rem] font-mono'>
+                                  <span className='text-softWhite/12 text-[0.55rem]'>
                                     {range}
                                   </span>
                                 </div>
-                                <div className='grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2'>
+                                <div className='grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-4 xl:grid-cols-5 gap-2'>
                                   {slots.map(({ time }) => {
                                     const isPast = isTimeSlotPast(time);
                                     const isSel = selectedTime === time;
@@ -1063,17 +1044,8 @@ export default function ReservationPage() {
                                         whileTap={
                                           !isPast ? { scale: 0.91 } : {}
                                         }
-                                        className={`cursor-pointer py-3 px-1 rounded-xl font-mono transition-all duration-150 ${
-                                          isSel
-                                            ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25'
-                                            : isPast
-                                              ? 'bg-softWhite/[0.01] text-softWhite/[0.08] border border-softWhite/[0.03] cursor-not-allowed line-through'
-                                              : 'bg-softWhite/[0.04] hover:bg-softWhite/[0.075] text-softWhite/40 border border-softWhite/[0.055] hover:text-softWhite/70'
-                                        }`}
-                                        style={{
-                                          fontSize:
-                                            'clamp(0.62rem, 1.1vw, 0.72rem)',
-                                        }}
+                                        className={`cursor-pointer py-3 px-2 rounded-xl text-[0.8rem] tracking-wide transition-all duration-150
+                                          ${isSel ? 'bg-mainColor text-white font-semibold shadow-lg shadow-mainColor/25' : isPast ? 'bg-softWhite/[0.01] text-softWhite/[0.08] border border-softWhite/[0.03] cursor-not-allowed line-through' : 'bg-softWhite/[0.04] hover:bg-softWhite/[0.075] text-softWhite/45 border border-softWhite/[0.055] hover:text-softWhite/75'}`}
                                       >
                                         {time}
                                       </motion.button>
@@ -1084,7 +1056,7 @@ export default function ReservationPage() {
                             ))}
                           </>
                         ) : (
-                          <div className='flex flex-col items-center justify-center h-full py-16 gap-3'>
+                          <div className='flex flex-col items-center justify-center py-16 gap-3'>
                             <div className='w-10 h-10 rounded-full border border-softWhite/[0.06] flex items-center justify-center'>
                               <svg
                                 className='w-4 h-4 text-softWhite/15'
@@ -1111,8 +1083,8 @@ export default function ReservationPage() {
 
                   {/* ══ STEP 4 ══ */}
                   {currentStep === 4 && (
-                    <div className='w-full max-w-lg space-y-3 mx-auto'>
-                      <div className='flex flex-col sm:grid sm:grid-cols-2 gap-3'>
+                    <div className='w-full space-y-3'>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                         {[
                           {
                             key: 'name',
@@ -1146,11 +1118,9 @@ export default function ReservationPage() {
                           return (
                             <div key={key} className='relative'>
                               <label
-                                className={`absolute left-4 pointer-events-none z-10 transition-all duration-200 ${
-                                  lifted
-                                    ? 'top-[9px] text-[0.55rem] tracking-[0.08em]'
-                                    : 'top-1/2 -translate-y-1/2 text-[0.85rem]'
-                                } ${isFoc ? 'text-mainColor/60' : hasVal ? 'text-softWhite/22' : 'text-softWhite/20'}`}
+                                className={`absolute left-4 pointer-events-none z-10 transition-all duration-200
+                                ${lifted ? 'top-[9px] text-[0.55rem] tracking-[0.08em]' : 'top-1/2 -translate-y-1/2 text-[0.85rem]'}
+                                ${isFoc ? 'text-mainColor/60' : hasVal ? 'text-softWhite/22' : 'text-softWhite/20'}`}
                               >
                                 {label}
                                 <span className='ml-0.5 text-mainColor/35'>
@@ -1168,14 +1138,8 @@ export default function ReservationPage() {
                                 }
                                 onFocus={() => setFocusedField(key)}
                                 onBlur={() => setFocusedField(null)}
-                                className={`w-full px-4 pt-7 pb-3 bg-softWhite/[0.025] rounded-xl text-softWhite/80 text-[0.88rem]
-                                transition-all focus:outline-none border ${
-                                  isFoc
-                                    ? 'border-mainColor/25 bg-mainColor/[0.018] shadow-md shadow-mainColor/[0.05]'
-                                    : valid
-                                      ? 'border-softWhite/10'
-                                      : 'border-softWhite/[0.05]'
-                                }`}
+                                className={`w-full px-4 pt-7 pb-3 bg-softWhite/[0.025] rounded-xl text-softWhite/80 text-[0.88rem] transition-all focus:outline-none border
+                                  ${isFoc ? 'border-mainColor/25 bg-mainColor/[0.018] shadow-md shadow-mainColor/[0.05]' : valid ? 'border-softWhite/10' : 'border-softWhite/[0.05]'}`}
                               />
                               {valid && !isFoc && (
                                 <motion.div
@@ -1224,113 +1188,138 @@ export default function ReservationPage() {
                     </div>
                   )}
 
-                  {/* ══ STEP 5 ══ */}
+                  {/* ══ STEP 5 — self-centered ══ */}
                   {currentStep === 5 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.38, ease: easing }}
-                      className='w-full max-w-2xl mx-auto'
-                    >
-                      <div
-                        className='rounded-2xl border border-softWhite/[0.07] overflow-hidden'
-                        style={{
-                          background:
-                            'linear-gradient(145deg, rgba(255,25,135,0.025) 0%, rgba(0,0,0,0) 50%)',
-                        }}
+                    <div className='w-full flex items-center justify-center'>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.38, ease: easing }}
+                        className='w-full max-w-2xl'
                       >
-                        <div className='px-6 sm:px-8 py-5 sm:py-6 border-b border-softWhite/[0.05]'>
-                          <p className='text-softWhite/18 text-[0.55rem] uppercase tracking-[0.3em] mb-1'>
-                            Rezervasyon Detayları
-                          </p>
-                          <p className='text-softWhite/70 font-semibold text-xl tracking-[-0.02em]'>
-                            {userInfo.name} {userInfo.surname}
-                          </p>
-                        </div>
-                        <div className='divide-y divide-softWhite/[0.04]'>
-                          {[
-                            {
-                              label: 'Kişi',
-                              value: `${guests} kişi`,
-                              hi: false,
-                            },
-                            {
-                              label: 'Oturma',
-                              value:
-                                seatingType === 'vip'
-                                  ? 'VIP Loca'
-                                  : seatingType === 'lounge'
-                                    ? 'Lounge Bar'
-                                    : 'Masa',
-                              hi: false,
-                            },
-                            {
-                              label: 'Tarih',
-                              value: summaryDate?.toLocaleDateString('tr-TR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              }),
-                              hi: false,
-                            },
-                            {
-                              label: 'Saat',
-                              value: selectedTime,
-                              hi: true,
-                              mono: true,
-                            },
-                            {
-                              label: 'Telefon',
-                              value: userInfo.phone,
-                              hi: false,
-                              mono: true,
-                            },
-                            {
-                              label: 'E-posta',
-                              value: userInfo.email,
-                              hi: false,
-                            },
-                          ].map(({ label, value, hi, mono }) => (
-                            <div
-                              key={label}
-                              className='flex items-center justify-between px-6 sm:px-8 py-3.5'
-                            >
-                              <span className='text-softWhite/22 text-[0.62rem] uppercase tracking-[0.14em]'>
-                                {label}
-                              </span>
-                              <span
-                                className={`text-[0.85rem] font-medium ${mono ? 'font-mono' : ''} ${hi ? 'text-mainColor' : 'text-softWhite/65'}`}
+                        <div
+                          className='rounded-2xl border border-softWhite/[0.07] overflow-hidden'
+                          style={{
+                            background:
+                              'linear-gradient(145deg, rgba(255,25,135,0.025) 0%, rgba(0,0,0,0) 50%)',
+                          }}
+                        >
+                          <div className='px-6 sm:px-8 py-5 sm:py-6 border-b border-softWhite/[0.05]'>
+                            <p className='text-softWhite/18 text-[0.55rem] uppercase tracking-[0.3em] mb-1'>
+                              Rezervasyon Detayları
+                            </p>
+                            <p className='text-softWhite/70 font-semibold text-xl tracking-[-0.02em]'>
+                              {userInfo.name} {userInfo.surname}
+                            </p>
+                          </div>
+                          <div className='divide-y divide-softWhite/[0.04]'>
+                            {[
+                              {
+                                label: 'Kişi',
+                                value: `${guests} kişi`,
+                                hi: false,
+                              },
+                              {
+                                label: 'Oturma',
+                                value:
+                                  seatingType === 'vip'
+                                    ? 'VIP Loca'
+                                    : seatingType === 'lounge'
+                                      ? 'Lounge Bar'
+                                      : 'Masa',
+                                hi: false,
+                              },
+                              {
+                                label: 'Tarih',
+                                value: summaryDate?.toLocaleDateString(
+                                  'tr-TR',
+                                  {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                  },
+                                ),
+                                hi: false,
+                              },
+                              { label: 'Saat', value: selectedTime, hi: true },
+                              {
+                                label: 'Telefon',
+                                value: userInfo.phone,
+                                hi: false,
+                                mono: true,
+                              },
+                              {
+                                label: 'E-posta',
+                                value: userInfo.email,
+                                hi: false,
+                              },
+                            ].map(({ label, value, hi, mono }) => (
+                              <div
+                                key={label}
+                                className='flex items-center justify-between px-6 sm:px-8 py-3.5'
                               >
-                                {value}
-                              </span>
-                            </div>
-                          ))}
+                                <span className='text-softWhite/22 text-[0.62rem] uppercase tracking-[0.14em]'>
+                                  {label}
+                                </span>
+                                <span
+                                  className={`text-[0.85rem] font-medium ${mono ? 'font-mono' : ''} ${hi ? 'text-mainColor' : 'text-softWhite/65'}`}
+                                >
+                                  {value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className='px-6 sm:px-8 py-4 border-t border-softWhite/[0.04] bg-softWhite/[0.008]'>
+                            <p className='text-softWhite/15 text-[0.62rem] leading-relaxed'>
+                              * Rezervasyonunuz onay için gönderilecektir. En
+                              kısa sürede dönüş yapılacaktır.
+                            </p>
+                          </div>
                         </div>
-                        <div className='px-6 sm:px-8 py-4 border-t border-softWhite/[0.04] bg-softWhite/[0.008]'>
-                          <p className='text-softWhite/15 text-[0.62rem] leading-relaxed'>
-                            * Rezervasyonunuz onay için gönderilecektir. En kısa
-                            sürede dönüş yapılacaktır.
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
+                      </motion.div>
+                    </div>
                   )}
                 </motion.div>
               </AnimatePresence>
             </div>
-            {/* end inner wrapper */}
           </div>
 
-          {/* Right panel */}
+          {/* ── RIGHT PANEL ──
+              FIX centering: motion.div is "absolute inset-0 flex items-center justify-center"
+              so it always perfectly fills and centers within the aside.
+              Pulse rings: live inside a "absolute inset-0 flex items-center justify-center"
+              wrapper — rings are position:absolute but auto-centered by the flex parent,
+              so @keyframes only scales from center, no translate() collision. */}
           {!isFullWidth && (
-            <aside className='hidden lg:flex w-[300px] xl:w-[340px] shrink-0 flex-col justify-center px-7 xl:px-9 relative overflow-hidden'>
+            <aside className='hidden lg:flex w-[300px] xl:w-[360px] shrink-0 relative overflow-hidden'>
+              {/* Divider */}
               <div
-                className='absolute left-0 top-[15%] bottom-[15%] w-px'
+                className='absolute left-0 top-[15%] bottom-[15%] w-px pointer-events-none'
                 style={{
                   background:
                     'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.04) 70%, transparent 100%)',
                 }}
               />
+
+              {/* Pulse rings — step 1 only
+                  Centered via a flex wrapper, no translate in animation */}
+              {currentStep === 1 && (
+                <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className='absolute rounded-full border border-mainColor/10'
+                      style={{
+                        width: `${150 + i * 55}px`,
+                        height: `${150 + i * 55}px`,
+                        animation: `ringPulse ${2.5 + i * 0.6}s ease-in-out ${i * 0.4}s infinite alternate`,
+                        opacity: 0.45 - i * 0.1,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
               <AnimatePresence mode='wait' custom={direction}>
                 <motion.div
                   key={`p-${currentStep}`}
@@ -1339,8 +1328,8 @@ export default function ReservationPage() {
                   initial='enter'
                   animate='center'
                   exit='exit'
-                  transition={{ duration: 0.28, ease: easing }}
-                  className='h-full'
+                  transition={{ duration: 0.26, ease: easing }}
+                  className='absolute inset-0 flex flex-col items-center justify-center px-6 xl:px-8'
                 >
                   {renderRightPanel()}
                 </motion.div>
@@ -1350,18 +1339,28 @@ export default function ReservationPage() {
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div className='fixed bottom-0 inset-x-0 z-50 bg-secondaryColor/85 backdrop-blur-2xl border-t border-softWhite/[0.045]'>
-        <div className='flex items-center justify-between px-5 sm:px-7 h-[58px] gap-3'>
+      {/* ── BOTTOM BAR ── */}
+      <div
+        className='fixed bottom-0 inset-x-0 z-50 bg-secondaryColor/85 backdrop-blur-2xl border-t border-softWhite/[0.045]'
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className='flex items-center justify-between px-3 sm:px-5 h-[64px] gap-3'>
           <motion.button
             onClick={goBack}
-            whileTap={{ scale: 0.95 }}
-            className='cursor-pointer flex items-center gap-1.5 h-9 px-4 rounded-xl border border-softWhite/[0.07]
-              text-softWhite/40 hover:text-softWhite/75 hover:border-softWhite/14
-              text-[0.72rem] font-medium uppercase tracking-[0.14em] transition-all duration-200'
+            whileTap={{ scale: 0.88, opacity: 0.65 }}
+            transition={{ type: 'spring', stiffness: 600, damping: 28 }}
+            className='flex items-center justify-center gap-2 h-11 px-5 min-w-[110px] rounded-xl border border-softWhite/[0.09]
+              text-softWhite/45 hover:text-softWhite/80 hover:border-softWhite/18
+              text-[0.72rem] font-semibold uppercase tracking-[0.16em] transition-colors duration-150 select-none'
+            style={
+              {
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+              } as React.CSSProperties
+            }
           >
             <svg
-              className='w-3.5 h-3.5'
+              className='w-3.5 h-3.5 shrink-0'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -1369,7 +1368,7 @@ export default function ReservationPage() {
               <path
                 strokeLinecap='round'
                 strokeLinejoin='round'
-                strokeWidth={2}
+                strokeWidth={2.2}
                 d='M15 19l-7-7 7-7'
               />
             </svg>
@@ -1383,17 +1382,22 @@ export default function ReservationPage() {
                 : goNext
             }
             disabled={!canProceed()}
-            whileTap={canProceed() ? { scale: 0.96 } : {}}
-            className={`flex items-center gap-2 h-9 px-5 rounded-xl text-[0.72rem] font-semibold uppercase tracking-[0.16em] transition-all duration-300 ${
-              canProceed()
-                ? 'cursor-pointer bg-mainColor text-white hover:bg-mainColor/88 shadow-lg shadow-mainColor/18'
-                : 'cursor-not-allowed bg-softWhite/[0.035] text-softWhite/12'
-            }`}
+            whileTap={canProceed() ? { scale: 0.88, opacity: 0.8 } : {}}
+            transition={{ type: 'spring', stiffness: 600, damping: 28 }}
+            className={`flex items-center justify-center gap-2 h-11 px-6 min-w-[140px] rounded-xl
+              text-[0.72rem] font-semibold uppercase tracking-[0.16em] select-none transition-all duration-200
+              ${canProceed() ? 'bg-mainColor text-white hover:bg-mainColor/88 shadow-lg shadow-mainColor/20' : 'bg-softWhite/[0.035] text-softWhite/12 cursor-not-allowed'}`}
+            style={
+              {
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+              } as React.CSSProperties
+            }
           >
             {currentStep === totalSteps ? 'Tamamla' : 'Devam Et'}
             {canProceed() && (
               <svg
-                className='w-3 h-3'
+                className='w-3.5 h-3.5 shrink-0'
                 fill='none'
                 viewBox='0 0 24 24'
                 stroke='currentColor'
