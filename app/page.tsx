@@ -39,26 +39,33 @@ export default function Home() {
 
     setSmoother(lenis);
 
-    // Every time ScrollTrigger remeasures the page (pin spacer added,
-    // images load, font swap, etc.) tell Lenis the new scroll limit.
-    // This is the root fix for the snap-back on Gallery → Testimonials
-    // and all sections below the Gallery pin spacer.
+    // Every time ScrollTrigger remeasures the page (pin spacer added/removed,
+    // images load, etc.) tell Lenis the new scroll limit so it doesn't
+    // clamp scroll position at the wrong point and cause the tick-back.
     const onRefresh = () => lenis.resize();
     ScrollTrigger.addEventListener('refresh', onRefresh);
 
-    let refreshTimeout: ReturnType<typeof setTimeout>;
-    const ro = new ResizeObserver(() => {
-      clearTimeout(refreshTimeout);
-      refreshTimeout = setTimeout(() => {
+    // ─── Window resize only ───────────────────────────────────────────
+    // The previous ResizeObserver on <main> was firing on every scroll
+    // frame while GSAP's Gallery pin was active (GSAP toggles position:fixed
+    // on the pinned element, which changes <main>'s layout continuously).
+    // That caused ScrollTrigger.refresh() + invalidateOnRefresh to run
+    // ~120ms after every scroll pause → tiny position correction → the tick.
+    //
+    // window 'resize' only fires on real viewport changes (orientation,
+    // browser chrome resize) — never on GSAP pin updates — so it's safe.
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const onWindowResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
         ScrollTrigger.refresh(); // fires onRefresh above → lenis.resize()
-      }, 120);
-    });
-
-    if (mainRef.current) ro.observe(mainRef.current);
+      }, 150);
+    };
+    window.addEventListener('resize', onWindowResize);
 
     return () => {
-      clearTimeout(refreshTimeout);
-      ro.disconnect();
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', onWindowResize);
       ScrollTrigger.removeEventListener('refresh', onRefresh);
       clearSmoother();
       gsap.ticker.remove(tickerFn);
