@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
 
 const OVERALL = {
   score: 4.2,
@@ -445,7 +446,7 @@ const PlatformScores: React.FC = () => {
           className='font-bold text-white leading-[1.02] tracking-[-0.03em]'
           style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
         >
-          Platform Puanlamaları
+          Platform <QuatToLightFont>puanlamaları</QuatToLightFont>
         </motion.h2>
       </div>
 

@@ -128,7 +128,6 @@ const services = [
     id: 1,
     Icon: IconCocktail,
     title: 'Lounge Bar',
-    tag: 'İçki & Servis',
     description:
       'Zamana yayılan sohbetler, imza kokteyller ve rafine bir atmosfer. Her bardak, bir anın başlangıcı.',
   },
@@ -136,7 +135,6 @@ const services = [
     id: 2,
     Icon: IconCrown,
     title: 'VIP Loca',
-    tag: 'VIP & Rezervasyon',
     description:
       'Size ait bir alan. Sessiz lüks, maksimum konfor ve kişiye özel hizmet anlayışı.',
   },
@@ -144,7 +142,6 @@ const services = [
     id: 3,
     Icon: IconWave,
     title: 'Dans Alanı',
-    tag: 'Sahne',
     description:
       'Gece ilerledikçe yükselen tempo ve özgür hareket. Işıklar söndüğünde, müzik konuşur.',
   },
@@ -152,7 +149,6 @@ const services = [
     id: 4,
     Icon: IconStar,
     title: 'Özel Etkinlikler',
-    tag: 'Organizasyon',
     description:
       'Kutlamalar, davetler ve unutulmaz geceler için kürasyon. Her özel an, titizlikle planlanır.',
   },
@@ -182,18 +178,16 @@ const NavButton = ({
     }
     transition={{ duration: 0.12, ease: 'easeOut' }}
     style={{
-      width: 40,
-      height: 40,
+      width: 48,
+      height: 48,
       borderRadius: '50%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: disabled
-        ? 'rgba(251,251,251,0.04)'
-        : 'rgba(251,251,251,0.08)',
+      background: disabled ? 'rgba(251,251,251,0.04)' : '',
       color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
       cursor: disabled ? 'default' : 'pointer',
-      border: 'none',
+      border: '1px solid rgba(251,251,251,0.18)',
       flexShrink: 0,
       /* Smooth background transition for enable/disable state changes */
       transition: 'background 0.2s, color 0.2s',
@@ -232,14 +226,6 @@ const Offer = ({ id }: Props) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  /*
-    DECOUPLED state:
-    - activeIndex: which card to navigate to/from — purely for scrollToCard math
-    - canScrollLeft / canScrollRight: pure pixel-based, never tied to activeIndex
-    
-    This prevents the bug where atEnd forced activeIndex=last, and syncScrollState
-    immediately reset it back when the user tried to scroll back left.
-  */
   const [activeIndex, setActiveIndex] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -305,7 +291,7 @@ const Offer = ({ id }: Props) => {
       >
         <TextReveal>
           <Headline>
-            Kaliteli hizmet,
+            Kaliteli hizmet
             <br />
             özel ambiyans
           </Headline>
@@ -340,7 +326,7 @@ const Offer = ({ id }: Props) => {
           } as React.CSSProperties
         }
       >
-        {services.map(({ id, Icon, title, tag, description }, index) => (
+        {services.map(({ id, Icon, title, description }, index) => (
           <div
             key={id}
             ref={setCardRef(index)}
@@ -425,9 +411,8 @@ const Offer = ({ id }: Props) => {
                   {title}
                 </p>
 
-                {/* Description — flex-grow pushes tag down */}
                 <p
-                  className='text-white/55 leading-[1.72] mt-2  '
+                  className='text-white/55 leading-[1.72] mt-2 mb-10 '
                   style={{
                     fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)',
                     flexGrow: 1,
@@ -435,41 +420,6 @@ const Offer = ({ id }: Props) => {
                 >
                   {description}
                 </p>
-                {/* Tag */}
-                <div
-                  style={{
-                    marginTop: 24,
-                    paddingTop: 16,
-                    borderTop: '1px solid rgba(255,255,255,0.07)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    flexShrink: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: '#ff1987',
-                      opacity: 0.8,
-                      flexShrink: 0,
-                      display: 'block',
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: '0.6rem',
-                      letterSpacing: '0.2em',
-                      textTransform: 'uppercase',
-                      fontWeight: 500,
-                      color: 'rgba(255,255,255,0.32)',
-                    }}
-                  >
-                    {tag}
-                  </span>
-                </div>
               </div>
             </motion.div>
           </div>

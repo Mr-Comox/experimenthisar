@@ -267,7 +267,7 @@ const HistorySection = () => {
           <TextReveal delay={0}>
             <Headline center className='mb-8 max-w-3xl'>
               Nesiller boyu bir <br />
-              <MainColorToQuatFont> sahne mirası.</MainColorToQuatFont>
+              <MainColorToQuatFont> sahne mirası</MainColorToQuatFont>
             </Headline>
           </TextReveal>
 
@@ -301,7 +301,7 @@ const StatsSection = () => {
               className='mb-6'
               style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
             >
-              Rakamlarla <GoldToAmberFont> Yeni Hisar.</GoldToAmberFont>
+              Rakamlarla <GoldToAmberFont> Yeni Hisar</GoldToAmberFont>
             </Headline>
           </TextReveal>
 
@@ -447,7 +447,7 @@ const ShieldVisual = ({ visible }: { visible: boolean }) => (
 );
 
 const HEADLINE_LINE1 = 'Eğlenceniz için';
-const HEADLINE_LINE2 = 'maksimum güvenlik.';
+const HEADLINE_LINE2 = 'maksimum güvenlik';
 
 /* ─────────────────────────────────────────────────────────────────
    SECURITY SECTION — FIXED FOR MOBILE

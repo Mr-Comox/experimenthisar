@@ -197,8 +197,8 @@ export default function Menu({ id }: Props) {
         {/* Headline — scroll-triggered TextReveal */}
         <TextReveal animateOnScroll={true} delay={0}>
           <Headline>
-            Damağınıza özel <br />{' '}
-            <GoldToAmberFont>seçkin tatlar.</GoldToAmberFont>
+            Damak zevkinize <br />{' '}
+            <GoldToAmberFont>özel lezzetler</GoldToAmberFont>
           </Headline>
         </TextReveal>
 
@@ -229,7 +229,7 @@ export default function Menu({ id }: Props) {
               color: 'rgba(255,255,255,0.32)',
             }}
           >
-            Özenle kurgulanan menü seçkisi, sahnedeki ritimle bütünleşen bir
+            Özenle kurgulanan menü seçkisi, damak zevkinizi memnun edecek eşsiz
             deneyim sunar.
           </p>
         </TextReveal>

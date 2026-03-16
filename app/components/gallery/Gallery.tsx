@@ -1497,9 +1497,9 @@ export default function Gallery({ id }: Props) {
         >
           <TextReveal>
             <Headline>
-              Gecenin güzel
+              Gecenin en iyi
               <br />
-              <MainToGoldFont>anları burada yaşanır</MainToGoldFont>
+              <MainToGoldFont>anları seni bekliyor</MainToGoldFont>
             </Headline>
           </TextReveal>
         </div>

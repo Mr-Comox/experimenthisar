@@ -35,5 +35,21 @@ const MainToGoldFont = ({ children }: { children: React.ReactNode }) => (
     {children}
   </span>
 );
-
-export { MainColorToQuatFont, GoldToAmberFont, MainToGoldFont };
+const QuatToLightFont = ({ children }: { children: React.ReactNode }) => (
+  <span
+    style={{
+      background: 'linear-gradient(135deg, #5a00a0 0%, #9d00ff 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+    }}
+  >
+    {children}
+  </span>
+);
+export {
+  MainColorToQuatFont,
+  GoldToAmberFont,
+  MainToGoldFont,
+  QuatToLightFont,
+};
