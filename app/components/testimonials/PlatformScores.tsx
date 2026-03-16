@@ -423,7 +423,7 @@ const PlatformScores: React.FC = () => {
     <section
       ref={rootRef}
       aria-label='Platform değerlendirmeleri'
-      className='px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-36 pb-16 lg:pb-24'
+      className='px-6 sm:px-12 lg:px-20  pt-24 lg:pt-36 pb-16 lg:pb-24'
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'none' : 'translateY(20px)',
@@ -443,7 +443,7 @@ const PlatformScores: React.FC = () => {
             delay: 0.08,
           }}
           className='font-bold text-white leading-[1.02] tracking-[-0.03em]'
-          style={{ fontSize: 'clamp(2.7rem, 6vw, 4.4rem)' }}
+          style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
         >
           Platform Puanlamaları
         </motion.h2>

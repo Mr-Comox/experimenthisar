@@ -1,23 +1,41 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import gsap from 'gsap';
 import { testimonies } from './Collection';
 import PlatformScores from './PlatformScores';
 import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
+import TextReveal from '@/app/utilities/TextReveal';
+import { Headline } from '@/app/utilities/Headline';
 
 type Props = { id: string };
 
 /* ─────────────────────────────────────────────────────────────────
-   LAYOUT CONSTANTS — single source of truth so nothing drifts
+   USE REVEAL
 ───────────────────────────────────────────────────────────────── */
-const PX = 'clamp(32px, 6vw, 108px)'; // horizontal padding
-const PT = 'clamp(52px, 7vh, 84px)'; // top offset for heading
-const PB = 'clamp(44px, 6vh, 72px)'; // bottom offset for nav bar
-const NAV_H = 48; // nav-bar row height (px)
+function useReveal(threshold = 0.12) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          io.disconnect();
+        }
+      },
+      { threshold },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [threshold]);
+  return { ref, visible };
+}
 
 /* ─────────────────────────────────────────────────────────────────
-   NAV BUTTON — exact copy from Offer.tsx
+   NAV BUTTON
 ───────────────────────────────────────────────────────────────── */
 const NavButton = ({
   dir,
@@ -25,61 +43,70 @@ const NavButton = ({
 }: {
   dir: 'left' | 'right';
   onClick: () => void;
-}) => (
-  <motion.button
-    onClick={onClick}
-    aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-    whileTap={{ scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }}
-    transition={{ duration: 0.12, ease: 'easeOut' }}
-    style={{
-      width: NAV_H,
-      height: NAV_H,
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'transparent',
-      color: 'rgba(251,251,251,0.72)',
-      cursor: 'pointer',
-      border: '1px solid rgba(251,251,251,0.18)',
-      flexShrink: 0,
-      transition: 'background 0.2s, color 0.2s, border-color 0.2s',
-    }}
-  >
-    {dir === 'left' ? (
-      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-        <path
-          d='M10 12L6 8L10 4'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    ) : (
-      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-        <path
-          d='M6 4L10 8L6 12'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    )}
-  </motion.button>
-);
+}) => {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const handle = () => {
+    gsap.fromTo(
+      btnRef.current,
+      { scale: 0.86 },
+      { scale: 1, duration: 0.25, ease: 'back.out(2.5)' },
+    );
+    onClick();
+  };
+  return (
+    <button
+      ref={btnRef}
+      onClick={handle}
+      aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
+      style={{
+        width: 48,
+        height: 48,
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'transparent',
+        color: 'rgba(251,251,251,0.72)',
+        cursor: 'pointer',
+        border: '1px solid rgba(251,251,251,0.18)',
+        flexShrink: 0,
+        transition: 'background 0.2s',
+      }}
+    >
+      {dir === 'left' ? (
+        <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
+          <path
+            d='M10 12L6 8L10 4'
+            stroke='currentColor'
+            strokeWidth='1.6'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+          />
+        </svg>
+      ) : (
+        <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
+          <path
+            d='M6 4L10 8L6 12'
+            stroke='currentColor'
+            strokeWidth='1.6'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+          />
+        </svg>
+      )}
+    </button>
+  );
+};
 
 /* ─────────────────────────────────────────────────────────────────
-   QUOTE BUBBLE ICON — #ff1987, GSAP-style shape
+   QUOTE BUBBLE
 ───────────────────────────────────────────────────────────────── */
 const QuoteBubbleIcon = () => (
   <svg
-    width='52'
-    height='60'
+    width='48'
+    height='56'
     viewBox='0 0 54 62'
     fill='none'
-    xmlns='http://www.w3.org/2000/svg'
     aria-hidden='true'
   >
     <rect width='54' height='46' rx='5' fill='#ff1987' />
@@ -88,228 +115,267 @@ const QuoteBubbleIcon = () => (
 );
 
 /* ─────────────────────────────────────────────────────────────────
-   ANIMATION VARIANTS
-───────────────────────────────────────────────────────────────── */
-const quoteVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -40 : 40, opacity: 0 }),
-};
-
-const avatarVariants = {
-  enter: { opacity: 0, scale: 0.78, rotate: 45 },
-  center: { opacity: 1, scale: 1, rotate: 45 },
-  exit: { opacity: 0, scale: 0.78, rotate: 45 },
-};
-
-/* ─────────────────────────────────────────────────────────────────
    ROOT
 ───────────────────────────────────────────────────────────────── */
 const Testimonials = ({ id }: Props) => {
-  const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
+  const { ref: revealRef, visible } = useReveal(0.12);
 
-  const paginate = useCallback((dir: number) => {
-    setDirection(dir);
-    setIndex((prev) => (prev + dir + testimonies.length) % testimonies.length);
+  const [index, setIndex] = useState(0);
+  const isAnimating = useRef(false);
+
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const ruleRef = useRef<HTMLDivElement>(null);
+  const quoteRef = useRef<HTMLQuoteElement>(null);
+  const authorRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    const ease = 'power3.out';
+    gsap.fromTo(
+      bubbleRef.current,
+      { opacity: 0, y: -12 },
+      { opacity: 1, y: 0, duration: 0.65, ease, delay: 0.35 },
+    );
+    gsap.fromTo(
+      ruleRef.current,
+      { scaleX: 0, opacity: 0 },
+      {
+        scaleX: 1,
+        opacity: 1,
+        duration: 0.8,
+        ease,
+        delay: 0.28,
+        transformOrigin: 'left',
+      },
+    );
+    gsap.fromTo(
+      bottomRef.current,
+      { opacity: 0, y: 14 },
+      { opacity: 1, y: 0, duration: 0.65, ease, delay: 0.5 },
+    );
+  }, [visible]);
+
+  const animateIn = useCallback((dir: number) => {
+    const x = dir > 0 ? 52 : -52;
+    gsap.fromTo(
+      quoteRef.current,
+      { x, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.36, ease: 'power2.out' },
+    );
+    gsap.fromTo(
+      authorRef.current,
+      { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', delay: 0.08 },
+    );
   }, []);
+
+  const paginate = useCallback(
+    (dir: number) => {
+      if (isAnimating.current) return;
+      isAnimating.current = true;
+      const xOut = dir > 0 ? -52 : 52;
+      gsap
+        .timeline({
+          onComplete: () => {
+            isAnimating.current = false;
+          },
+        })
+        .to(
+          quoteRef.current,
+          { x: xOut, opacity: 0, duration: 0.2, ease: 'power2.in' },
+          0,
+        )
+        .to(
+          authorRef.current,
+          { opacity: 0, y: -6, duration: 0.16, ease: 'power2.in' },
+          0,
+        )
+        .add(() => {
+          setIndex(
+            (prev) => (prev + dir + testimonies.length) % testimonies.length,
+          );
+          animateIn(dir);
+        });
+    },
+    [animateIn],
+  );
 
   const goTo = useCallback(
     (i: number) => {
-      setDirection(i > index ? 1 : -1);
-      setIndex(i);
+      if (isAnimating.current || i === index) return;
+      const dir = i > index ? 1 : -1;
+      isAnimating.current = true;
+      const xOut = dir > 0 ? -52 : 52;
+      gsap
+        .timeline({
+          onComplete: () => {
+            isAnimating.current = false;
+          },
+        })
+        .to(
+          quoteRef.current,
+          { x: xOut, opacity: 0, duration: 0.2, ease: 'power2.in' },
+          0,
+        )
+        .to(
+          authorRef.current,
+          { opacity: 0, y: -6, duration: 0.16, ease: 'power2.in' },
+          0,
+        )
+        .add(() => {
+          setIndex(i);
+          animateIn(dir);
+        });
     },
-    [index],
+    [index, animateIn],
   );
 
+  useEffect(() => {
+    gsap.set([quoteRef.current, authorRef.current], { opacity: 1, x: 0, y: 0 });
+  }, []);
+
   const t = testimonies[index];
+
+  /* shared horizontal padding token */
+  const px = 'clamp(28px, 6vw, 80px)';
+  const pt = 'clamp(48px, 8vh, 88px)';
 
   return (
     <section
       id={id}
-      className='relative bg-secondaryColor overflow-hidden'
       aria-labelledby='testimonials-heading'
+      className='relative bg-secondaryColor overflow-hidden pt-3'
     >
-      {/* ═══════════════════════════════════════════════════════════
-          SLIDER STAGE — exactly 100vh
-          Every child is absolutely anchored so the section height
-          is rock-solid regardless of quote text length.
-      ═══════════════════════════════════════════════════════════ */}
-      <div style={{ position: 'relative', height: '100vh' }}>
-        {/* ── HEADING — top-left, back from original ── */}
+      <div
+        ref={revealRef}
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          paddingLeft: px,
+          paddingRight: px,
+          paddingTop: pt,
+          paddingBottom: 'clamp(32px, 5vh, 52px)',
+          boxSizing: 'border-box',
+          position: 'relative',
+        }}
+      >
+        {/* ── Quote bubble — absolute top-right ── */}
         <div
+          ref={bubbleRef}
+          aria-hidden='true'
           style={{
             position: 'absolute',
-            top: PT,
-            left: PX,
-            right: PX,
+            top: pt,
+            right: px,
+            opacity: 0,
           }}
         >
-          <h2
-            id='testimonials-heading'
-            className='font-bold text-white leading-[1.06] tracking-[-0.025em] '
-            style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-          >
-            Misafirlerimizin <br />
-            <MainColorToQuatFont>deneyimleri</MainColorToQuatFont>
-          </h2>
-        </div>
-
-        {/* ── AVATAR (left) + QUOTE BUBBLE (right) ── */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 'clamp(150px, 23vh, 230px)',
-            left: PX,
-            right: PX,
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-          }}
-        >
-          {/* Diamond avatar */}
-          <AnimatePresence mode='wait'>
-            <motion.div
-              key={`avatar-${index}`}
-              variants={avatarVariants}
-              initial='enter'
-              animate='center'
-              exit='exit'
-              transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                width: 'clamp(62px, 6.5vw, 82px)',
-                height: 'clamp(62px, 6.5vw, 82px)',
-                borderRadius: '13px',
-                background: 'rgba(255,25,135,0.10)',
-                border: '1.5px solid rgba(255,25,135,0.38)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {/* Counter-rotate so the letter stays upright */}
-              <span
-                style={{
-                  display: 'block',
-                  transform: 'rotate(-45deg)',
-                  fontSize: 'clamp(1.3rem, 2vw, 1.8rem)',
-                  fontWeight: 700,
-                  color: '#ff1987',
-                  userSelect: 'none',
-                  lineHeight: 1,
-                }}
-              >
-                {t.author.charAt(0)}
-              </span>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Quote bubble — static, never moves */}
           <QuoteBubbleIcon />
         </div>
 
-        {/* ── QUOTE ZONE — fixed vertical band ──────────────────
-            top  = below the avatar row
-            bottom = above the nav bar
-            Both anchors are fixed → this div NEVER changes height
-            → section stays 100vh no matter what.               */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 'clamp(260px, 37vh, 370px)',
-            bottom: `calc(${PB} + ${NAV_H}px + 52px)`,
-            left: PX,
-            right: PX,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Quote text */}
-          <AnimatePresence mode='wait' custom={direction}>
-            <motion.blockquote
-              key={`quote-${index}`}
-              custom={direction}
-              variants={quoteVariants}
-              initial='enter'
-              animate='center'
-              exit='exit'
-              transition={{ duration: 0.44, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                margin: 0,
-                fontSize: 'clamp(1.3rem, 3vw, 2.65rem)',
-                fontWeight: 700,
-                color: 'rgba(251,251,251,0.95)',
-                lineHeight: 1.3,
-                letterSpacing: '-0.022em',
-                maxWidth: '78ch',
-              }}
-            >
-              {t.comment}
-            </motion.blockquote>
-          </AnimatePresence>
+        {/* ══ ROW 1 — HEADING ══ */}
+        <div style={{ flexShrink: 0 }}>
+          <TextReveal animateOnScroll={true} delay={0}>
+            <Headline>Misafirlerimizin</Headline>
+          </TextReveal>
 
-          {/* Author — line + name */}
-          <AnimatePresence mode='wait'>
-            <motion.div
-              key={`author-${index}`}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{
-                duration: 0.36,
-                delay: 0.14,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                marginTop: 'clamp(18px, 2.6vh, 30px)',
-              }}
-            >
-              <div
-                aria-hidden='true'
-                style={{
-                  width: 40,
-                  height: 1,
-                  background: 'rgba(251,251,251,0.30)',
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 'clamp(0.8rem, 0.95vw, 0.94rem)',
-                  fontWeight: 500,
-                  color: 'rgba(251,251,251,0.44)',
-                  letterSpacing: '0.025em',
-                }}
-              >
-                {t.author}
-              </span>
-            </motion.div>
-          </AnimatePresence>
+          <div style={{ marginTop: 'clamp(-8px, -0.5vw, -2px)' }}>
+            <TextReveal animateOnScroll={true} delay={0.05}>
+              <Headline>
+                <MainColorToQuatFont>Deneyimleri.</MainColorToQuatFont>
+              </Headline>
+            </TextReveal>
+          </div>
+
+          <div
+            ref={ruleRef}
+            style={{
+              height: '1px',
+              width: 'clamp(140px, 28%, 360px)',
+              marginTop: 'clamp(12px, 1.8vh, 20px)',
+              background:
+                'linear-gradient(to right, rgba(255,25,135,0.5), rgba(255,25,135,0.06), transparent)',
+              opacity: 0,
+              transform: 'scaleX(0)',
+              transformOrigin: 'left',
+            }}
+          />
         </div>
 
-        {/* ── BOTTOM BAR — absolutely pinned ──────────────────────
-            Dots and nav buttons live here.
-            This is position:absolute with a fixed `bottom` value
-            so they NEVER move regardless of quote length.        */}
+        {/* ══ ROW 2 — QUOTE + AUTHOR (grows to fill remaining height) ══ */}
         <div
           style={{
-            position: 'absolute',
-            bottom: PB,
-            left: PX,
-            right: PX,
-            height: NAV_H,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent:
+              'center' /* ← vertically centres quote in the remaining space */,
+            paddingTop: 'clamp(32px, 4vh, 56px)',
+            paddingBottom: 'clamp(32px, 4vh, 56px)',
+          }}
+        >
+          <blockquote
+            ref={quoteRef}
+            id='testimonials-heading'
+            style={{
+              margin: 0,
+              fontSize: 'clamp(1.75rem, 3.2vw, 2.6rem)',
+              fontWeight: 700,
+              color: 'rgba(251,251,251,0.95)',
+              lineHeight: 1.28,
+              letterSpacing: '-0.022em',
+              maxWidth: '68ch',
+              willChange: 'transform, opacity',
+            }}
+          >
+            {t.comment}
+          </blockquote>
+
+          <div
+            ref={authorRef}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              marginTop: 'clamp(16px, 2.4vh, 28px)',
+              willChange: 'transform, opacity',
+            }}
+          >
+            <div
+              aria-hidden='true'
+              style={{
+                width: 40,
+                height: 1,
+                background: 'rgba(251,251,251,0.28)',
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 'clamp(0.78rem, 0.9vw, 0.9rem)',
+                fontWeight: 500,
+                color: 'rgba(251,251,251,0.44)',
+                letterSpacing: '0.03em',
+              }}
+            >
+              {t.author}
+            </span>
+          </div>
+        </div>
+
+        {/* ══ ROW 3 — DOTS + NAV ══ */}
+        <div
+          ref={bottomRef}
+          style={{
+            flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            opacity: 0,
           }}
         >
-          {/* Dot indicators */}
           <div
             role='tablist'
             aria-label='Testimonial navigation'
@@ -338,7 +404,6 @@ const Testimonials = ({ id }: Props) => {
             ))}
           </div>
 
-          {/* Nav buttons — exact NavButton from Offer.tsx */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <NavButton dir='left' onClick={() => paginate(-1)} />
             <NavButton dir='right' onClick={() => paginate(1)} />
@@ -346,9 +411,7 @@ const Testimonials = ({ id }: Props) => {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════
-          PLATFORM SCORES
-      ══════════════════════════════════════════ */}
+      <div className='absolute bottom-0 left-6 right-6 md:left-16 md:right-16 xl:left-24 xl:right-24 h-px bg-linear-to-r from-transparent via-white/6 to-transparent' />
       <div className='w-full h-px bg-white/[0.07]' />
       <PlatformScores />
     </section>
