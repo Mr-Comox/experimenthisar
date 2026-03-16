@@ -39,34 +39,28 @@ export default function Home() {
 
     setSmoother(lenis);
 
-    // Every time ScrollTrigger remeasures the page (pin spacer added/removed,
-    // images load, etc.) tell Lenis the new scroll limit so it doesn't
-    // clamp scroll position at the wrong point and cause the tick-back.
-    const onRefresh = () => lenis.resize();
-    ScrollTrigger.addEventListener('refresh', onRefresh);
+    // ─── ResizeObserver ───────────────────────────────────────────────
+    // Any dynamic height change above a pinned section (e.g. countdown
+    // card → now card in Timeline) shifts that section's scroll offset.
+    // ScrollTrigger only remeasures on window resize by default, so the
+    // pin spacer goes stale and the snap/break happens.
+    // Watching <main> with ResizeObserver catches every layout change —
+    // countdown swap, image load, font swap, anything — and refreshes.
+    let refreshTimeout: ReturnType<typeof setTimeout>;
+    const ro = new ResizeObserver(() => {
+      // Debounce: layout can change in several frames (e.g. image loads),
+      // wait for it to settle before refreshing.
+      clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 120);
+    });
 
-    // ─── Window resize only ───────────────────────────────────────────
-    // The previous ResizeObserver on <main> was firing on every scroll
-    // frame while GSAP's Gallery pin was active (GSAP toggles position:fixed
-    // on the pinned element, which changes <main>'s layout continuously).
-    // That caused ScrollTrigger.refresh() + invalidateOnRefresh to run
-    // ~120ms after every scroll pause → tiny position correction → the tick.
-    //
-    // window 'resize' only fires on real viewport changes (orientation,
-    // browser chrome resize) — never on GSAP pin updates — so it's safe.
-    let resizeTimeout: ReturnType<typeof setTimeout>;
-    const onWindowResize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        ScrollTrigger.refresh(); // fires onRefresh above → lenis.resize()
-      }, 150);
-    };
-    window.addEventListener('resize', onWindowResize);
+    if (mainRef.current) ro.observe(mainRef.current);
 
     return () => {
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', onWindowResize);
-      ScrollTrigger.removeEventListener('refresh', onRefresh);
+      clearTimeout(refreshTimeout);
+      ro.disconnect();
       clearSmoother();
       gsap.ticker.remove(tickerFn);
       lenis.destroy();
@@ -77,6 +71,19 @@ export default function Home() {
     <main ref={mainRef} className='relative'>
       <Navbar />
       <Hero />
+
+      {/*
+       * overflow-x-hidden creates a new scroll container in all browsers.
+       * Any child using position: sticky or GSAP pin (position: fixed)
+       * will be clipped and miscalculated inside it.
+       *
+       * Rule: components that use pin:true (Gallery) or position:sticky
+       * (Gratitude) must live OUTSIDE overflow-x-hidden wrappers.
+       *
+       * overflow-x-hidden is only needed to contain sections that have
+       * elements visually overflowing the viewport edge (slide-in panels,
+       * parallax layers, etc.). Keep those sections in their own wrapper.
+       */}
 
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
