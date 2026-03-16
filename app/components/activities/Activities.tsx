@@ -132,7 +132,7 @@ const InfiniteCarousel = memo(() => {
   const trackRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const NORMAL_DURATION = '50s';
+  const NORMAL_DURATION = '35s';
 
   useLayoutEffect(() => {
     const track = trackRef.current;
@@ -228,7 +228,7 @@ const ActivitiesSlider = ({ id }: { id: string }) => {
 
       <div
         ref={carouselRef}
-        className='pt-5 pb-16 sm:pb-24 xl:pb-32'
+        className='pt-5 pb-10 lg:pb-32'
         style={{
           opacity: carouselVis ? 1 : 0,
           transform: carouselVis ? 'none' : 'translateY(24px)',

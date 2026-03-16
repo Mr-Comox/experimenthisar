@@ -16,7 +16,7 @@ type Props = { id: string };
 /* ─────────────────────────────────────────────────────────────────
    USE REVEAL
 ───────────────────────────────────────────────────────────────── */
-function useReveal(threshold = 0.12) {
+function useReveal(threshold = 0.4) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -169,7 +169,7 @@ const MorphQuoteIcon = ({ trigger }: { trigger: boolean }) => {
    ROOT
 ───────────────────────────────────────────────────────────────── */
 const Testimonials = ({ id }: Props) => {
-  const { ref: revealRef, visible } = useReveal(0.12);
+  const { ref: revealRef, visible } = useReveal(0.4);
   const [index, setIndex] = useState(0);
   const isAnimating = useRef(false);
 
@@ -373,7 +373,7 @@ const Testimonials = ({ id }: Props) => {
     <section
       id={id}
       aria-labelledby='testimonials-heading'
-      className='relative bg-secondaryColor overflow-hidden'
+      className='relative bg-secondaryColor overflow-hidden '
     >
       <div
         ref={revealRef}

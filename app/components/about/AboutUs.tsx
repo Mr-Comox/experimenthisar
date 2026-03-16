@@ -9,6 +9,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   GoldToAmberFont,
   MainColorToQuatFont,
+  QuatToLightFont,
 } from '@/app/utilities/LinearFontColors';
 import { Headline } from '@/app/utilities/Headline';
 
@@ -183,7 +184,7 @@ const AtmosphereSection = () => {
         <TextReveal>
           <Headline className='mb-8 max-w-3xl'>
             Zamanla büyüyen <br />
-            <MainColorToQuatFont>köklü bir yolculuk</MainColorToQuatFont>
+            <QuatToLightFont>köklü bir yolculuk</QuatToLightFont>
           </Headline>
         </TextReveal>
 

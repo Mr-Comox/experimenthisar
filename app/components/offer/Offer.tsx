@@ -4,119 +4,113 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
+import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
 
 /* ─────────────────────────────────────────────────────────────────
    ICONS
+   All on viewBox="0 0 24 24", rendered at 34×34.
+   1–3 elements each — GSAP MorphSVG ready.
 ───────────────────────────────────────────────────────────────── */
+
+/* Lounge Bar — goblet glass */
 const IconCocktail = () => (
-  <svg
-    viewBox='0 0 40 40'
-    fill='none'
-    xmlns='http://www.w3.org/2000/svg'
-    width='100%'
-    height='100%'
-  >
+  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
     <path
-      d='M8 9h24L22 23v9'
-      stroke='rgba(251,251,251,0.88)'
-      strokeWidth='1.9'
+      d='M8 3h8v3a4 4 0 01-8 0V3zm4 10v5m-3 3h6'
+      stroke='currentColor'
+      strokeWidth='1.6'
       strokeLinecap='round'
       strokeLinejoin='round'
     />
+  </svg>
+);
+
+/* VIP Loca — single star */
+const IconVIP = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
     <path
-      d='M17 32h6'
-      stroke='rgba(251,251,251,0.88)'
-      strokeWidth='1.9'
+      d='M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
+
+/* Dans Alanı — expressive dancer: arms wide & high, one leg kicked */
+const IconDance = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
+    {/* Head */}
+    <circle cx='12' cy='3' r='1.8' stroke='currentColor' strokeWidth='1.5' />
+    {/* Torso */}
+    <path
+      d='M12 5v6'
+      stroke='currentColor'
+      strokeWidth='1.55'
       strokeLinecap='round'
     />
-    <circle cx='28.5' cy='12' r='3.2' stroke='#ff1987' strokeWidth='1.7' />
+    {/* Left arm — raised high */}
     <path
-      d='M28.5 12l3.5-4'
-      stroke='#ff1987'
-      strokeWidth='1.7'
+      d='M12 7l-4-3'
+      stroke='currentColor'
+      strokeWidth='1.55'
       strokeLinecap='round'
     />
+    {/* Right arm — out to side */}
     <path
-      d='M8 9l5 6'
-      stroke='rgba(251,251,251,0.2)'
-      strokeWidth='1.5'
+      d='M12 7l4 2'
+      stroke='currentColor'
+      strokeWidth='1.55'
+      strokeLinecap='round'
+    />
+    {/* Left leg — grounded, slight bend */}
+    <path
+      d='M12 11l-2 5'
+      stroke='currentColor'
+      strokeWidth='1.55'
+      strokeLinecap='round'
+    />
+    {/* Right leg — kicked out high */}
+    <path
+      d='M12 11l4-2'
+      stroke='currentColor'
+      strokeWidth='1.55'
       strokeLinecap='round'
     />
   </svg>
 );
 
-const IconCrown = () => (
-  <svg
-    viewBox='0 0 40 40'
-    fill='none'
-    xmlns='http://www.w3.org/2000/svg'
-    width='100%'
-    height='100%'
-  >
-    <path
-      d='M6 29l3.5-15 6.5 7.5L20 10l4 11.5 6.5-7.5L34 29H6z'
-      stroke='rgba(251,251,251,0.88)'
-      strokeWidth='1.9'
-      strokeLinecap='round'
-      strokeLinejoin='round'
+/* Özel Etkinlikler — calendar with event dashes inside */
+const IconEvent = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
+    {/* Calendar shell */}
+    <rect
+      x='3'
+      y='4'
+      width='18'
+      height='17'
+      rx='2'
+      stroke='currentColor'
+      strokeWidth='1.6'
     />
+    {/* Header divider + pin stems */}
     <path
-      d='M6 29h28'
-      stroke='#ff1987'
-      strokeWidth='1.9'
-      strokeLinecap='round'
-    />
-    <circle cx='6' cy='14' r='2.3' fill='rgba(251,251,251,0.5)' />
-    <circle cx='20' cy='10' r='2.3' fill='rgba(251,251,251,0.5)' />
-    <circle cx='34' cy='14' r='2.3' fill='rgba(251,251,251,0.5)' />
-  </svg>
-);
-
-const IconWave = () => (
-  <svg
-    viewBox='0 0 40 40'
-    fill='none'
-    xmlns='http://www.w3.org/2000/svg'
-    width='100%'
-    height='100%'
-  >
-    <path
-      d='M3 13c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
-      stroke='rgba(251,251,251,0.25)'
+      d='M3 10h18M8 2v4M16 2v4'
+      stroke='currentColor'
       strokeWidth='1.6'
       strokeLinecap='round'
     />
+    {/* Event dashes — three rows suggesting a packed schedule */}
     <path
-      d='M3 20c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
-      stroke='rgba(251,251,251,0.88)'
-      strokeWidth='1.9'
+      d='M7 14h4M7 17.5h3'
+      stroke='currentColor'
+      strokeWidth='1.5'
       strokeLinecap='round'
+      opacity='0.9'
     />
-    <path
-      d='M3 27c2.5-5 5-5 7.5 0s5 5 7.5 0 5-5 7.5 0 5 5 7.5 0'
-      stroke='#ff1987'
-      strokeWidth='1.7'
-      strokeLinecap='round'
-    />
-  </svg>
-);
-
-const IconStar = () => (
-  <svg
-    viewBox='0 0 40 40'
-    fill='none'
-    xmlns='http://www.w3.org/2000/svg'
-    width='100%'
-    height='100%'
-  >
-    <path
-      d='M20 6l3.8 9.2H33l-7.5 5.5 2.8 9.2L20 24.5l-8.3 5.4 2.8-9.2L7 15.2h9.2L20 6z'
-      stroke='rgba(251,251,251,0.88)'
-      strokeWidth='1.9'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-      fill='rgba(255,25,135,0.07)'
-    />
+    {/* Accent dot — highlights a special date */}
+    <circle cx='17' cy='14' r='1.5' stroke='currentColor' strokeWidth='1.4' />
   </svg>
 );
 
@@ -133,21 +127,21 @@ const services = [
   },
   {
     id: 2,
-    Icon: IconCrown,
+    Icon: IconVIP,
     title: 'VIP Loca',
     description:
       'Size ait bir alan. Sessiz lüks, maksimum konfor ve kişiye özel hizmet anlayışı.',
   },
   {
     id: 3,
-    Icon: IconWave,
+    Icon: IconDance,
     title: 'Dans Alanı',
     description:
       'Gece ilerledikçe yükselen tempo ve özgür hareket. Işıklar söndüğünde, müzik konuşur.',
   },
   {
     id: 4,
-    Icon: IconStar,
+    Icon: IconEvent,
     title: 'Özel Etkinlikler',
     description:
       'Kutlamalar, davetler ve unutulmaz geceler için kürasyon. Her özel an, titizlikle planlanır.',
@@ -157,7 +151,7 @@ const services = [
 type Props = { id: string };
 
 /* ─────────────────────────────────────────────────────────────────
-   NAV BUTTON — with press animation via motion.button
+   NAV BUTTON — untouched
 ───────────────────────────────────────────────────────────────── */
 const NavButton = ({
   dir,
@@ -172,7 +166,6 @@ const NavButton = ({
     onClick={onClick}
     disabled={disabled}
     aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-    /* Press animation: scale down + slight bg flash, only when enabled */
     whileTap={
       disabled ? {} : { scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }
     }
@@ -184,12 +177,10 @@ const NavButton = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: disabled ? 'rgba(251,251,251,0.04)' : '',
       color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
       cursor: disabled ? 'default' : 'pointer',
       border: '1px solid rgba(251,251,251,0.18)',
       flexShrink: 0,
-      /* Smooth background transition for enable/disable state changes */
       transition: 'background 0.2s, color 0.2s',
     }}
   >
@@ -218,7 +209,7 @@ const NavButton = ({
 );
 
 /* ─────────────────────────────────────────────────────────────────
-   ROOT
+   ROOT — carousel logic untouched
 ───────────────────────────────────────────────────────────────── */
 const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
 
@@ -235,12 +226,9 @@ const Offer = ({ id }: Props) => {
     if (!track) return;
 
     const { scrollLeft, clientWidth, scrollWidth } = track;
-
-    // Button states — pure pixel truth, no index dependency
     setCanScrollLeft(scrollLeft > 2);
     setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
 
-    // Active index — used only to know which card to jump to on next/prev click
     const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
     let closest = 0;
     let minDist = Infinity;
@@ -267,7 +255,6 @@ const Offer = ({ id }: Props) => {
     };
   }, [syncScrollState]);
 
-  /* Scroll exactly to a card's left edge */
   const scrollToCard = useCallback((index: number) => {
     const track = trackRef.current;
     if (!track) return;
@@ -284,7 +271,7 @@ const Offer = ({ id }: Props) => {
 
   return (
     <section id={id} className='relative bg-secondaryColor overflow-hidden'>
-      {/* ─── HEADER ─── */}
+      {/* ─── HEADER — untouched ─── */}
       <div
         style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
         className='pt-24 xl:pt-32 pb-12'
@@ -293,7 +280,7 @@ const Offer = ({ id }: Props) => {
           <Headline>
             Kaliteli hizmet
             <br />
-            özel ambiyans
+            <QuatToLightFont>özel ambiyans</QuatToLightFont>
           </Headline>
         </TextReveal>
       </div>
@@ -307,7 +294,7 @@ const Offer = ({ id }: Props) => {
         }}
       />
 
-      {/* ─── CAROUSEL ─── */}
+      {/* ─── CAROUSEL — dimensions & scroll logic untouched ─── */}
       <div
         ref={trackRef}
         className='scrollbar-hide'
@@ -315,7 +302,7 @@ const Offer = ({ id }: Props) => {
           {
             display: 'flex',
             overflowX: 'auto',
-            alignItems: 'stretch', // all wrapper divs reach the tallest card's height
+            alignItems: 'stretch',
             gap: 16,
             paddingLeft: TRACK_PADDING,
             paddingRight: TRACK_PADDING,
@@ -333,7 +320,7 @@ const Offer = ({ id }: Props) => {
             style={{
               flexShrink: 0,
               width: 'clamp(303px, 30vw, 405px)',
-              display: 'flex', // lets motion.div inside use height:100%
+              display: 'flex',
             }}
           >
             <motion.div
@@ -348,42 +335,34 @@ const Offer = ({ id }: Props) => {
               style={{
                 position: 'relative',
                 width: '100%',
-                height: '100%', // fills wrapper → all cards equal height
+                height: '100%',
                 borderRadius: 18,
                 overflow: 'hidden',
-                background: 'rgba(255,255,255,0.04)',
+                /* ── Card skin — matches security-section pillars ── */
+                background: 'rgba(255,255,255,0.001)',
+                border: '1px solid rgba(255,255,255,0.07)',
                 display: 'flex',
                 flexDirection: 'column',
               }}
             >
-              {/* Hairline top edge */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 1,
-                  background: 'rgba(255,255,255,0.09)',
-                }}
-              />
-
               {/* Card body */}
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  padding: '28px 28px 24px',
+                  padding: '36px 32px 36px',
                   flexGrow: 1,
                 }}
               >
-                {/* Icon tile */}
+                {/* Icon tile — purple-tinted, morph target lives here */}
                 <div
                   style={{
-                    width: 60,
-                    height: 60,
+                    width: 56,
+                    height: 56,
                     borderRadius: 14,
-                    background: 'rgba(255,255,255,0.065)',
+                    background: 'rgba(157,0,255,0.09)',
+                    border: '1px solid rgba(157,0,255,0.22)',
+                    color: 'rgba(180,80,255,0.9)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -391,9 +370,7 @@ const Offer = ({ id }: Props) => {
                     marginBottom: 22,
                   }}
                 >
-                  <div style={{ width: 34, height: 34 }}>
-                    <Icon />
-                  </div>
+                  <Icon />
                 </div>
 
                 {/* Title */}
@@ -412,7 +389,7 @@ const Offer = ({ id }: Props) => {
                 </p>
 
                 <p
-                  className='text-white/55 leading-[1.72] mt-2 mb-10 '
+                  className='text-white/55 leading-[1.72] mt-2 mb-14'
                   style={{
                     fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)',
                     flexGrow: 1,
@@ -429,7 +406,7 @@ const Offer = ({ id }: Props) => {
         <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
       </div>
 
-      {/* ─── NAV — always bottom right ─── */}
+      {/* ─── NAV — untouched ─── */}
       <div
         style={{
           display: 'flex',

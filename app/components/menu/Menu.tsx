@@ -36,7 +36,7 @@ export default function Menu({ id }: Props) {
   return (
     <section
       id={id}
-      className='relative bg-secondaryColor overflow-hidden flex flex-col justify-center'
+      className='relative bg-secondaryColor overflow-hidden flex flex-col justify-center '
       style={{ minHeight: '100vh' }}
     >
       <style>{`
