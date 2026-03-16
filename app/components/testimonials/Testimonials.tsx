@@ -245,7 +245,7 @@ const Testimonials = ({ id }: Props) => {
     <section
       id={id}
       aria-labelledby='testimonials-heading'
-      className='relative bg-secondaryColor overflow-hidden pt-3'
+      className='relative bg-secondaryColor overflow-hidden '
     >
       <div
         ref={revealRef}
@@ -263,6 +263,7 @@ const Testimonials = ({ id }: Props) => {
       >
         {/* ── Quote bubble — absolute top-right ── */}
         <div
+          className='hidden lg:block'
           ref={bubbleRef}
           aria-hidden='true'
           style={{
@@ -321,7 +322,7 @@ const Testimonials = ({ id }: Props) => {
             id='testimonials-heading'
             style={{
               margin: 0,
-              fontSize: 'clamp(1.75rem, 3.2vw, 2.6rem)',
+              fontSize: 'clamp(1.65rem, 3vw, 2.6rem)',
               fontWeight: 700,
               color: 'rgba(251,251,251,0.95)',
               lineHeight: 1.28,

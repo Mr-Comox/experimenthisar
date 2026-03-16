@@ -39,20 +39,18 @@ export default function Home() {
 
     setSmoother(lenis);
 
-    // ─── ResizeObserver ───────────────────────────────────────────────
-    // Any dynamic height change above a pinned section (e.g. countdown
-    // card → now card in Timeline) shifts that section's scroll offset.
-    // ScrollTrigger only remeasures on window resize by default, so the
-    // pin spacer goes stale and the snap/break happens.
-    // Watching <main> with ResizeObserver catches every layout change —
-    // countdown swap, image load, font swap, anything — and refreshes.
+    // Every time ScrollTrigger remeasures the page (pin spacer added,
+    // images load, font swap, etc.) tell Lenis the new scroll limit.
+    // This is the root fix for the snap-back on Gallery → Testimonials
+    // and all sections below the Gallery pin spacer.
+    const onRefresh = () => lenis.resize();
+    ScrollTrigger.addEventListener('refresh', onRefresh);
+
     let refreshTimeout: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {
-      // Debounce: layout can change in several frames (e.g. image loads),
-      // wait for it to settle before refreshing.
       clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        ScrollTrigger.refresh();
+        ScrollTrigger.refresh(); // fires onRefresh above → lenis.resize()
       }, 120);
     });
 
@@ -61,6 +59,7 @@ export default function Home() {
     return () => {
       clearTimeout(refreshTimeout);
       ro.disconnect();
+      ScrollTrigger.removeEventListener('refresh', onRefresh);
       clearSmoother();
       gsap.ticker.remove(tickerFn);
       lenis.destroy();
@@ -71,19 +70,6 @@ export default function Home() {
     <main ref={mainRef} className='relative'>
       <Navbar />
       <Hero />
-
-      {/*
-       * overflow-x-hidden creates a new scroll container in all browsers.
-       * Any child using position: sticky or GSAP pin (position: fixed)
-       * will be clipped and miscalculated inside it.
-       *
-       * Rule: components that use pin:true (Gallery) or position:sticky
-       * (Gratitude) must live OUTSIDE overflow-x-hidden wrappers.
-       *
-       * overflow-x-hidden is only needed to contain sections that have
-       * elements visually overflowing the viewport edge (slide-in panels,
-       * parallax layers, etc.). Keep those sections in their own wrapper.
-       */}
 
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
