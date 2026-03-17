@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
@@ -11,29 +11,21 @@ import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
 gsap.registerPlugin(MorphSVGPlugin);
 
 /* ─────────────────────────────────────────────────────────────────
-   ICON SHAPES — 100×100 viewBox, single closed path each
-
-   0  VIP Loca      → luxury armchair silhouette (front view)
-                      two high armrests, padded back, seat, legs
-   1  Lounge Bar    → elegant bar stool silhouette
-                      rounded seat, slim stem, wide foot
-   2  Dans Alanı    → tiered performance stage (no people)
-                      three stepped platform levels from front
-   3  Etkinlikler   → classic event ticket
-                      rectangle with half-circle notches on sides
+   ICON PATHS — all normalized to 0–100 viewBox
+   Multi-subpath shapes use M...Z M...Z (MorphSVG handles them)
 ───────────────────────────────────────────────────────────────── */
 const PATHS = [
-  // 0 — VIP Armchair
-  'M12 78 L12 42 Q12 24 24 24 Q34 24 34 38 L34 54 L66 54 L66 38 Q66 24 76 24 Q88 24 88 42 L88 78 L78 78 L78 62 L22 62 L22 78 Z',
+  // 0 — Sparkle (VIP Loca)
+  'M50 6 L56 44 L94 50 L56 56 L50 94 L44 56 L6 50 L44 44 Z',
 
-  // 1 — Bar Stool
-  'M34 22 Q34 14 50 14 Q66 14 66 22 L66 30 Q66 38 54 38 L54 68 L64 68 Q72 68 72 74 Q72 80 50 80 Q28 80 28 74 Q28 68 36 68 L46 68 L46 38 Q34 38 34 30 Z',
+  // 1 — Martini Glass (Lounge Bar)
+  'M15 15 L85 15 L54 62 L54 80 L66 80 L66 88 L34 88 L34 80 L46 80 L46 62 Z',
 
-  // 2 — Tiered Stage / Dance Floor
-  'M8 82 L8 72 L24 72 L24 62 L38 62 L38 52 L62 52 L62 62 L76 62 L76 72 L92 72 L92 82 Z',
+  // 2 — 5-square checker (Dans Alanı) — multi-subpath
+  'M8 8 L36 8 L36 36 L8 36 Z M64 8 L92 8 L92 36 L64 36 Z M36 36 L64 36 L64 64 L36 64 Z M8 64 L36 64 L36 92 L8 92 Z M64 64 L92 64 L92 92 L64 92 Z',
 
-  // 3 — Event Ticket (notched sides)
-  'M8 30 Q8 20 18 20 L82 20 Q92 20 92 30 L92 44 Q86 46 86 50 Q86 54 92 56 L92 70 Q92 80 82 80 L18 80 Q8 80 8 70 L8 56 Q14 54 14 50 Q14 46 8 44 Z',
+  // 3 — Calendar with date cells (Etkinlikler) — multi-subpath
+  'M18 30 L18 86 L82 86 L82 30 Z M30 16 L30 34 L42 34 L42 16 Z M58 16 L58 34 L70 34 L70 16 Z M22 48 L34 48 L34 58 L22 58 Z M44 48 L56 48 L56 58 L44 58 Z M66 48 L78 48 L78 58 L66 58 Z M22 66 L34 66 L34 76 L22 76 Z M44 66 L56 66 L56 76 L44 76 Z M66 66 L78 66 L78 76 L66 76 Z',
 ];
 
 /* ─────────────────────────────────────────────────────────────────
@@ -66,53 +58,186 @@ const services = [
   },
 ];
 
+type PathSegment = number[] & { closed?: boolean };
+type RawPath = PathSegment[];
+
 /* ─────────────────────────────────────────────────────────────────
-   MORPH ICON — single persistent path, never unmounts, never moves
+   CANVAS MORPH ICON
+   — hidden SVG path is animated by MorphSVGPlugin
+   — render callback draws rawPath to canvas every tick
+   — ResizeObserver keeps canvas pixel-perfect at any DPR
 ───────────────────────────────────────────────────────────────── */
-const MorphIcon = ({ activeIndex }: { activeIndex: number }) => {
+const MorphCanvas = ({ activeIndex }: { activeIndex: number }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
-  const initialized = useRef(false);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const gradRef = useRef<CanvasGradient | null>(null);
+  const readyRef = useRef(false);
+  const indexRef = useRef(activeIndex); // always holds latest index
 
-  useEffect(() => {
-    const el = pathRef.current;
-    if (!el) return;
+  /* Draw rawPath (bezier segments from MorphSVG) to canvas */
+  const draw = useCallback((rawPath: RawPath) => {
+    const ctx = ctxRef.current;
+    const gradient = gradRef.current;
+    const canvas = canvasRef.current;
+    if (!ctx || !gradient || !canvas) return;
 
-    if (!initialized.current) {
-      el.setAttribute('d', PATHS[0]);
-      initialized.current = true;
-      return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+
+    for (const segment of rawPath) {
+      const l = segment.length;
+      ctx.moveTo(segment[0], segment[1]);
+      for (let i = 2; i < l; i += 6) {
+        ctx.bezierCurveTo(
+          segment[i],
+          segment[i + 1],
+          segment[i + 2],
+          segment[i + 3],
+          segment[i + 4],
+          segment[i + 5],
+        );
+      }
+      if (segment.closed) ctx.closePath();
     }
 
-    gsap.killTweensOf(el);
-    gsap.to(el, {
-      morphSVG: PATHS[activeIndex],
+    // evenodd fill so multi-subpath shapes render all sub-shapes correctly
+    ctx.fill('evenodd');
+  }, []);
+
+  /* (Re)initialise canvas — called on mount and on every resize */
+  const setup = useCallback(() => {
+    const canvas = canvasRef.current;
+    const path = pathRef.current;
+    if (!canvas || !path) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const size = canvas.getBoundingClientRect().width;
+    if (!size) return;
+
+    // Set backing-store dimensions
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+
+    // Reset + scale context so we draw in viewBox (0–100) coordinates
+    const ctx = canvas.getContext('2d')!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale((size / 100) * dpr, (size / 100) * dpr);
+    ctxRef.current = ctx;
+
+    // Recreate gradient in viewBox coordinate space
+    const grad = ctx.createLinearGradient(0, 0, 100, 100);
+    grad.addColorStop(0, '#9933ff');
+    grad.addColorStop(0.55, '#cc66ff');
+    grad.addColorStop(1, '#e099ff');
+    gradRef.current = grad;
+    readyRef.current = true;
+
+    // Immediately redraw the current shape (no tween, instant)
+    gsap.killTweensOf(path);
+    gsap.set(path, {
+      morphSVG: { shape: PATHS[indexRef.current], render: draw },
+    });
+  }, [draw]);
+
+  /* Mount: initialise canvas + attach ResizeObserver */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const path = pathRef.current;
+    if (!canvas || !path) return;
+
+    // Seed the hidden SVG path
+    path.setAttribute('d', PATHS[0]);
+
+    // Wait one frame so CSS has laid out the canvas
+    const raf = requestAnimationFrame(setup);
+
+    const ro = new ResizeObserver(() => requestAnimationFrame(setup));
+    ro.observe(canvas);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [setup]);
+
+  /* Animate whenever activeIndex changes */
+  useEffect(() => {
+    indexRef.current = activeIndex;
+    const path = pathRef.current;
+    if (!path || !readyRef.current) return;
+
+    gsap.killTweensOf(path);
+    gsap.to(path, {
+      morphSVG: { shape: PATHS[activeIndex], render: draw },
       duration: 0.9,
       ease: 'power2.inOut',
     });
-  }, [activeIndex]);
+  }, [activeIndex, draw]);
 
   return (
-    <svg
-      viewBox='0 0 100 100'
-      fill='none'
-      style={{ width: '100%', height: '100%', overflow: 'visible' }}
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        // Promote to GPU layer — reduces composite cost on mobile
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+      }}
     >
-      <defs>
-        <linearGradient
-          id='icon-grad'
-          x1='0'
-          y1='0'
-          x2='100'
-          y2='100'
-          gradientUnits='userSpaceOnUse'
-        >
-          <stop offset='0%' stopColor='#9933ff' />
-          <stop offset='55%' stopColor='#cc66ff' />
-          <stop offset='100%' stopColor='#e099ff' />
-        </linearGradient>
-      </defs>
-      <path ref={pathRef} d={PATHS[0]} fill='url(#icon-grad)' />
-    </svg>
+      {/* Hidden SVG — MorphSVGPlugin animates this element's `d` attribute */}
+      <svg
+        aria-hidden='true'
+        style={{
+          position: 'absolute',
+          width: 0,
+          height: 0,
+          overflow: 'hidden',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+        }}
+      >
+        <path ref={pathRef} d={PATHS[0]} />
+      </svg>
+
+      {/* Outer diffuse bloom */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: '-25%',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle at 50% 55%, rgba(153,51,255,0.22) 0%, rgba(204,102,255,0.08) 45%, transparent 68%)',
+          filter: 'blur(22px)',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Inner tight glow */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: '5%',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle at 50% 60%, rgba(153,51,255,0.14) 0%, transparent 60%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Canvas — fills the container, DPR-corrected internally */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          display: 'block',
+          width: '100%',
+          height: '100%',
+        }}
+      />
+    </div>
   );
 };
 
@@ -132,9 +257,7 @@ const NavButton = ({
     onClick={onClick}
     disabled={disabled}
     aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-    whileTap={
-      disabled ? {} : { scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }
-    }
+    whileTap={disabled ? {} : { scale: 0.88 }}
     transition={{ duration: 0.12, ease: 'easeOut' }}
     style={{
       width: 48,
@@ -148,7 +271,7 @@ const NavButton = ({
       border: '1px solid rgba(251,251,251,0.18)',
       background: 'none',
       flexShrink: 0,
-      transition: 'background 0.2s, color 0.2s',
+      transition: 'color 0.2s',
     }}
   >
     {dir === 'left' ? (
@@ -221,66 +344,33 @@ const Offer = ({ id }: Props) => {
         }}
       />
 
-      {/* ── FEATURE DISPLAY ── */}
+      {/* ── FEATURE DISPLAY ──
+          align-items: flex-start  → text reflow never pushes icon or buttons
+          minHeight is fixed        → nav buttons always sit at the same distance
+      */}
       <div
         className='px-6 sm:px-12 lg:px-24 xl:px-32'
         style={{
           paddingTop: 'clamp(64px, 8vw, 112px)',
           paddingBottom: 'clamp(56px, 7vw, 96px)',
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: 'clamp(48px, 8vw, 128px)',
           flexWrap: 'wrap',
-          minHeight: '52vh',
+          /* Fixed min-height prevents nav buttons from jumping on mobile
+             when text transitions cause small reflows */
+          minHeight: 'clamp(340px, 48vw, 500px)',
         }}
       >
-        {/* ── LEFT: morphing icon with glow ── */}
+        {/* ── LEFT: canvas icon ── */}
         <div
           style={{
             flexShrink: 0,
-            position: 'relative',
             width: 'clamp(180px, 20vw, 280px)',
             aspectRatio: '1 / 1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
-          {/* Outer diffuse bloom */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: '-25%',
-              borderRadius: '50%',
-              background:
-                'radial-gradient(circle at 50% 55%, rgba(153,51,255,0.22) 0%, rgba(204,102,255,0.08) 45%, transparent 68%)',
-              pointerEvents: 'none',
-              filter: 'blur(22px)',
-            }}
-          />
-          {/* Inner tight glow */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: '5%',
-              borderRadius: '50%',
-              background:
-                'radial-gradient(circle at 50% 60%, rgba(153,51,255,0.14) 0%, transparent 60%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Icon — static, never moves */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              width: '100%',
-              height: '100%',
-            }}
-          >
-            <MorphIcon activeIndex={activeIndex} />
-          </div>
+          <MorphCanvas activeIndex={activeIndex} />
         </div>
 
         {/* ── RIGHT: text ── */}
@@ -403,7 +493,12 @@ const Offer = ({ id }: Props) => {
         </div>
       </div>
 
-      {/* ── NAV BUTTONS ── */}
+      {/* ── NAV BUTTONS ──
+          Sits BELOW the fixed-minHeight content block.
+          On mobile the buttons always land at the same vertical position
+          because the content area above them never collapses smaller than
+          minHeight. paddingBottom gives the section a consistent bottom gap.
+      */}
       <div
         className='px-6 sm:px-12 lg:px-24 xl:px-32'
         style={{
@@ -411,8 +506,7 @@ const Offer = ({ id }: Props) => {
           justifyContent: 'flex-end',
           alignItems: 'center',
           gap: 12,
-          paddingBottom: 80,
-          paddingTop: 8,
+          paddingBottom: 'clamp(56px, 7vw, 96px)',
         }}
       >
         <NavButton
