@@ -38,7 +38,8 @@ const MainToGoldFont = ({ children }: { children: React.ReactNode }) => (
 const QuatToLightFont = ({ children }: { children: React.ReactNode }) => (
   <span
     style={{
-      background: 'linear-gradient(135deg, #5a00a0 0%, #9d00ff 100%)',
+      background:
+        'linear-gradient(135deg, #9933ff 0%, #cc66ff 50%, #e099ff 100%)',
       WebkitBackgroundClip: 'text',
       WebkitTextFillColor: 'transparent',
       backgroundClip: 'text',

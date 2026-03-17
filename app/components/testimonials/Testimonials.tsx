@@ -373,7 +373,7 @@ const Testimonials = ({ id }: Props) => {
     <section
       id={id}
       aria-labelledby='testimonials-heading'
-      className='relative bg-secondaryColor overflow-hidden '
+      className='relative bg-secondaryColor overflow-hidden pt-5'
     >
       <div
         ref={revealRef}

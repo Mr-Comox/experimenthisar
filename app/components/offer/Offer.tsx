@@ -1,118 +1,40 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { gsap } from 'gsap';
+import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
 import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
 
+gsap.registerPlugin(MorphSVGPlugin);
+
 /* ─────────────────────────────────────────────────────────────────
-   ICONS
-   All on viewBox="0 0 24 24", rendered at 34×34.
-   1–3 elements each — GSAP MorphSVG ready.
+   ICON SHAPES — 100×100 viewBox, single closed path each
+
+   0  VIP Loca      → luxury armchair silhouette (front view)
+                      two high armrests, padded back, seat, legs
+   1  Lounge Bar    → elegant bar stool silhouette
+                      rounded seat, slim stem, wide foot
+   2  Dans Alanı    → tiered performance stage (no people)
+                      three stepped platform levels from front
+   3  Etkinlikler   → classic event ticket
+                      rectangle with half-circle notches on sides
 ───────────────────────────────────────────────────────────────── */
+const PATHS = [
+  // 0 — VIP Armchair
+  'M12 78 L12 42 Q12 24 24 24 Q34 24 34 38 L34 54 L66 54 L66 38 Q66 24 76 24 Q88 24 88 42 L88 78 L78 78 L78 62 L22 62 L22 78 Z',
 
-/* Lounge Bar — goblet glass */
-const IconCocktail = () => (
-  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
-    <path
-      d='M8 3h8v3a4 4 0 01-8 0V3zm4 10v5m-3 3h6'
-      stroke='currentColor'
-      strokeWidth='1.6'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-    />
-  </svg>
-);
+  // 1 — Bar Stool
+  'M34 22 Q34 14 50 14 Q66 14 66 22 L66 30 Q66 38 54 38 L54 68 L64 68 Q72 68 72 74 Q72 80 50 80 Q28 80 28 74 Q28 68 36 68 L46 68 L46 38 Q34 38 34 30 Z',
 
-/* VIP Loca — single star */
-const IconVIP = () => (
-  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
-    <path
-      d='M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z'
-      stroke='currentColor'
-      strokeWidth='1.6'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-    />
-  </svg>
-);
+  // 2 — Tiered Stage / Dance Floor
+  'M8 82 L8 72 L24 72 L24 62 L38 62 L38 52 L62 52 L62 62 L76 62 L76 72 L92 72 L92 82 Z',
 
-/* Dans Alanı — expressive dancer: arms wide & high, one leg kicked */
-const IconDance = () => (
-  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
-    {/* Head */}
-    <circle cx='12' cy='3' r='1.8' stroke='currentColor' strokeWidth='1.5' />
-    {/* Torso */}
-    <path
-      d='M12 5v6'
-      stroke='currentColor'
-      strokeWidth='1.55'
-      strokeLinecap='round'
-    />
-    {/* Left arm — raised high */}
-    <path
-      d='M12 7l-4-3'
-      stroke='currentColor'
-      strokeWidth='1.55'
-      strokeLinecap='round'
-    />
-    {/* Right arm — out to side */}
-    <path
-      d='M12 7l4 2'
-      stroke='currentColor'
-      strokeWidth='1.55'
-      strokeLinecap='round'
-    />
-    {/* Left leg — grounded, slight bend */}
-    <path
-      d='M12 11l-2 5'
-      stroke='currentColor'
-      strokeWidth='1.55'
-      strokeLinecap='round'
-    />
-    {/* Right leg — kicked out high */}
-    <path
-      d='M12 11l4-2'
-      stroke='currentColor'
-      strokeWidth='1.55'
-      strokeLinecap='round'
-    />
-  </svg>
-);
-
-/* Özel Etkinlikler — calendar with event dashes inside */
-const IconEvent = () => (
-  <svg viewBox='0 0 24 24' fill='none' width='34' height='34'>
-    {/* Calendar shell */}
-    <rect
-      x='3'
-      y='4'
-      width='18'
-      height='17'
-      rx='2'
-      stroke='currentColor'
-      strokeWidth='1.6'
-    />
-    {/* Header divider + pin stems */}
-    <path
-      d='M3 10h18M8 2v4M16 2v4'
-      stroke='currentColor'
-      strokeWidth='1.6'
-      strokeLinecap='round'
-    />
-    {/* Event dashes — three rows suggesting a packed schedule */}
-    <path
-      d='M7 14h4M7 17.5h3'
-      stroke='currentColor'
-      strokeWidth='1.5'
-      strokeLinecap='round'
-      opacity='0.9'
-    />
-    {/* Accent dot — highlights a special date */}
-    <circle cx='17' cy='14' r='1.5' stroke='currentColor' strokeWidth='1.4' />
-  </svg>
-);
+  // 3 — Event Ticket (notched sides)
+  'M8 30 Q8 20 18 20 L82 20 Q92 20 92 30 L92 44 Q86 46 86 50 Q86 54 92 56 L92 70 Q92 80 82 80 L18 80 Q8 80 8 70 L8 56 Q14 54 14 50 Q14 46 8 44 Z',
+];
 
 /* ─────────────────────────────────────────────────────────────────
    DATA
@@ -120,38 +42,82 @@ const IconEvent = () => (
 const services = [
   {
     id: 1,
-    Icon: IconCocktail,
-    title: 'Lounge Bar',
-    description:
-      'Zamana yayılan sohbetler, imza kokteyller ve rafine bir atmosfer. Her bardak, bir anın başlangıcı.',
-  },
-  {
-    id: 2,
-    Icon: IconVIP,
     title: 'VIP Loca',
     description:
       'Size ait bir alan. Sessiz lüks, maksimum konfor ve kişiye özel hizmet anlayışı.',
   },
   {
+    id: 2,
+    title: 'Lounge Bar',
+    description:
+      'Zamana yayılan sohbetler, imza kokteyller ve rafine bir atmosfer. Her bardak, bir anın başlangıcı.',
+  },
+  {
     id: 3,
-    Icon: IconDance,
     title: 'Dans Alanı',
     description:
       'Gece ilerledikçe yükselen tempo ve özgür hareket. Işıklar söndüğünde, müzik konuşur.',
   },
   {
     id: 4,
-    Icon: IconEvent,
     title: 'Özel Etkinlikler',
     description:
       'Kutlamalar, davetler ve unutulmaz geceler için kürasyon. Her özel an, titizlikle planlanır.',
   },
 ];
 
-type Props = { id: string };
+/* ─────────────────────────────────────────────────────────────────
+   MORPH ICON — single persistent path, never unmounts, never moves
+───────────────────────────────────────────────────────────────── */
+const MorphIcon = ({ activeIndex }: { activeIndex: number }) => {
+  const pathRef = useRef<SVGPathElement>(null);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    const el = pathRef.current;
+    if (!el) return;
+
+    if (!initialized.current) {
+      el.setAttribute('d', PATHS[0]);
+      initialized.current = true;
+      return;
+    }
+
+    gsap.killTweensOf(el);
+    gsap.to(el, {
+      morphSVG: PATHS[activeIndex],
+      duration: 0.9,
+      ease: 'power2.inOut',
+    });
+  }, [activeIndex]);
+
+  return (
+    <svg
+      viewBox='0 0 100 100'
+      fill='none'
+      style={{ width: '100%', height: '100%', overflow: 'visible' }}
+    >
+      <defs>
+        <linearGradient
+          id='icon-grad'
+          x1='0'
+          y1='0'
+          x2='100'
+          y2='100'
+          gradientUnits='userSpaceOnUse'
+        >
+          <stop offset='0%' stopColor='#9933ff' />
+          <stop offset='55%' stopColor='#cc66ff' />
+          <stop offset='100%' stopColor='#e099ff' />
+        </linearGradient>
+      </defs>
+      <path ref={pathRef} d={PATHS[0]} fill='url(#icon-grad)' />
+    </svg>
+  );
+};
 
 /* ─────────────────────────────────────────────────────────────────
-   NAV BUTTON — untouched
+   NAV BUTTON
 ───────────────────────────────────────────────────────────────── */
 const NavButton = ({
   dir,
@@ -180,6 +146,7 @@ const NavButton = ({
       color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
       cursor: disabled ? 'default' : 'pointer',
       border: '1px solid rgba(251,251,251,0.18)',
+      background: 'none',
       flexShrink: 0,
       transition: 'background 0.2s, color 0.2s',
     }}
@@ -209,73 +176,33 @@ const NavButton = ({
 );
 
 /* ─────────────────────────────────────────────────────────────────
-   ROOT — carousel logic untouched
+   ROOT
 ───────────────────────────────────────────────────────────────── */
-const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
+type Props = { id: string };
 
 const Offer = ({ id }: Props) => {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-
   const [activeIndex, setActiveIndex] = useState(0);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [dir, setDir] = useState<1 | -1>(1);
 
-  const syncScrollState = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
+  const navigate = (step: 1 | -1) => {
+    const next = activeIndex + step;
+    if (next < 0 || next >= services.length) return;
+    setDir(step);
+    setActiveIndex(next);
+  };
 
-    const { scrollLeft, clientWidth, scrollWidth } = track;
-    setCanScrollLeft(scrollLeft > 2);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
+  const current = services[activeIndex];
 
-    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
-    let closest = 0;
-    let minDist = Infinity;
-    cardRefs.current.forEach((card, i) => {
-      if (!card) return;
-      const dist = Math.abs(card.offsetLeft - scrollLeft - paddingLeft);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = i;
-      }
-    });
-    setActiveIndex(closest);
-  }, []);
-
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    syncScrollState();
-    el.addEventListener('scroll', syncScrollState, { passive: true });
-    window.addEventListener('resize', syncScrollState);
-    return () => {
-      el.removeEventListener('scroll', syncScrollState);
-      window.removeEventListener('resize', syncScrollState);
-    };
-  }, [syncScrollState]);
-
-  const scrollToCard = useCallback((index: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const clamped = Math.max(0, Math.min(index, services.length - 1));
-    const card = cardRefs.current[clamped];
-    if (!card) return;
-    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
-    track.scrollTo({ left: card.offsetLeft - paddingLeft, behavior: 'smooth' });
-  }, []);
-
-  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
-    cardRefs.current[i] = el;
+  const textVariants = {
+    enter: (d: number) => ({ opacity: 0, y: d * 22 }),
+    center: { opacity: 1, y: 0 },
+    exit: (d: number) => ({ opacity: 0, y: d * -14 }),
   };
 
   return (
     <section id={id} className='relative bg-secondaryColor overflow-hidden'>
-      {/* ─── HEADER — untouched ─── */}
-      <div
-        style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
-        className='pt-24 xl:pt-32 pb-12'
-      >
+      {/* ── HEADER ── */}
+      <div className='px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-32 pb-12'>
         <TextReveal>
           <Headline>
             Kaliteli hizmet
@@ -285,7 +212,7 @@ const Offer = ({ id }: Props) => {
         </TextReveal>
       </div>
 
-      {/* Section divider */}
+      {/* Divider */}
       <div
         style={{
           height: 1,
@@ -294,139 +221,209 @@ const Offer = ({ id }: Props) => {
         }}
       />
 
-      {/* ─── CAROUSEL — dimensions & scroll logic untouched ─── */}
+      {/* ── FEATURE DISPLAY ── */}
       <div
-        ref={trackRef}
-        className='scrollbar-hide'
-        style={
-          {
-            display: 'flex',
-            overflowX: 'auto',
-            alignItems: 'stretch',
-            gap: 16,
-            paddingLeft: TRACK_PADDING,
-            paddingRight: TRACK_PADDING,
-            paddingTop: 40,
-            paddingBottom: 32,
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          } as React.CSSProperties
-        }
+        className='px-6 sm:px-12 lg:px-24 xl:px-32'
+        style={{
+          paddingTop: 'clamp(64px, 8vw, 112px)',
+          paddingBottom: 'clamp(56px, 7vw, 96px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'clamp(48px, 8vw, 128px)',
+          flexWrap: 'wrap',
+          minHeight: '52vh',
+        }}
       >
-        {services.map(({ id, Icon, title, description }, index) => (
+        {/* ── LEFT: morphing icon with glow ── */}
+        <div
+          style={{
+            flexShrink: 0,
+            position: 'relative',
+            width: 'clamp(180px, 20vw, 280px)',
+            aspectRatio: '1 / 1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Outer diffuse bloom */}
           <div
-            key={id}
-            ref={setCardRef(index)}
             style={{
-              flexShrink: 0,
-              width: 'clamp(303px, 30vw, 405px)',
-              display: 'flex',
+              position: 'absolute',
+              inset: '-25%',
+              borderRadius: '50%',
+              background:
+                'radial-gradient(circle at 50% 55%, rgba(153,51,255,0.22) 0%, rgba(204,102,255,0.08) 45%, transparent 68%)',
+              pointerEvents: 'none',
+              filter: 'blur(22px)',
+            }}
+          />
+          {/* Inner tight glow */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: '5%',
+              borderRadius: '50%',
+              background:
+                'radial-gradient(circle at 50% 60%, rgba(153,51,255,0.14) 0%, transparent 60%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* Icon — static, never moves */}
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 2,
+              width: '100%',
+              height: '100%',
             }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
+            <MorphIcon activeIndex={activeIndex} />
+          </div>
+        </div>
+
+        {/* ── RIGHT: text ── */}
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <p
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.14em',
+              color: 'rgba(255,255,255,0.28)',
+              marginBottom: 28,
+              textTransform: 'uppercase',
+            }}
+          >
+            {String(activeIndex + 1).padStart(2, '0')}&nbsp;/&nbsp;
+            {String(services.length).padStart(2, '0')}
+          </p>
+
+          <AnimatePresence mode='wait' custom={dir}>
+            <motion.h3
+              key={`title-${activeIndex}`}
+              custom={dir}
+              variants={textVariants}
+              initial='enter'
+              animate='center'
+              exit='exit'
+              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              style={{
+                fontSize: 'clamp(2rem, 5vw, 4.5rem)',
+                fontWeight: 700,
+                color: 'rgba(251,251,251,0.95)',
+                lineHeight: 1.04,
+                letterSpacing: '-0.03em',
+                marginBottom: 24,
+              }}
+            >
+              {current.title}
+            </motion.h3>
+          </AnimatePresence>
+
+          <motion.div
+            key={`rule-${activeIndex}`}
+            initial={{ scaleX: 0, originX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              width: 36,
+              height: 2,
+              borderRadius: 2,
+              background: 'rgba(153,51,255,0.85)',
+              marginBottom: 24,
+            }}
+          />
+
+          <AnimatePresence mode='wait' custom={dir}>
+            <motion.p
+              key={`desc-${activeIndex}`}
+              custom={dir}
+              variants={textVariants}
+              initial='enter'
+              animate='center'
+              exit='exit'
               transition={{
-                duration: 0.55,
-                delay: index * 0.08,
+                duration: 0.42,
+                delay: 0.07,
                 ease: [0.22, 1, 0.36, 1],
               }}
               style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                borderRadius: 18,
-                overflow: 'hidden',
-                /* ── Card skin — matches security-section pillars ── */
-                background: 'rgba(255,255,255,0.001)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex',
-                flexDirection: 'column',
+                fontSize: 'clamp(1rem, 1.35vw, 1.175rem)',
+                color: 'rgba(251,251,251,0.48)',
+                lineHeight: 1.78,
+                maxWidth: 460,
               }}
             >
-              {/* Card body */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  padding: '36px 32px 36px',
-                  flexGrow: 1,
+              {current.description}
+            </motion.p>
+          </AnimatePresence>
+
+          {/* Progress pills */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              marginTop: 48,
+              alignItems: 'center',
+            }}
+            role='tablist'
+            aria-label='Hizmetler'
+          >
+            {services.map((s, i) => (
+              <motion.button
+                key={s.id}
+                role='tab'
+                aria-selected={i === activeIndex}
+                aria-label={s.title}
+                onClick={() => {
+                  setDir(i > activeIndex ? 1 : -1);
+                  setActiveIndex(i);
                 }}
-              >
-                {/* Icon tile — purple-tinted, morph target lives here */}
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 14,
-                    background: 'rgba(157,0,255,0.09)',
-                    border: '1px solid rgba(157,0,255,0.22)',
-                    color: 'rgba(180,80,255,0.9)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginBottom: 22,
-                  }}
-                >
-                  <Icon />
-                </div>
-
-                {/* Title */}
-                <p
-                  style={{
-                    fontSize: 'clamp(1.2rem, 1.65vw, 1.375rem)',
-                    fontWeight: 700,
-                    color: 'rgba(251,251,251,0.95)',
-                    lineHeight: 1.18,
-                    letterSpacing: '-0.018em',
-                    marginBottom: 12,
-                    flexShrink: 0,
-                  }}
-                >
-                  {title}
-                </p>
-
-                <p
-                  className='text-white/55 leading-[1.72] mt-2 mb-14'
-                  style={{
-                    fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)',
-                    flexGrow: 1,
-                  }}
-                >
-                  {description}
-                </p>
-              </div>
-            </motion.div>
+                animate={{
+                  width: i === activeIndex ? 36 : 8,
+                  opacity: i === activeIndex ? 1 : 0.28,
+                  backgroundColor:
+                    i === activeIndex
+                      ? 'rgba(153,51,255,0.9)'
+                      : 'rgba(255,255,255,0.6)',
+                }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  border: 'none',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              />
+            ))}
           </div>
-        ))}
-
-        {/* Trailing spacer mirrors leading padding */}
-        <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
+        </div>
       </div>
 
-      {/* ─── NAV — untouched ─── */}
+      {/* ── NAV BUTTONS ── */}
       <div
+        className='px-6 sm:px-12 lg:px-24 xl:px-32'
         style={{
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
           gap: 12,
-          paddingRight: TRACK_PADDING,
           paddingBottom: 80,
           paddingTop: 8,
         }}
       >
         <NavButton
           dir='left'
-          disabled={!canScrollLeft}
-          onClick={() => scrollToCard(activeIndex - 1)}
+          disabled={activeIndex === 0}
+          onClick={() => navigate(-1)}
         />
         <NavButton
           dir='right'
-          disabled={!canScrollRight}
-          onClick={() => scrollToCard(activeIndex + 1)}
+          disabled={activeIndex === services.length - 1}
+          onClick={() => navigate(1)}
         />
       </div>
     </section>
