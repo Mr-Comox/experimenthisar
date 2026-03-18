@@ -162,14 +162,14 @@ const AtmosphereSection = () => {
       }}
     >
       <div className='max-w-7xl mb-20'>
-        <TextReveal>
+        <TextReveal animateOnScroll>
           <Headline className='mb-8 max-w-3xl'>
             Zamanla büyüyen <br />
             <QuatToLightFont>köklü bir yolculuk</QuatToLightFont>
           </Headline>
         </TextReveal>
 
-        <TextReveal delay={0.15}>
+        <TextReveal animateOnScroll>
           <Body className='max-w-2xl'>
             Yeni Turistik Hisar Gazinosu, gece hayatının merkezinde konumlanan,
             güçlü geçmişi ve rafine çizgisiyle öne çıkan seçkin bir buluşma
