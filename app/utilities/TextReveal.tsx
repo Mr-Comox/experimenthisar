@@ -84,20 +84,31 @@ export default function TextReveal({
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
-          // Mark as played the moment it starts, not when it ends.
-          // This way a resize mid-animation won't reset lines to y:100%.
           onStart: () => {
             hasPlayed.current = true;
           },
         };
 
         if (animateOnScroll) {
-          gsap.to(lines.current, {
-            ...animationProps,
-            scrollTrigger: {
-              trigger: containerRef.current,
-              start: 'top 75%',
-              once: true,
+          ScrollTrigger.create({
+            trigger: containerRef.current,
+            start: 'top 75%',
+            once: true,
+            onEnter: () => {
+              gsap.to(lines.current, animationProps);
+            },
+          });
+        } else {
+          gsap.to(lines.current, animationProps);
+        }
+
+        if (animateOnScroll) {
+          ScrollTrigger.create({
+            trigger: containerRef.current,
+            start: 'top 75%',
+            once: true,
+            onEnter: () => {
+              gsap.to(lines.current, animationProps);
             },
           });
         } else {

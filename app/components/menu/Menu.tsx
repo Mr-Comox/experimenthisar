@@ -36,7 +36,7 @@ export default function Menu({ id }: Props) {
   return (
     <section
       id={id}
-      className='relative bg-secondaryColor overflow-hidden flex flex-col justify-center '
+      className='relative bg-secondaryColor overflow-hidden flex flex-col justify-center'
       style={{ minHeight: '100vh' }}
     >
       <style>{`
@@ -144,7 +144,7 @@ export default function Menu({ id }: Props) {
       {/* ── GHOST TEXT ── */}
       <div
         aria-hidden
-        className='absolute bottom-[-0.07em] left-[-0.03em] select-none pointer-events-none whitespace-nowrap overflow-hidden pb-8'
+        className='absolute bottom-[-0.07em] left-1/2 -translate-x-1/2 select-none pointer-events-none whitespace-nowrap overflow-hidden pb-8'
         style={{
           fontSize: 'clamp(8rem,24vw,20rem)',
           fontWeight: 900,
@@ -158,8 +158,11 @@ export default function Menu({ id }: Props) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div ref={ref} className='relative z-10 px-[clamp(28px,6vw,80px)]'>
-        {/* Ornament — IntersectionObserver, same as AboutUs non-text elements */}
+      <div
+        ref={ref}
+        className='relative z-10 px-[clamp(28px,6vw,80px)] flex flex-col items-center text-center'
+      >
+        {/* Ornament */}
         <div
           className='flex items-center gap-3 mb-[clamp(26px,4vh,44px)]'
           style={{
@@ -194,7 +197,7 @@ export default function Menu({ id }: Props) {
           />
         </div>
 
-        {/* Headline — scroll-triggered TextReveal */}
+        {/* Headline */}
         <TextReveal animateOnScroll={true} delay={0}>
           <Headline>
             Damak zevkinize <br />{' '}
@@ -204,29 +207,30 @@ export default function Menu({ id }: Props) {
 
         {/* Rule */}
         <div
-          className='my-[clamp(20px,3vh,32px)]'
+          className='my-[clamp(20px,3vh,32px)] mx-auto'
           style={{
             height: '1px',
             width: 'clamp(180px,35%,400px)',
             background:
-              'linear-gradient(to right,rgba(212,160,23,0.5),rgba(212,160,23,0.06),transparent)',
+              'linear-gradient(to right,transparent,rgba(212,160,23,0.5),transparent)',
             opacity: visible ? 1 : 0,
             transform: visible ? 'scaleX(1)' : 'scaleX(0)',
-            transformOrigin: 'left',
+            transformOrigin: 'center',
             transition:
               'opacity 0.9s cubic-bezier(0.25,0.46,0.45,0.94) 0.3s, transform 0.9s cubic-bezier(0.25,0.46,0.45,0.94) 0.3s',
           }}
         />
 
-        {/* Subtitle — scroll-triggered TextReveal */}
+        {/* Subtitle */}
         <TextReveal animateOnScroll={true} delay={0.06}>
           <p
-            className='m-0 leading-[1.8]'
+            className='m-0 leading-[1.8] mx-auto'
             style={{
               fontSize: 'clamp(0.86rem,1.05vw,0.97rem)',
               maxWidth: '36ch',
               letterSpacing: '0.01em',
               color: 'rgba(255,255,255,0.32)',
+              textAlign: 'center',
             }}
           >
             Özenle kurgulanan menü seçkisi, damak zevkinizi memnun edecek eşsiz
