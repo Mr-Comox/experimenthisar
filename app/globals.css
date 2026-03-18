@@ -95,6 +95,17 @@ body {
 }
 
 /* ================================================= */
+/*Text Reveal */
+/* ================================================= */
+/* globals.css */
+[data-text-reveal-wrapper='true'] .line-mask,
+[data-text-reveal-wrapper='true'] [style*='overflow: hidden'] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+/* ================================================= */
 /* MAPBOX FIX                                       */
 /* ================================================= */
 

@@ -604,9 +604,7 @@ function GalleryModal({
         style={{ zIndex: 10 }}
       >
         <span className='text-[0.48rem] tracking-[0.22em] uppercase text-white/18 font-medium'>
-          {isMobile
-            ? 'çift dokun zoom · kapatmak için dokun'
-            : '← → ok tuşları'}
+          {isMobile ? 'kapatmak için dokun' : '← → ok tuşları'}
         </span>
       </div>
     </motion.div>,

@@ -76,7 +76,11 @@ export default function TextReveal({
           return;
         }
 
-        gsap.set(lines.current, { y: '100%' });
+        gsap.set(lines.current, {
+          y: '100%',
+          immediateRender: true, // ← force Safari to paint hidden state BEFORE trigger fires
+          force3D: true, // ← tell Safari to create GPU layer immediately
+        });
 
         const animationProps: gsap.TweenVars = {
           y: '0%',
@@ -84,6 +88,8 @@ export default function TextReveal({
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
+          force3D: true, // ← keep GPU layer during animation
+
           // Mark as played the moment it starts, not when it ends.
           // This way a resize mid-animation won't reset lines to y:100%.
           onStart: () => {
@@ -98,13 +104,18 @@ export default function TextReveal({
               trigger: containerRef.current,
               start: 'top 75%',
               once: true,
+              invalidateOnRefresh: true, // ← recalculate on Safari viewport resize/restore
             },
           });
         } else {
           gsap.to(lines.current, animationProps);
         }
       };
-
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          ScrollTrigger.refresh();
+        });
+      });
       setup();
 
       let resizeTimer: ReturnType<typeof setTimeout>;
