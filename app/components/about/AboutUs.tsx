@@ -255,11 +255,10 @@ const HistorySection = () => {
 
           <TextReveal delay={0.15}>
             <Body center className='max-w-2xl'>
-              Canlı performanslar ve özenle oluşturulan sahne programları, Yeni
-              Hisar Gazinosu&apos;nun yalnızca bugünü değil, geçmişten bugüne
-              uzanan duruşunu da tanımlar. Yıllar boyunca birçok değerli
-              sanatçının sahne aldığı bu mekân, sahneye yaklaşımını her zaman
-              seçicilik ve saygı üzerine kurmuştur.
+              Canlı performanslar ve özenle oluşturulan sahne programları.
+              Yıllar boyunca birçok değerli sanatçının sahne aldığı bu mekân,
+              sahneye yaklaşımını her zaman seçicilik ve saygı üzerine
+              kurmuştur.
             </Body>
           </TextReveal>
         </div>

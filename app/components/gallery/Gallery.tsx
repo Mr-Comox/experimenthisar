@@ -250,16 +250,15 @@ function GalleryModal({
   onPrev: () => void;
   onNext: () => void;
 }) {
-  /* ── Device check ─────────────────────────────────────────── */
   const isMobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(hover: none), (max-width: 1023px)').matches;
 
-  /* ── Swipe to navigate ────────────────────────────────────── */
+  /* ── Swipe to navigate ──────────────────────────────────────── */
   const swipeX = useRef(0);
   const swipeY = useRef(0);
 
-  /* ── Zoom / pan state ─────────────────────────────────────── */
+  /* ── Zoom / pan — all on a STABLE ref that never unmounts ───── */
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const currentScale = useRef(1);
   const currentTrans = useRef({ x: 0, y: 0 });
@@ -276,56 +275,55 @@ function GalleryModal({
   const isZoomed = useRef(false);
   const isPinching = useRef(false);
 
-  /* ── Touch listeners — re-attach on every index change ───── */
-  useEffect(() => {
+  /* ── Helpers (stable, defined once) ────────────────────────── */
+  const getPinchDist = useCallback((t: TouchList) => {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }, []);
+
+  const clampTrans = useCallback((x: number, y: number, scale: number) => {
+    const el = imageWrapRef.current;
+    if (!el) return { x, y };
+    const maxX = (el.offsetWidth * (scale - 1)) / 2;
+    const maxY = (el.offsetHeight * (scale - 1)) / 2;
+    return {
+      x: Math.min(maxX, Math.max(-maxX, x)),
+      y: Math.min(maxY, Math.max(-maxY, y)),
+    };
+  }, []);
+
+  const applyTransform = useCallback((animated = false) => {
     const el = imageWrapRef.current;
     if (!el) return;
+    if (animated) el.style.transition = 'transform 0.22s ease';
+    el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
+    if (animated)
+      setTimeout(() => {
+        if (imageWrapRef.current) imageWrapRef.current.style.transition = '';
+      }, 220);
+  }, []);
 
-    /* Hard-reset everything for the incoming image */
-    currentScale.current = 1;
-    currentTrans.current = { x: 0, y: 0 };
-    isZoomed.current = false;
-    isPinching.current = false;
-    pinchData.current = null;
-    panData.current = null;
-    el.style.transition = '';
-    el.style.transform = '';
-
-    /* ── Helpers ────────────────────────────────────────────── */
-    const getPinchDist = (t: TouchList) => {
-      const dx = t[0].clientX - t[1].clientX;
-      const dy = t[0].clientY - t[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-
-    /* Prevent the image from panning outside its own edges */
-    const clampTrans = (x: number, y: number, scale: number) => {
-      const maxX = (el.offsetWidth * (scale - 1)) / 2;
-      const maxY = (el.offsetHeight * (scale - 1)) / 2;
-      return {
-        x: Math.min(maxX, Math.max(-maxX, x)),
-        y: Math.min(maxY, Math.max(-maxY, y)),
-      };
-    };
-
-    const applyTransform = (animated = false) => {
-      if (animated) el.style.transition = 'transform 0.22s ease';
-      el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
-      if (animated)
-        setTimeout(() => {
-          el.style.transition = '';
-        }, 220);
-    };
-
-    const resetZoom = (animated = true) => {
+  const resetZoom = useCallback(
+    (animated = true) => {
       currentScale.current = 1;
       currentTrans.current = { x: 0, y: 0 };
       isZoomed.current = false;
       isPinching.current = false;
       applyTransform(animated);
-    };
+    },
+    [applyTransform],
+  );
 
-    /* ── touchstart ─────────────────────────────────────────── */
+  /* ── Attach touch listeners ONCE to the stable wrapper ───────
+     Empty deps [] is intentional — imageWrapRef.current never
+     changes because the outer div never unmounts. AnimatePresence
+     only swaps the Image inside, the wrapper stays mounted.
+  ──────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const el = imageWrapRef.current;
+    if (!el) return;
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
@@ -353,7 +351,7 @@ function GalleryModal({
         }
         lastTap.current = now;
 
-        /* Pan only when already zoomed */
+        /* Start pan when already zoomed */
         if (isZoomed.current) {
           panData.current = {
             sx: e.touches[0].clientX,
@@ -365,7 +363,6 @@ function GalleryModal({
       }
     };
 
-    /* ── touchmove ──────────────────────────────────────────── */
     const onTouchMove = (e: TouchEvent) => {
       /* Two fingers → pinch zoom */
       if (e.touches.length === 2 && pinchData.current) {
@@ -397,11 +394,10 @@ function GalleryModal({
       }
     };
 
-    /* ── touchend ───────────────────────────────────────────── */
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchData.current = null;
-        /* Small delay so onPointerUp doesn't fire a swipe right after pinch */
+        /* Delay so onPointerUp doesn't fire a swipe right after pinch ends */
         setTimeout(() => {
           isPinching.current = false;
         }, 120);
@@ -420,18 +416,21 @@ function GalleryModal({
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [
-    index,
-  ]); /* ← re-runs for every new image, re-attaches to the new DOM node */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); /* ← [] is correct: stable node, attach once */
 
-  /* ── Pointer swipe (prev / next) ──────────────────────────── */
+  /* ── Reset zoom when navigating to a new image ─────────────── */
+  useEffect(() => {
+    resetZoom(false);
+  }, [index, resetZoom]);
+
+  /* ── Pointer swipe (prev / next) ───────────────────────────── */
   const onPointerDown = (e: React.PointerEvent) => {
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    /* Block navigation while pinching or zoomed */
     if (isZoomed.current || isPinching.current) return;
     const dx = e.clientX - swipeX.current;
     const dy = Math.abs(e.clientY - swipeY.current);
@@ -441,7 +440,7 @@ function GalleryModal({
     }
   };
 
-  /* ── Animation variants ────────────────────────────────────── */
+  /* ── Animation variants ─────────────────────────────────────── */
   const imgInitial = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
   const imgAnimate = isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 };
   const imgExit = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
@@ -531,30 +530,33 @@ function GalleryModal({
         </NavBtn>
       </div>
 
-      {/* ── Image ───────────────────────────────────────────── */}
-      <AnimatePresence mode='wait'>
-        <motion.div
-          key={index}
-          initial={imgInitial}
-          animate={imgAnimate}
-          exit={imgExit}
-          transition={{ duration: isMobile ? 0.2 : 0.22, ease: 'easeOut' }}
-          onClick={(e) => e.stopPropagation()}
-          className='relative'
-          style={{
-            touchAction: 'none',
-            zIndex: 4,
-            willChange: 'transform, opacity',
-          }}
-        >
-          {/* This div receives all zoom / pan transforms imperatively */}
-          <div
-            ref={imageWrapRef}
-            style={{
-              touchAction: 'none',
-              userSelect: 'none',
-              display: 'block',
-            }}
+      {/* ──────────────────────────────────────────────────────────
+          THE KEY FIX:
+          imageWrapRef is on this STABLE outer div.
+          This div never unmounts for the lifetime of the modal.
+          Touch listeners attach once in [] useEffect and persist.
+
+          AnimatePresence lives INSIDE — it only animates the
+          visual image swap. The wrapper is completely untouched.
+      ────────────────────────────────────────────────────────── */}
+      <div
+        ref={imageWrapRef}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          zIndex: 4,
+          touchAction: 'none',
+          userSelect: 'none',
+        }}
+      >
+        <AnimatePresence mode='wait'>
+          <motion.div
+            key={index}
+            initial={imgInitial}
+            animate={imgAnimate}
+            exit={imgExit}
+            transition={{ duration: isMobile ? 0.2 : 0.22, ease: 'easeOut' }}
+            style={{ willChange: 'transform, opacity', display: 'block' }}
           >
             <Image
               src={gallery[index].src}
@@ -569,9 +571,9 @@ function GalleryModal({
               className='absolute bottom-0 left-0 right-0 h-px rounded-b-lg'
               style={{ background: MAIN_TO_GOLD, opacity: 0.18 }}
             />
-          </div>
-        </motion.div>
-      </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* ── Next ────────────────────────────────────────────── */}
       <div
@@ -603,15 +605,14 @@ function GalleryModal({
       >
         <span className='text-[0.48rem] tracking-[0.22em] uppercase text-white/18 font-medium'>
           {isMobile
-            ? 'kaydır · çift dokun zoom · kapatmak için dokun'
-            : '← → ok tuşları · kaydır · ESC kapat'}
+            ? 'çift dokun zoom · kapatmak için dokun'
+            : '← → ok tuşları'}
         </span>
       </div>
     </motion.div>,
     document.body,
   );
 }
-
 /* ─── Gallery Card ────────────────────────────────────────────── */
 function GalleryCard({
   item,
