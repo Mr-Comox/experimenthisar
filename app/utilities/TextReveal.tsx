@@ -90,27 +90,25 @@ export default function TextReveal({
         };
 
         if (animateOnScroll) {
-          ScrollTrigger.create({
-            trigger: containerRef.current,
-            start: 'top 75%',
-            once: true,
-            onEnter: () => {
-              gsap.to(lines.current, animationProps);
-            },
-          });
-        } else {
-          gsap.to(lines.current, animationProps);
-        }
+          const el = containerRef.current!;
+          const rect = el.getBoundingClientRect();
+          const alreadyPassed = rect.top < window.innerHeight * 0.75;
 
-        if (animateOnScroll) {
-          ScrollTrigger.create({
-            trigger: containerRef.current,
-            start: 'top 75%',
-            once: true,
-            onEnter: () => {
-              gsap.to(lines.current, animationProps);
-            },
-          });
+          if (alreadyPassed) {
+            // Element is already in/past the viewport threshold —
+            // play immediately without ScrollTrigger so it never gets skipped
+            gsap.to(lines.current, { ...animationProps, delay: 0 });
+          } else {
+            // Element is still above the fold — set up observer
+            ScrollTrigger.create({
+              trigger: el,
+              start: 'top 75%',
+              once: true,
+              onEnter: () => {
+                gsap.to(lines.current, animationProps);
+              },
+            });
+          }
         } else {
           gsap.to(lines.current, animationProps);
         }
