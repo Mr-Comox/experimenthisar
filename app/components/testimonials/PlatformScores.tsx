@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
+import { Headline } from '@/app/utilities/Headline';
+import TextReveal from '@/app/utilities/TextReveal';
 
 const OVERALL = {
   score: 4.2,
@@ -48,10 +50,7 @@ const LAST_UPDATED = 'Mayıs 2025';
 
 const T = {
   accent: '#9d00ff',
-  accentBorder: 'rgba(157,0,255,0.3)',
-  accentFill: 'rgba(157,0,255,0.08)',
   accentGlow: 'rgba(157,0,255,0.35)',
-  accentLight: 'rgba(157,0,255,0.6)',
   w96: 'rgba(255,255,255,0.96)',
   w80: 'rgba(255,255,255,0.80)',
   w55: 'rgba(255,255,255,0.55)',
@@ -64,7 +63,8 @@ const T = {
   greenBorder: 'rgba(74,222,128,0.25)',
 };
 
-function useReveal(threshold: number = 0.35) {
+/* ── useReveal — matches AboutUs exactly ── */
+function useReveal(threshold = 0.12) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -85,21 +85,18 @@ function useReveal(threshold: number = 0.35) {
   return { ref, visible };
 }
 
-function useAnimatedNumber(target: number, duration: number = 900) {
+function useAnimatedNumber(target: number, duration = 900) {
   const [val, setVal] = useState(0);
-  const rafRef = useRef<number>(0);
+  const raf = useRef<number>(0);
   useEffect(() => {
     const t0 = performance.now();
     const tick = (now: number) => {
       const p = Math.min(1, (now - t0) / duration);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setVal(target * ease);
-      if (p < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
+      setVal(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
   }, [target, duration]);
   return val;
 }
@@ -107,14 +104,15 @@ function useAnimatedNumber(target: number, duration: number = 900) {
 function useWindowWidth() {
   const [w, setW] = useState(0);
   useEffect(() => {
-    const update = () => setW(window.innerWidth);
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    const fn = () => setW(window.innerWidth);
+    fn();
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
   }, []);
   return w;
 }
 
+/* ── icons ── */
 const StarIcon = ({
   filled,
   size = 13,
@@ -137,13 +135,13 @@ const PartialStarIcon = ({
   fill: number;
   size?: number;
 }) => {
-  const clampedFill = Math.min(1, Math.max(0, fill));
-  const clipId = `pstar-${size}-${Math.round(clampedFill * 1000)}`;
+  const c = Math.min(1, Math.max(0, fill));
+  const id = `pstar-${size}-${Math.round(c * 1000)}`;
   return (
     <svg width={size} height={size} viewBox='0 0 20 20' aria-hidden='true'>
       <defs>
-        <clipPath id={clipId}>
-          <rect x={0} y={0} width={20 * clampedFill} height={20} />
+        <clipPath id={id}>
+          <rect x={0} y={0} width={20 * c} height={20} />
         </clipPath>
       </defs>
       <path
@@ -153,19 +151,18 @@ const PartialStarIcon = ({
       <path
         d='M10 1l2.5 6.5H19l-5.5 4 2 6.5L10 14l-5.5 4 2-6.5-5.5-4h6.5z'
         fill={T.accent}
-        clipPath={`url(#${clipId})`}
+        clipPath={`url(#${id})`}
       />
     </svg>
   );
 };
 
 function starFills(score: number, max: number): number[] {
-  const normalised = (score / max) * 5;
-  return Array.from({ length: 5 }, (_, i) =>
-    Math.min(1, Math.max(0, normalised - i)),
-  );
+  const n = (score / max) * 5;
+  return Array.from({ length: 5 }, (_, i) => Math.min(1, Math.max(0, n - i)));
 }
 
+/* ── DistributionRow — animation kept ── */
 const DistributionRow = ({
   stars,
   pct,
@@ -178,12 +175,11 @@ const DistributionRow = ({
   visible: boolean;
 }) => {
   const [barW, setBarW] = useState('0%');
-  const pctRef = useRef(pct);
   useEffect(() => {
     if (!visible) return;
-    const id = setTimeout(() => setBarW(`${pctRef.current}%`), delay);
+    const id = setTimeout(() => setBarW(`${pct}%`), delay);
     return () => clearTimeout(id);
-  }, [visible, delay]);
+  }, [visible, delay, pct]);
 
   return (
     <div
@@ -223,7 +219,7 @@ const DistributionRow = ({
                   ? T.w30
                   : T.w14,
             boxShadow: stars >= 4 ? `0 0 10px ${T.accentGlow}` : 'none',
-            transition: `width 1.2s cubic-bezier(0.16,1,0.3,1)`,
+            transition: 'width 1.2s cubic-bezier(0.16,1,0.3,1)',
           }}
         />
       </div>
@@ -244,27 +240,16 @@ const DistributionRow = ({
   );
 };
 
+/* ── PlatformCard — static, no animations ── */
 const PlatformCard = ({
   platform,
-  delay,
-  visible,
   isMobile,
 }: {
   platform: (typeof PLATFORMS)[number];
-  delay: number;
-  visible: boolean;
   isMobile: boolean;
 }) => {
   const pct = Math.round((platform.score / platform.max) * 100);
-  const [barW, setBarW] = useState('0%');
-  const pctRef = useRef(pct);
   const fills = starFills(platform.score, platform.max);
-
-  useEffect(() => {
-    if (!visible) return;
-    const id = setTimeout(() => setBarW(`${pctRef.current}%`), delay + 200);
-    return () => clearTimeout(id);
-  }, [visible, delay]);
 
   return (
     <div
@@ -278,10 +263,6 @@ const PlatformCard = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'none' : 'translateY(14px)',
-        transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
-        cursor: 'default',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -297,6 +278,7 @@ const PlatformCard = ({
           pointerEvents: 'none',
         }}
       />
+
       <span
         style={{
           fontSize: '.85rem',
@@ -307,6 +289,7 @@ const PlatformCard = ({
       >
         {platform.label}
       </span>
+
       <div
         style={{
           display: 'flex',
@@ -330,11 +313,13 @@ const PlatformCard = ({
           /{platform.max}
         </span>
       </div>
+
       <div style={{ display: 'flex', gap: 3 }}>
         {fills.map((fill, i) => (
           <PartialStarIcon key={i} fill={fill} size={11} />
         ))}
       </div>
+
       <div
         style={{
           height: 2,
@@ -348,23 +333,21 @@ const PlatformCard = ({
           style={{
             height: '100%',
             borderRadius: 99,
-            width: barW,
+            width: `${pct}%`,
             background: `linear-gradient(90deg, rgba(90,0,160,0.7), ${T.accent})`,
-            transition: 'width 1.3s cubic-bezier(0.16,1,0.3,1)',
           }}
         />
       </div>
+
       <div
         className='absolute top-2 right-2 hidden md:inline-flex'
         style={{
           alignItems: 'center',
           gap: 8,
-          marginTop: 7,
           padding: isMobile ? '7px 7px' : '7px 14px 7px 10px',
           borderRadius: 99,
           background: T.greenFill,
           border: `1px solid ${T.greenBorder}`,
-          boxShadow: `0 0 16px rgba(74,222,128,0.08)`,
           width: 'fit-content',
         }}
       >
@@ -409,245 +392,225 @@ const PlatformCard = ({
   );
 };
 
+/* ── Root ── */
 const PlatformScores: React.FC = () => {
-  const { ref: rootRef, visible } = useReveal(0.35);
-  const { ref: distRef, visible: distVisible } = useReveal(0.35);
+  const { ref: rootRef, visible } = useReveal(0.12);
+  const { ref: distRef, visible: distVisible } = useReveal(0.12);
   const animScore = useAnimatedNumber(visible ? OVERALL.score : 0, 1100);
 
   const w = useWindowWidth();
   const isMobile = w > 0 && w < 650;
   const isTablet = w >= 650 && w < 960;
-
   const heroFills = starFills(animScore, OVERALL.max);
 
   return (
     <section
       ref={rootRef}
       aria-label='Platform değerlendirmeleri'
-      className='px-6 sm:px-12 lg:px-20  pt-24 lg:pt-36 pb-16 lg:pb-24'
+      className='px-6 py-16 sm:px-12 lg:px-20  lg:py-20'
       style={{
         opacity: visible ? 1 : 0,
         transform: visible ? 'none' : 'translateY(20px)',
         transition:
-          'opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
+          'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
       }}
     >
-      {/* ════════════ HEADER ════════════ */}
+      {/* ── Header ── */}
       <div style={{ marginBottom: isMobile ? 40 : 56 }}>
-        <motion.h2
-          initial={{ opacity: 0, y: 28 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{
-            duration: 0.9,
-            ease: [0.25, 0.46, 0.45, 0.94],
-            delay: 0.08,
-          }}
-          className='font-bold text-white leading-[1.02] tracking-[-0.03em]'
-          style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-        >
-          Platform <QuatToLightFont>puanlamaları</QuatToLightFont>
-        </motion.h2>
+        <TextReveal animateOnScroll={true}>
+          <Headline
+            className='font-bold text-white leading-[1.02] tracking-[-0.03em]'
+            style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
+          >
+            Platform
+            <br />
+            <QuatToLightFont>puanlamaları</QuatToLightFont>
+          </Headline>
+        </TextReveal>
       </div>
 
-      <div>
-        {/* ════════════ HERO SCORE BLOCK ════════════ */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            justifyContent: 'space-between',
-            gap: isMobile ? 32 : 48,
-            marginBottom: 48,
-          }}
-        >
-          {/* Left: score */}
-          <div style={{ flexShrink: 0 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: isMobile ? 12 : 18,
-                lineHeight: 1,
-                marginBottom: 16,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: isMobile
-                    ? '5rem'
-                    : isTablet
-                      ? '6rem'
-                      : 'clamp(5rem, 10vw, 8rem)',
-                  fontWeight: 900,
-                  letterSpacing: '-0.055em',
-                  color: T.w96,
-                  fontVariantNumeric: 'tabular-nums',
-                  lineHeight: 0.9,
-                }}
-              >
-                {animScore.toFixed(1)}
-              </span>
-              <div style={{ paddingBottom: isMobile ? 8 : 14 }}>
-                <span
-                  style={{ fontSize: '1rem', color: T.w30, fontWeight: 300 }}
-                >
-                  / {OVERALL.max}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
-              {heroFills.map((fill, i) => (
-                <PartialStarIcon
-                  key={i}
-                  fill={fill}
-                  size={isMobile ? 16 : 18}
-                />
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span
-                style={{
-                  fontSize: isMobile ? '1rem' : '1.1rem',
-                  fontWeight: 700,
-                  color: T.w96,
-                }}
-              >
-                {OVERALL.label}
-              </span>
-              <div
-                style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: 99,
-                  background: T.w30,
-                }}
-              />
-              <span
-                style={{ fontSize: '0.78rem', color: T.w55, fontWeight: 400 }}
-              >
-                {OVERALL.reviewCount} değerlendirme
-              </span>
-            </div>
-          </div>
-
-          {!isMobile && (
-            <div
-              style={{
-                width: 1,
-                alignSelf: 'stretch',
-                background: `linear-gradient(to bottom, transparent, ${T.w14} 20%, ${T.w14} 80%, transparent)`,
-                flexShrink: 0,
-              }}
-            />
-          )}
-
-          {/* Right: distribution bars */}
+      {/* ── Hero score + distribution ── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          gap: isMobile ? 32 : 48,
+          marginBottom: 48,
+        }}
+      >
+        {/* Big score — animation kept */}
+        <div style={{ flexShrink: 0 }}>
           <div
-            ref={distRef}
             style={{
-              flex: 1,
-              width: '100%',
-              minWidth: 0,
-              maxWidth: isMobile ? '100%' : 480,
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: isMobile ? 12 : 18,
+              lineHeight: 1,
+              marginBottom: 16,
             }}
           >
-            <p
+            <span
               style={{
-                fontSize: '0.52rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.22em',
-                color: T.w30,
-                fontWeight: 600,
-                marginBottom: 18,
+                fontSize: isMobile
+                  ? '5rem'
+                  : isTablet
+                    ? '6rem'
+                    : 'clamp(5rem, 10vw, 8rem)',
+                fontWeight: 900,
+                letterSpacing: '-0.055em',
+                color: T.w96,
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 0.9,
               }}
             >
-              Puan Dağılımı
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: isMobile ? 13 : 11,
-              }}
-            >
-              {DISTRIBUTION.map((row, idx) => (
-                <DistributionRow
-                  key={row.stars}
-                  stars={row.stars}
-                  pct={row.pct}
-                  delay={idx * 90}
-                  visible={distVisible}
-                />
-              ))}
+              {animScore.toFixed(1)}
+            </span>
+            <div style={{ paddingBottom: isMobile ? 8 : 14 }}>
+              <span style={{ fontSize: '1rem', color: T.w30, fontWeight: 300 }}>
+                / {OVERALL.max}
+              </span>
             </div>
           </div>
-        </div>
-
-        {/* ════════════ PLATFORM CARDS ════════════ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns:
-              w > 0 && w < 960 ? '1fr 1fr' : `repeat(${PLATFORMS.length}, 1fr)`,
-            gap: isMobile ? 10 : 12,
-            marginBottom: 32,
-          }}
-        >
-          {PLATFORMS.map((p, i) => (
-            <PlatformCard
-              key={p.id}
-              platform={p}
-              delay={i * 80}
-              visible={visible}
-              isMobile={isMobile}
-            />
-          ))}
-        </div>
-
-        {/* ════════════ FOOTER NOTE ════════════ */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            alignItems: isMobile ? 'flex-start' : 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            paddingTop: 20,
-            borderTop: `1px solid ${T.w07}`,
-            opacity: visible ? 1 : 0,
-            transition: 'opacity 0.5s ease 600ms',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
+            {heroFills.map((fill, i) => (
+              <PartialStarIcon key={i} fill={fill} size={isMobile ? 16 : 18} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                fontSize: isMobile ? '1rem' : '1.1rem',
+                fontWeight: 700,
+                color: T.w96,
+              }}
+            >
+              {OVERALL.label}
+            </span>
             <div
               style={{
-                width: 7,
-                height: 7,
+                width: 4,
+                height: 4,
                 borderRadius: 99,
-                background: T.green,
-                boxShadow: `0 0 8px ${T.greenBorder}`,
+                background: T.w30,
               }}
             />
-            <span style={{ fontSize: '0.6rem', color: T.w30, fontWeight: 400 }}>
-              Tüm değerlendirmeler bağımsız platformlardan alınmış ve
-              onaylanmıştır.
+            <span
+              style={{ fontSize: '0.78rem', color: T.w55, fontWeight: 400 }}
+            >
+              {OVERALL.reviewCount} değerlendirme
             </span>
           </div>
-          <span
+        </div>
+
+        {!isMobile && (
+          <div
             style={{
-              fontSize: '0.58rem',
+              width: 1,
+              alignSelf: 'stretch',
+              flexShrink: 0,
+              background: `linear-gradient(to bottom, transparent, ${T.w14} 20%, ${T.w14} 80%, transparent)`,
+            }}
+          />
+        )}
+
+        {/* Distribution bars — animation kept */}
+        <div
+          ref={distRef}
+          style={{
+            flex: 1,
+            width: '100%',
+            minWidth: 0,
+            maxWidth: isMobile ? '100%' : 480,
+          }}
+        >
+          <p
+            style={{
+              fontSize: '0.52rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.22em',
               color: T.w30,
-              fontWeight: 400,
-              whiteSpace: 'nowrap',
+              fontWeight: 600,
+              marginBottom: 18,
             }}
           >
-            Son güncelleme: {LAST_UPDATED}
+            Puan Dağılımı
+          </p>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: isMobile ? 13 : 11,
+            }}
+          >
+            {DISTRIBUTION.map((row, idx) => (
+              <DistributionRow
+                key={row.stars}
+                stars={row.stars}
+                pct={row.pct}
+                delay={idx * 90}
+                visible={distVisible}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Platform cards — static, no JS animations ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns:
+            w > 0 && w < 960 ? '1fr 1fr' : `repeat(${PLATFORMS.length}, 1fr)`,
+          gap: isMobile ? 10 : 12,
+          marginBottom: 32,
+        }}
+      >
+        {PLATFORMS.map((p) => (
+          <PlatformCard key={p.id} platform={p} isMobile={isMobile} />
+        ))}
+      </div>
+
+      {/* ── Footer note ── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          paddingTop: 20,
+          borderTop: `1px solid ${T.w07}`,
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.5s ease 600ms',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: 99,
+              background: T.green,
+              boxShadow: `0 0 8px ${T.greenBorder}`,
+            }}
+          />
+          <span style={{ fontSize: '0.6rem', color: T.w30, fontWeight: 400 }}>
+            Tüm değerlendirmeler bağımsız platformlardan alınmış ve
+            onaylanmıştır.
           </span>
         </div>
+        <span
+          style={{
+            fontSize: '0.58rem',
+            color: T.w30,
+            fontWeight: 400,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Son güncelleme: {LAST_UPDATED}
+        </span>
       </div>
     </section>
   );

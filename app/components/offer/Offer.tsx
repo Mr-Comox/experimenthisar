@@ -1,32 +1,117 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { gsap } from 'gsap';
-import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
 import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
 
-gsap.registerPlugin(MorphSVGPlugin);
-
 /* ─────────────────────────────────────────────────────────────────
-   ICON PATHS — all normalized to 0–100 viewBox
-   Multi-subpath shapes use M...Z M...Z (MorphSVG handles them)
+   ICONS
+   All rendered at 40×40 for consistent sizing across devices.
+   IconCocktail & IconVIP use viewBox="0 0 24 24" (stroke-based).
+   IconDance uses viewBox="0 0 15 15" (fill-based, provided SVG).
+   IconEvent uses viewBox="0 0 24 24" (stroke-based).
 ───────────────────────────────────────────────────────────────── */
-const PATHS = [
-  // 0 — Sparkle (VIP Loca)
-  'M50 6 L56 44 L94 50 L56 56 L50 94 L44 56 L6 50 L44 44 Z',
 
-  // 1 — Martini Glass (Lounge Bar)
-  'M15 15 L85 15 L54 62 L54 80 L66 80 L66 88 L34 88 L34 80 L46 80 L46 62 Z',
+/* Lounge Bar — goblet glass */
+const IconCocktail = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='40' height='40'>
+    <path
+      d='M8 3h8v3a4 4 0 01-8 0V3zm4 10v5m-3 3h6'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
 
-  // 2 — 5-square checker (Dans Alanı) — multi-subpath
-  'M8 8 L36 8 L36 36 L8 36 Z M64 8 L92 8 L92 36 L64 36 Z M36 36 L64 36 L64 64 L36 64 Z M8 64 L36 64 L36 92 L8 92 Z M64 64 L92 64 L92 92 L64 92 Z',
+/* VIP Loca — single star */
+const IconVIP = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='40' height='40'>
+    <path
+      d='M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
 
-  // 3 — Calendar with date cells (Etkinlikler) — multi-subpath
-  'M18 30 L18 86 L82 86 L82 30 Z M30 16 L30 34 L42 34 L42 16 Z M58 16 L58 34 L70 34 L70 16 Z M22 48 L34 48 L34 58 L22 58 Z M44 48 L56 48 L56 58 L44 58 Z M66 48 L78 48 L78 58 L66 58 Z M22 66 L34 66 L34 76 L22 76 Z M44 66 L56 66 L56 76 L44 76 Z M66 66 L78 66 L78 76 L66 76 Z',
-];
+/* Dans Alanı — globe with sparkles (provided SVG) */
+const IconDance = () => (
+  <svg viewBox='0 0 15 15' fill='none' width='40' height='40'>
+    <path
+      d='M6.00001 3.52313V0.5C6.00001 0.367392 5.94733 0.240215 5.85356 0.146447C5.75979 0.0526784 5.63261 0 5.50001 0C5.3674 0 5.24022 0.0526784 5.14645 0.146447C5.05268 0.240215 5.00001 0.367392 5.00001 0.5V3.52313C3.5905 3.65179 2.28486 4.31889 1.35465 5.38565C0.424451 6.45241 -0.0586998 7.83671 0.00570164 9.25061C0.0701031 10.6645 0.677098 11.9992 1.70043 12.9769C2.72376 13.9547 4.08464 14.5004 5.50001 14.5004C6.91537 14.5004 8.27625 13.9547 9.29958 12.9769C10.3229 11.9992 10.9299 10.6645 10.9943 9.25061C11.0587 7.83671 10.5756 6.45241 9.64536 5.38565C8.71515 4.31889 7.40951 3.65179 6.00001 3.52313ZM9.97125 8.5H7.98563C7.89126 6.7275 7.31126 5.4775 6.77063 4.68375C7.61992 4.93527 8.37635 5.43131 8.94554 6.10997C9.51472 6.78864 9.87146 7.61988 9.97125 8.5ZM4.01501 9.5H6.985C6.86 11.595 5.97688 12.8094 5.50001 13.3175C5.02251 12.8081 4.13938 11.5944 4.01501 9.5ZM4.01501 8.5C4.14001 6.405 5.02313 5.19062 5.50001 4.6825C5.97751 5.19187 6.86063 6.40563 6.985 8.5H4.01501ZM4.22938 4.68375C3.68751 5.4775 3.10876 6.7275 3.01438 8.5H1.02876C1.12854 7.61988 1.48529 6.78864 2.05447 6.10997C2.62366 5.43131 3.38009 4.93527 4.22938 4.68375ZM1.02876 9.5H3.01438C3.10876 11.2725 3.68876 12.5225 4.22938 13.3162C3.38009 13.0647 2.62366 12.5687 2.05447 11.89C1.48529 11.2114 1.12854 10.3801 1.02876 9.5ZM6.77063 13.3162C7.31126 12.5225 7.89126 11.2725 7.98563 9.5H9.97125C9.87146 10.3801 9.51472 11.2114 8.94554 11.89C8.37635 12.5687 7.61992 13.0647 6.77063 13.3162ZM14.5 5C14.5 5.13261 14.4473 5.25979 14.3536 5.35355C14.2598 5.44732 14.1326 5.5 14 5.5H13.5V6C13.5 6.13261 13.4473 6.25979 13.3536 6.35355C13.2598 6.44732 13.1326 6.5 13 6.5C12.8674 6.5 12.7402 6.44732 12.6465 6.35355C12.5527 6.25979 12.5 6.13261 12.5 6V5.5H12C11.8674 5.5 11.7402 5.44732 11.6465 5.35355C11.5527 5.25979 11.5 5.13261 11.5 5C11.5 4.86739 11.5527 4.74021 11.6465 4.64645C11.7402 4.55268 11.8674 4.5 12 4.5H12.5V4C12.5 3.86739 12.5527 3.74021 12.6465 3.64645C12.7402 3.55268 12.8674 3.5 13 3.5C13.1326 3.5 13.2598 3.55268 13.3536 3.64645C13.4473 3.74021 13.5 3.86739 13.5 4V4.5H14C14.1326 4.5 14.2598 4.55268 14.3536 4.64645C14.4473 4.74021 14.5 4.86739 14.5 5ZM8 2C8 1.86739 8.05268 1.74021 8.14645 1.64645C8.24022 1.55268 8.3674 1.5 8.5 1.5H9.5V0.5C9.5 0.367392 9.55268 0.240215 9.64645 0.146447C9.74022 0.0526784 9.8674 0 10 0C10.1326 0 10.2598 0.0526784 10.3536 0.146447C10.4473 0.240215 10.5 0.367392 10.5 0.5V1.5H11.5C11.6326 1.5 11.7598 1.55268 11.8536 1.64645C11.9473 1.74021 12 1.86739 12 2C12 2.13261 11.9473 2.25979 11.8536 2.35355C11.7598 2.44732 11.6326 2.5 11.5 2.5H10.5V3.5C10.5 3.63261 10.4473 3.75979 10.3536 3.85355C10.2598 3.94732 10.1326 4 10 4C9.8674 4 9.74022 3.94732 9.64645 3.85355C9.55268 3.75979 9.5 3.63261 9.5 3.5V2.5H8.5C8.3674 2.5 8.24022 2.44732 8.14645 2.35355C8.05268 2.25979 8 2.13261 8 2Z'
+      fill='currentColor'
+    />
+  </svg>
+);
+
+/* Canlı Performans — microphone with stand arc */
+const IconMic = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='40' height='40'>
+    {/* Capsule body */}
+    <rect
+      x='9'
+      y='2'
+      width='6'
+      height='11'
+      rx='3'
+      stroke='currentColor'
+      strokeWidth='1.6'
+    />
+    {/* Pick-up arc */}
+    <path
+      d='M5 11a7 7 0 0014 0'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+    />
+    {/* Stand stem + base */}
+    <path
+      d='M12 18v3M9 21h6'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+    />
+  </svg>
+);
+
+/* Özel Etkinlikler — calendar with event dashes inside */
+const IconEvent = () => (
+  <svg viewBox='0 0 24 24' fill='none' width='40' height='40'>
+    {/* Calendar shell */}
+    <rect
+      x='3'
+      y='4'
+      width='18'
+      height='17'
+      rx='2'
+      stroke='currentColor'
+      strokeWidth='1.6'
+    />
+    {/* Header divider + pin stems */}
+    <path
+      d='M3 10h18M8 2v4M16 2v4'
+      stroke='currentColor'
+      strokeWidth='1.6'
+      strokeLinecap='round'
+    />
+    {/* Event dashes */}
+    <path
+      d='M7 14h4M7 17.5h3'
+      stroke='currentColor'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+      opacity='0.9'
+    />
+    {/* Accent dot */}
+    <circle cx='17' cy='14' r='1.5' stroke='currentColor' strokeWidth='1.4' />
+  </svg>
+);
 
 /* ─────────────────────────────────────────────────────────────────
    DATA
@@ -34,212 +119,42 @@ const PATHS = [
 const services = [
   {
     id: 1,
+    Icon: IconVIP,
     title: 'VIP Loca',
     description:
       'Size ait bir alan. Sessiz lüks, maksimum konfor ve kişiye özel hizmet anlayışı.',
   },
   {
     id: 2,
+    Icon: IconCocktail,
     title: 'Lounge Bar',
     description:
       'Zamana yayılan sohbetler, imza kokteyller ve rafine bir atmosfer. Her bardak, bir anın başlangıcı.',
   },
   {
     id: 3,
+    Icon: IconMic,
+    title: 'Canlı Performans',
+    description:
+      'Sahnedeki enerji yükselir, müzik gece boyunca kesintisiz akmaya devam eder.',
+  },
+  {
+    id: 4,
+    Icon: IconDance,
     title: 'Dans Alanı',
     description:
       'Gece ilerledikçe yükselen tempo ve özgür hareket. Işıklar söndüğünde, müzik konuşur.',
   },
   {
-    id: 4,
+    id: 5,
+    Icon: IconEvent,
     title: 'Özel Etkinlikler',
     description:
       'Kutlamalar, davetler ve unutulmaz geceler için kürasyon. Her özel an, titizlikle planlanır.',
   },
 ];
 
-type PathSegment = number[] & { closed?: boolean };
-type RawPath = PathSegment[];
-
-/* ─────────────────────────────────────────────────────────────────
-   CANVAS MORPH ICON
-   — hidden SVG path is animated by MorphSVGPlugin
-   — render callback draws rawPath to canvas every tick
-   — ResizeObserver keeps canvas pixel-perfect at any DPR
-───────────────────────────────────────────────────────────────── */
-const MorphCanvas = ({ activeIndex }: { activeIndex: number }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pathRef = useRef<SVGPathElement>(null);
-  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-  const gradRef = useRef<CanvasGradient | null>(null);
-  const readyRef = useRef(false);
-  const indexRef = useRef(activeIndex); // always holds latest index
-
-  /* Draw rawPath (bezier segments from MorphSVG) to canvas */
-  const draw = useCallback((rawPath: RawPath) => {
-    const ctx = ctxRef.current;
-    const gradient = gradRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !gradient || !canvas) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-
-    for (const segment of rawPath) {
-      const l = segment.length;
-      ctx.moveTo(segment[0], segment[1]);
-      for (let i = 2; i < l; i += 6) {
-        ctx.bezierCurveTo(
-          segment[i],
-          segment[i + 1],
-          segment[i + 2],
-          segment[i + 3],
-          segment[i + 4],
-          segment[i + 5],
-        );
-      }
-      if (segment.closed) ctx.closePath();
-    }
-
-    // evenodd fill so multi-subpath shapes render all sub-shapes correctly
-    ctx.fill('evenodd');
-  }, []);
-
-  /* (Re)initialise canvas — called on mount and on every resize */
-  const setup = useCallback(() => {
-    const canvas = canvasRef.current;
-    const path = pathRef.current;
-    if (!canvas || !path) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const size = canvas.getBoundingClientRect().width;
-    if (!size) return;
-
-    // Set backing-store dimensions
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
-
-    // Reset + scale context so we draw in viewBox (0–100) coordinates
-    const ctx = canvas.getContext('2d')!;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale((size / 100) * dpr, (size / 100) * dpr);
-    ctxRef.current = ctx;
-
-    // Recreate gradient in viewBox coordinate space
-    const grad = ctx.createLinearGradient(0, 0, 100, 100);
-    grad.addColorStop(0, '#9933ff');
-    grad.addColorStop(0.55, '#cc66ff');
-    grad.addColorStop(1, '#e099ff');
-    gradRef.current = grad;
-    readyRef.current = true;
-
-    // Immediately redraw the current shape (no tween, instant)
-    gsap.killTweensOf(path);
-    gsap.set(path, {
-      morphSVG: { shape: PATHS[indexRef.current], render: draw },
-    });
-  }, [draw]);
-
-  /* Mount: initialise canvas + attach ResizeObserver */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const path = pathRef.current;
-    if (!canvas || !path) return;
-
-    // Seed the hidden SVG path
-    path.setAttribute('d', PATHS[0]);
-
-    // Wait one frame so CSS has laid out the canvas
-    const raf = requestAnimationFrame(setup);
-
-    const ro = new ResizeObserver(() => requestAnimationFrame(setup));
-    ro.observe(canvas);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [setup]);
-
-  /* Animate whenever activeIndex changes */
-  useEffect(() => {
-    indexRef.current = activeIndex;
-    const path = pathRef.current;
-    if (!path || !readyRef.current) return;
-
-    gsap.killTweensOf(path);
-    gsap.to(path, {
-      morphSVG: { shape: PATHS[activeIndex], render: draw },
-      duration: 0.9,
-      ease: 'power2.inOut',
-    });
-  }, [activeIndex, draw]);
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        // Promote to GPU layer — reduces composite cost on mobile
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-      }}
-    >
-      {/* Hidden SVG — MorphSVGPlugin animates this element's `d` attribute */}
-      <svg
-        aria-hidden='true'
-        style={{
-          position: 'absolute',
-          width: 0,
-          height: 0,
-          overflow: 'hidden',
-          visibility: 'hidden',
-          pointerEvents: 'none',
-        }}
-      >
-        <path ref={pathRef} d={PATHS[0]} />
-      </svg>
-
-      {/* Outer diffuse bloom */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: '-25%',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle at 50% 55%, rgba(153,51,255,0.22) 0%, rgba(204,102,255,0.08) 45%, transparent 68%)',
-          filter: 'blur(22px)',
-          pointerEvents: 'none',
-        }}
-      />
-      {/* Inner tight glow */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: '5%',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle at 50% 60%, rgba(153,51,255,0.14) 0%, transparent 60%)',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Canvas — fills the container, DPR-corrected internally */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          display: 'block',
-          width: '100%',
-          height: '100%',
-        }}
-      />
-    </div>
-  );
-};
+type Props = { id: string };
 
 /* ─────────────────────────────────────────────────────────────────
    NAV BUTTON
@@ -257,7 +172,9 @@ const NavButton = ({
     onClick={onClick}
     disabled={disabled}
     aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-    whileTap={disabled ? {} : { scale: 0.88 }}
+    whileTap={
+      disabled ? {} : { scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }
+    }
     transition={{ duration: 0.12, ease: 'easeOut' }}
     style={{
       width: 48,
@@ -269,9 +186,8 @@ const NavButton = ({
       color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
       cursor: disabled ? 'default' : 'pointer',
       border: '1px solid rgba(251,251,251,0.18)',
-      background: 'none',
       flexShrink: 0,
-      transition: 'color 0.2s',
+      transition: 'background 0.2s, color 0.2s',
     }}
   >
     {dir === 'left' ? (
@@ -301,31 +217,71 @@ const NavButton = ({
 /* ─────────────────────────────────────────────────────────────────
    ROOT
 ───────────────────────────────────────────────────────────────── */
-type Props = { id: string };
+const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
 
 const Offer = ({ id }: Props) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dir, setDir] = useState<1 | -1>(1);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const navigate = (step: 1 | -1) => {
-    const next = activeIndex + step;
-    if (next < 0 || next >= services.length) return;
-    setDir(step);
-    setActiveIndex(next);
-  };
+  const syncScrollState = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
 
-  const current = services[activeIndex];
+    const { scrollLeft, clientWidth, scrollWidth } = track;
+    setCanScrollLeft(scrollLeft > 2);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
 
-  const textVariants = {
-    enter: (d: number) => ({ opacity: 0, y: d * 22 }),
-    center: { opacity: 1, y: 0 },
-    exit: (d: number) => ({ opacity: 0, y: d * -14 }),
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    let closest = 0;
+    let minDist = Infinity;
+    cardRefs.current.forEach((card, i) => {
+      if (!card) return;
+      const dist = Math.abs(card.offsetLeft - scrollLeft - paddingLeft);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = i;
+      }
+    });
+    setActiveIndex(closest);
+  }, []);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    syncScrollState();
+    el.addEventListener('scroll', syncScrollState, { passive: true });
+    window.addEventListener('resize', syncScrollState);
+    return () => {
+      el.removeEventListener('scroll', syncScrollState);
+      window.removeEventListener('resize', syncScrollState);
+    };
+  }, [syncScrollState]);
+
+  const scrollToCard = useCallback((index: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const clamped = Math.max(0, Math.min(index, services.length - 1));
+    const card = cardRefs.current[clamped];
+    if (!card) return;
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    track.scrollTo({ left: card.offsetLeft - paddingLeft, behavior: 'smooth' });
+  }, []);
+
+  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+    cardRefs.current[i] = el;
   };
 
   return (
     <section id={id} className='relative bg-secondaryColor overflow-hidden'>
-      {/* ── HEADER ── */}
-      <div className='px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-32 pb-12'>
+      {/* ─── HEADER ─── */}
+      <div
+        style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
+        className='pt-24 xl:pt-32 pb-12'
+      >
         <TextReveal>
           <Headline>
             Kaliteli hizmet
@@ -335,189 +291,138 @@ const Offer = ({ id }: Props) => {
         </TextReveal>
       </div>
 
-      {/* Divider */}
+      {/* ─── CAROUSEL ─── */}
       <div
-        style={{
-          height: 1,
-          background:
-            'linear-gradient(to right, transparent, rgba(255,255,255,0.07), transparent)',
-        }}
-      />
-
-      {/* ── FEATURE DISPLAY ──
-          align-items: flex-start  → text reflow never pushes icon or buttons
-          minHeight is fixed        → nav buttons always sit at the same distance
-      */}
-      <div
-        className='px-6 sm:px-12 lg:px-24 xl:px-32'
-        style={{
-          paddingTop: 'clamp(64px, 8vw, 112px)',
-          paddingBottom: 'clamp(56px, 7vw, 96px)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 'clamp(48px, 8vw, 128px)',
-          flexWrap: 'wrap',
-          /* Fixed min-height prevents nav buttons from jumping on mobile
-             when text transitions cause small reflows */
-          minHeight: 'clamp(340px, 48vw, 500px)',
-        }}
+        ref={trackRef}
+        className='scrollbar-hide'
+        style={
+          {
+            display: 'flex',
+            overflowX: 'auto',
+            alignItems: 'stretch',
+            gap: 16,
+            paddingLeft: TRACK_PADDING,
+            paddingRight: TRACK_PADDING,
+            paddingTop: 40,
+            paddingBottom: 32,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          } as React.CSSProperties
+        }
       >
-        {/* ── LEFT: canvas icon ── */}
-        <div
-          style={{
-            flexShrink: 0,
-            width: 'clamp(180px, 20vw, 280px)',
-            aspectRatio: '1 / 1',
-          }}
-        >
-          <MorphCanvas activeIndex={activeIndex} />
-        </div>
-
-        {/* ── RIGHT: text ── */}
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <p
+        {services.map(({ id, Icon, title, description }, index) => (
+          <div
+            key={id}
+            ref={setCardRef(index)}
             style={{
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.14em',
-              color: 'rgba(255,255,255,0.28)',
-              marginBottom: 28,
-              textTransform: 'uppercase',
+              flexShrink: 0,
+              width: 'clamp(303px, 30vw, 405px)',
+              display: 'flex',
             }}
           >
-            {String(activeIndex + 1).padStart(2, '0')}&nbsp;/&nbsp;
-            {String(services.length).padStart(2, '0')}
-          </p>
-
-          <AnimatePresence mode='wait' custom={dir}>
-            <motion.h3
-              key={`title-${activeIndex}`}
-              custom={dir}
-              variants={textVariants}
-              initial='enter'
-              animate='center'
-              exit='exit'
-              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                fontSize: 'clamp(2rem, 5vw, 4.5rem)',
-                fontWeight: 700,
-                color: 'rgba(251,251,251,0.95)',
-                lineHeight: 1.04,
-                letterSpacing: '-0.03em',
-                marginBottom: 24,
-              }}
-            >
-              {current.title}
-            </motion.h3>
-          </AnimatePresence>
-
-          <motion.div
-            key={`rule-${activeIndex}`}
-            initial={{ scaleX: 0, originX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              width: 36,
-              height: 2,
-              borderRadius: 2,
-              background: 'rgba(153,51,255,0.85)',
-              marginBottom: 24,
-            }}
-          />
-
-          <AnimatePresence mode='wait' custom={dir}>
-            <motion.p
-              key={`desc-${activeIndex}`}
-              custom={dir}
-              variants={textVariants}
-              initial='enter'
-              animate='center'
-              exit='exit'
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
               transition={{
-                duration: 0.42,
-                delay: 0.07,
+                duration: 0.55,
+                delay: index * 0.08,
                 ease: [0.22, 1, 0.36, 1],
               }}
               style={{
-                fontSize: 'clamp(1rem, 1.35vw, 1.175rem)',
-                color: 'rgba(251,251,251,0.48)',
-                lineHeight: 1.78,
-                maxWidth: 460,
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                borderRadius: 18,
+                overflow: 'hidden',
+                background: 'rgba(255,255,255,0.001)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              {current.description}
-            </motion.p>
-          </AnimatePresence>
-
-          {/* Progress pills */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              marginTop: 48,
-              alignItems: 'center',
-            }}
-            role='tablist'
-            aria-label='Hizmetler'
-          >
-            {services.map((s, i) => (
-              <motion.button
-                key={s.id}
-                role='tab'
-                aria-selected={i === activeIndex}
-                aria-label={s.title}
-                onClick={() => {
-                  setDir(i > activeIndex ? 1 : -1);
-                  setActiveIndex(i);
-                }}
-                animate={{
-                  width: i === activeIndex ? 36 : 8,
-                  opacity: i === activeIndex ? 1 : 0.28,
-                  backgroundColor:
-                    i === activeIndex
-                      ? 'rgba(153,51,255,0.9)'
-                      : 'rgba(255,255,255,0.6)',
-                }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              {/* Card body */}
+              <div
                 style={{
-                  height: 4,
-                  borderRadius: 2,
-                  cursor: 'pointer',
-                  border: 'none',
-                  padding: 0,
-                  flexShrink: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '36px 32px 36px',
+                  flexGrow: 1,
                 }}
-              />
-            ))}
+              >
+                {/* Icon tile — slightly larger to give the bigger icons room */}
+                <div
+                  style={{
+                    width: 'clamp(60px, 5vw, 68px)',
+                    height: 'clamp(60px, 5vw, 68px)',
+                    borderRadius: 16,
+                    background: 'rgba(157,0,255,0.09)',
+                    border: '1px solid rgba(157,0,255,0.22)',
+                    color: 'rgba(180,80,255,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginBottom: 22,
+                  }}
+                >
+                  <Icon />
+                </div>
+
+                {/* Title */}
+                <p
+                  style={{
+                    fontSize: 'clamp(1.2rem, 1.65vw, 1.375rem)',
+                    fontWeight: 700,
+                    color: 'rgba(251,251,251,0.95)',
+                    lineHeight: 1.18,
+                    letterSpacing: '-0.018em',
+                    marginBottom: 12,
+                    flexShrink: 0,
+                  }}
+                >
+                  {title}
+                </p>
+
+                <p
+                  className='text-white/55 leading-[1.72] mt-2 mb-14'
+                  style={{
+                    fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)',
+                    flexGrow: 1,
+                  }}
+                >
+                  {description}
+                </p>
+              </div>
+            </motion.div>
           </div>
-        </div>
+        ))}
+
+        {/* Trailing spacer mirrors leading padding */}
+        <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
       </div>
 
-      {/* ── NAV BUTTONS ──
-          Sits BELOW the fixed-minHeight content block.
-          On mobile the buttons always land at the same vertical position
-          because the content area above them never collapses smaller than
-          minHeight. paddingBottom gives the section a consistent bottom gap.
-      */}
+      {/* ─── NAV ─── */}
       <div
-        className='px-6 sm:px-12 lg:px-24 xl:px-32'
         style={{
           display: 'flex',
           justifyContent: 'flex-end',
           alignItems: 'center',
           gap: 12,
-          paddingBottom: 'clamp(56px, 7vw, 96px)',
+          paddingRight: TRACK_PADDING,
+          paddingBottom: 80,
+          paddingTop: 8,
         }}
       >
         <NavButton
           dir='left'
-          disabled={activeIndex === 0}
-          onClick={() => navigate(-1)}
+          disabled={!canScrollLeft}
+          onClick={() => scrollToCard(activeIndex - 1)}
         />
         <NavButton
           dir='right'
-          disabled={activeIndex === services.length - 1}
-          onClick={() => navigate(1)}
+          disabled={!canScrollRight}
+          onClick={() => scrollToCard(activeIndex + 1)}
         />
       </div>
     </section>

@@ -1,15 +1,11 @@
 'use client';
 
-import React, {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  memo,
-  useState,
-} from 'react';
+import { useEffect, useLayoutEffect, useRef, memo } from 'react';
 import { activityImages as originalActivityImages } from './Collection';
 import { ActivitiesLogo } from '@/public/Icons';
+
 import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
+import { useReveal } from '@/app/utilities/useReveal';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
 
@@ -18,26 +14,6 @@ type ActivityItem = (typeof originalActivityImages)[number];
 /* ─────────────────────────────────────────────────────────────────
    HOOKS
 ───────────────────────────────────────────────────────────────── */
-function useReveal(threshold = 0.08) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [vis, setVis] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          setVis(true);
-          io.disconnect();
-        }
-      },
-      { threshold },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [threshold]);
-  return { ref, vis };
-}
 
 /* ─────────────────────────────────────────────────────────────────
    SECTION HEADER
@@ -204,7 +180,7 @@ InfiniteCarousel.displayName = 'InfiniteCarousel';
 ───────────────────────────────────────────────────────────────── */
 const ActivitiesSlider = ({ id }: { id: string }) => {
   const { ref: headerRef } = useReveal(0.05);
-  const { ref: carouselRef, vis: carouselVis } = useReveal(0.04);
+  const { ref: carouselRef, visible: carouselVis } = useReveal(0.04);
 
   return (
     <section

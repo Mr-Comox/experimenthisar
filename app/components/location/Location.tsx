@@ -11,6 +11,8 @@ import Map, { Marker } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { motion } from 'framer-motion';
 import { LocationIcon } from '@/public/Icons';
+import { Headline } from '@/app/utilities/Headline';
+import TextReveal from '@/app/utilities/TextReveal';
 
 type Props = { id: string };
 
@@ -160,23 +162,24 @@ export default function Location({ id }: Props) {
         >
           {/* ── Headline ── */}
           <div className='relative mb-7'>
-            <h2
-              id='location-heading'
-              className={`
+            <TextReveal>
+              <Headline
+                className={`
                 font-bold text-white leading-[1.0] tracking-[-0.03em]
                 text-[clamp(2.8rem,5vw,4.8rem)]
                 transition-[opacity,transform] duration-[900ms] delay-75 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
                 ${on ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
-              `}
-            >
-              İnönü Cad.
-              <br />
-              No:6,
-              <br />
-              Osmangazi,
-              <br />
-              Bursa.
-            </h2>
+                `}
+              >
+                İnönü Cad.
+                <br />
+                No:6,
+                <br />
+                Osmangazi,
+                <br />
+                Bursa.
+              </Headline>
+            </TextReveal>
           </div>
 
           {/* ── Schedule table ── */}

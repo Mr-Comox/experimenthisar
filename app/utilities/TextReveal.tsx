@@ -126,10 +126,14 @@ export default function TextReveal({
       window.addEventListener('resize', handleResize);
       window.addEventListener('orientationchange', handleOrientation);
 
+      const handleSTRefresh = () => setup();
+      ScrollTrigger.addEventListener('refresh', handleSTRefresh);
+
       return () => {
         clearTimeout(resizeTimer);
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('orientationchange', handleOrientation);
+        ScrollTrigger.removeEventListener('refresh', handleSTRefresh);
         splitRef.current.forEach((s) => s?.revert());
       };
     },

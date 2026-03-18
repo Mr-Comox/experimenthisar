@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import gsap from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { testimonies } from './Collection';
@@ -407,12 +407,11 @@ const Testimonials = ({ id }: Props) => {
 
         {/* ══ ROW 1 — HEADING ══ */}
         <div style={{ flexShrink: 0, textAlign: 'left' }}>
-          <TextReveal animateOnScroll={true} delay={0}>
+          <TextReveal animateOnScroll>
             <Headline>Misafirlerimizin</Headline>
           </TextReveal>
-
           <div style={{ marginTop: 'clamp(-8px, -0.5vw, -2px)' }}>
-            <TextReveal animateOnScroll={true} delay={0.05}>
+            <TextReveal animateOnScroll delay={0.1}>
               <Headline>
                 <MainColorToQuatFont>deneyimleri</MainColorToQuatFont>
               </Headline>

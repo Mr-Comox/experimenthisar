@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
+
+import { useReveal } from '@/app/utilities/useReveal';
 import AnimatedCounter from '@/app/utilities/AnimatedCounter';
 import Timeline from './TimeLine';
 import TextReveal from '@/app/utilities/TextReveal';
@@ -123,27 +125,6 @@ const PILLARS = [
     text: 'Tahliye planları, ilk yardım ekibi ve doğrudan bağlantılı acil servis koordinasyonu; olası her senaryoya karşı her zaman tam teşekküllü hazırlıklı olmamızı sağlar.',
   },
 ];
-
-function useReveal(threshold = 0.12) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          io.disconnect();
-        }
-      },
-      { threshold },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [threshold]);
-  return { ref, visible };
-}
 
 const Body = ({
   children,

@@ -18,10 +18,8 @@ type Props = { id: string };
 
 const MAIN_TO_GOLD =
   'linear-gradient(135deg,#ff1987 0%,#ff6ec7 50%,#b8860b 100%)';
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const GAP = 3;
 const PAD = 3;
-const CELL_ASPECT = 3 / 2;
 
 const IS_TOUCH =
   typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
@@ -243,7 +241,6 @@ function NavBtn({
 function GalleryModal({
   index,
   total,
-  originRect,
   onClose,
   onPrev,
   onNext,
@@ -255,38 +252,141 @@ function GalleryModal({
   onPrev: () => void;
   onNext: () => void;
 }) {
-  const isMobile = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(hover: none), (max-width: 1023px)').matches;
-  }, []);
-
-  const origin = useMemo(() => {
-    if (isMobile || !originRect || typeof window === 'undefined')
-      return { x: 0, y: 0, scale: 0.88 };
-    const vw = window.innerWidth,
-      vh = window.innerHeight;
-    const maxW = vw * 0.84,
-      maxH = vh * 0.78;
-    let imgW = maxW,
-      imgH = maxW / CELL_ASPECT;
-    if (imgH > maxH) {
-      imgH = maxH;
-      imgW = imgH * CELL_ASPECT;
-    }
-    return {
-      x: originRect.x + originRect.width / 2 - vw / 2,
-      y: originRect.y + originRect.height / 2 - vh / 2,
-      scale: Math.max(0.06, originRect.width / imgW),
-    };
-  }, [isMobile, originRect]);
+  const isMobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: none), (max-width: 1023px)').matches;
 
   const swipeX = useRef(0),
     swipeY = useRef(0);
+  const imageWrapRef = useRef<HTMLDivElement>(null);
+  const currentScale = useRef(1);
+  const currentTrans = useRef({ x: 0, y: 0 });
+  const pinchData = useRef<{ startDist: number; startScale: number } | null>(
+    null,
+  );
+  const panData = useRef<{
+    sx: number;
+    sy: number;
+    tx: number;
+    ty: number;
+  } | null>(null);
+  const lastTap = useRef(0);
+  const isZoomed = useRef(false);
+  const getPinchDist = (t: TouchList) => {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const applyTransform = (animated = false) => {
+    const el = imageWrapRef.current;
+    if (!el) return;
+    if (animated) el.style.transition = 'transform 0.22s ease';
+    el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
+    if (animated)
+      setTimeout(() => {
+        if (imageWrapRef.current) imageWrapRef.current.style.transition = '';
+      }, 220);
+  };
+
+  const resetZoom = (animated = true) => {
+    currentScale.current = 1;
+    currentTrans.current = { x: 0, y: 0 };
+    isZoomed.current = false;
+    applyTransform(animated);
+  };
+
+  useEffect(() => {
+    const el = imageWrapRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchData.current = {
+          startDist: getPinchDist(e.touches),
+          startScale: currentScale.current,
+        };
+        panData.current = null;
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTap.current < 280) {
+          // double-tap resets zoom
+          resetZoom(true);
+          lastTap.current = 0;
+          return;
+        }
+        lastTap.current = now;
+        if (currentScale.current > 1) {
+          panData.current = {
+            sx: e.touches[0].clientX,
+            sy: e.touches[0].clientY,
+            tx: currentTrans.current.x,
+            ty: currentTrans.current.y,
+          };
+        }
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchData.current) {
+        e.preventDefault();
+        const newDist = getPinchDist(e.touches);
+        const newScale = Math.min(
+          4,
+          Math.max(
+            1,
+            pinchData.current.startScale *
+              (newDist / pinchData.current.startDist),
+          ),
+        );
+        currentScale.current = newScale;
+        isZoomed.current = newScale > 1;
+        if (newScale === 1) currentTrans.current = { x: 0, y: 0 };
+        applyTransform();
+      } else if (
+        e.touches.length === 1 &&
+        panData.current &&
+        currentScale.current > 1
+      ) {
+        e.preventDefault();
+        currentTrans.current = {
+          x: panData.current.tx + (e.touches[0].clientX - panData.current.sx),
+          y: panData.current.ty + (e.touches[0].clientY - panData.current.sy),
+        };
+        applyTransform();
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchData.current = null;
+      if (e.touches.length === 0) panData.current = null;
+      // snap back if barely zoomed
+      if (currentScale.current < 1.08) resetZoom(true);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ADD this useEffect right after the one above
+  useEffect(() => {
+    resetZoom(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
   const onPointerDown = (e: React.PointerEvent) => {
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
   };
   const onPointerUp = (e: React.PointerEvent) => {
+    if (isZoomed.current) return; // don't swipe while pinched in
     const dx = e.clientX - swipeX.current,
       dy = Math.abs(e.clientY - swipeY.current);
     if (Math.abs(dx) > 72 && dy < 80) {
@@ -295,17 +395,9 @@ function GalleryModal({
     }
   };
 
-  const imgInitial = isMobile
-    ? { opacity: 0 }
-    : originRect !== null
-      ? { opacity: 0, x: origin.x, y: origin.y, scale: origin.scale }
-      : { opacity: 0, scale: 0.96, y: 10 };
-  const imgAnimate = isMobile
-    ? { opacity: 1 }
-    : { opacity: 1, x: 0, y: 0, scale: 1 };
-  const imgExit = isMobile
-    ? { opacity: 0 }
-    : { opacity: 0, scale: 0.94, y: -14 };
+  const imgInitial = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
+  const imgAnimate = isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 };
+  const imgExit = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
 
   return createPortal(
     <motion.div
@@ -316,20 +408,18 @@ function GalleryModal({
       style={{
         zIndex: 99999,
         backgroundColor: 'rgba(4,4,4,0.97)',
-        backdropFilter: isMobile ? 'blur(14px)' : 'blur(32px)',
-        WebkitBackdropFilter: isMobile ? 'blur(14px)' : 'blur(32px)',
+        backdropFilter: isMobile ? 'blur(8px)' : 'blur(4px)',
+        WebkitBackdropFilter: isMobile ? 'blur(8px)' : 'blur(4px)',
         willChange: 'opacity',
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: isMobile ? 0.16 : 0.22 }}
+      transition={{ duration: 0.18 }}
       onClick={onClose}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
     >
-      {!isMobile && <GrainOverlay zIndex={6} />}
-
       <div
         className='absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3'
         style={{ zIndex: 10 }}
@@ -396,30 +486,34 @@ function GalleryModal({
           key={index}
           initial={imgInitial}
           animate={imgAnimate}
-          exit={
-            isMobile ? { opacity: 0, transition: { duration: 0 } } : imgExit
-          }
-          transition={{
-            duration: isMobile ? 0.2 : 0.44,
-            ease: isMobile ? 'easeOut' : EASE,
-          }}
+          exit={imgExit}
+          transition={{ duration: isMobile ? 0.2 : 0.22, ease: 'easeOut' }}
           onClick={(e) => e.stopPropagation()}
           className='relative'
-          style={{ touchAction: 'none', zIndex: 4, willChange: 'opacity' }}
+          style={{
+            touchAction: 'none',
+            zIndex: 4,
+            willChange: 'transform, opacity',
+          }}
         >
-          <Image
-            src={gallery[index].src}
-            alt={`Hisar Nightclub — Sahne fotoğrafı ${index + 1} / ${total}`}
-            width={1400}
-            height={900}
-            className='max-w-[84vw] max-h-[78vh] w-auto h-auto object-contain rounded-lg'
-            priority
-            unoptimized
-          />
           <div
-            className='absolute bottom-0 left-0 right-0 h-px rounded-b-lg'
-            style={{ background: MAIN_TO_GOLD, opacity: 0.18 }}
-          />
+            ref={imageWrapRef}
+            style={{ touchAction: 'none', userSelect: 'none' }}
+          >
+            <Image
+              src={gallery[index].src}
+              alt={`Hisar Nightclub — Sahne fotoğrafı ${index + 1} / ${total}`}
+              width={1400}
+              height={900}
+              className='max-w-[84vw] max-h-[78vh] w-auto h-auto object-contain rounded-lg'
+              priority
+              unoptimized
+            />
+            <div
+              className='absolute bottom-0 left-0 right-0 h-px rounded-b-lg'
+              style={{ background: MAIN_TO_GOLD, opacity: 0.18 }}
+            />
+          </div>
         </motion.div>
       </AnimatePresence>
 
@@ -689,10 +783,12 @@ function SpotlightGrid({
   visible,
   onOpen,
   accentColors,
+  paused = false,
 }: {
   visible: boolean;
   onOpen: (i: number, rect?: DOMRect) => void;
   accentColors: string[];
+  paused?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const veilRef = useRef<HTMLDivElement>(null);
@@ -704,6 +800,10 @@ function SpotlightGrid({
   const [introPhase, setIntroPhase] = useState<IntroPhase>('idle');
   const [spotlightEnabled, setSpotlightEnabled] = useState(true);
   const spotlightEnabledRef = useRef(true);
+  const pausedRef = useRef(false);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
   useEffect(() => {
     spotlightEnabledRef.current = spotlightEnabled;
   }, [spotlightEnabled]);
@@ -926,6 +1026,10 @@ function SpotlightGrid({
       FADE_OUT = 1000;
 
     const tick = (now: number) => {
+      if (pausedRef.current) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const dt = lastTime >= 0 ? Math.min(now - lastTime, 64) : 0;
       lastTime = now;
       const cm = cinema.current,
@@ -1348,7 +1452,6 @@ export default function Gallery({ id }: Props) {
 
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
-  const [cardsVisible, setCardsVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -1368,11 +1471,11 @@ export default function Gallery({ id }: Props) {
 
   const openModal = useCallback(
     (i: number, rect?: DOMRect) => {
-      if (!cardsVisible && !expanded) return;
+      if (!expanded) return;
       setModalOriginRect(rect ?? null);
       setModalIndex(i);
     },
-    [cardsVisible, expanded],
+    [expanded],
   );
 
   const closeModal = useCallback(() => setModalIndex(null), []);
@@ -1388,20 +1491,25 @@ export default function Gallery({ id }: Props) {
     [],
   );
 
+  // AFTER
   useEffect(() => {
     const lenis = getSmoother();
     if (modalIndex !== null) {
-      lenis?.stop();
+      const scrollbarWidth =
+        window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       document.body.style.overflow = 'hidden';
+      lenis?.stop();
     } else {
-      lenis?.start();
       document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      lenis?.start();
     }
     return () => {
       document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
     };
   }, [modalIndex]);
-
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
       if (modalIndex === null) return;
@@ -1427,7 +1535,6 @@ export default function Gallery({ id }: Props) {
             pinSpacing: true,
             invalidateOnRefresh: true,
             onUpdate: (self) => {
-              setCardsVisible(self.progress >= 0.57);
               setExpanded(self.progress >= 0.57);
             },
           },
@@ -1546,9 +1653,10 @@ export default function Gallery({ id }: Props) {
             }}
           >
             <SpotlightGrid
-              visible={cardsVisible}
+              visible={expanded}
               onOpen={openModal}
               accentColors={accentColors}
+              paused={modalIndex !== null}
             />
           </div>
 

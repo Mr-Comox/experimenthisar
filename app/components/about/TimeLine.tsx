@@ -195,7 +195,6 @@ function CountdownCard() {
 
   return (
     <>
-      <style>{sharedStyles}</style>
       <motion.div
         key='countdown-card'
         initial={{ opacity: 0, y: 20, filter: 'blur(12px)', scale: 0.97 }}
@@ -284,7 +283,7 @@ export default function Timeline() {
   const active = rows.find((r) => r.isActive) ?? null;
 
   return (
-    <div className='w-full mt-36'>
+    <div className='w-full '>
       <style>{sharedStyles}</style>
       <AnimatePresence mode='sync'>
         {isClosed ? (
