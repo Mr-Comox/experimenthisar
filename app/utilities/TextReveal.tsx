@@ -76,11 +76,7 @@ export default function TextReveal({
           return;
         }
 
-        gsap.set(lines.current, {
-          y: '100%',
-          immediateRender: true,
-          force3D: true,
-        });
+        gsap.set(lines.current, { y: '100%' });
 
         const animationProps: gsap.TweenVars = {
           y: '0%',
@@ -100,17 +96,12 @@ export default function TextReveal({
             ...animationProps,
             scrollTrigger: {
               trigger: containerRef.current,
-              start: 'top 88%',
+              start: 'top 75%',
               once: true,
             },
           });
         } else {
           gsap.to(lines.current, animationProps);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              ScrollTrigger.refresh();
-            });
-          });
         }
       };
 
