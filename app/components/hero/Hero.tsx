@@ -137,10 +137,7 @@ export default function Hero() {
     'landscape:max-lg:text-[clamp(2rem,6.5vw,3.8rem)]';
 
   return (
-    <section
-      className='relative w-full overflow-hidden bg-secondaryColor'
-      style={{ height: '100svh' }}
-    >
+    <section className='relative w-full overflow-hidden bg-secondaryColor h-screen'>
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
       <div
         className='absolute inset-0 z-[15] pointer-events-none opacity-[0.032] mix-blend-overlay'
