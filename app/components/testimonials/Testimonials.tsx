@@ -447,9 +447,10 @@ const Testimonials = ({ id }: Props) => {
           <blockquote
             ref={quoteRef}
             id='testimonials-heading'
+            className='w-full lg:w-4/5'
             style={{
               margin: 0,
-              fontSize: 'clamp(1.65rem, 3vw, 2.6rem)',
+              fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
               fontWeight: 700,
               color: 'rgba(251,251,251,0.95)',
               lineHeight: 1.28,

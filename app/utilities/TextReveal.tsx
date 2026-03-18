@@ -70,7 +70,7 @@ export default function TextReveal({
           lines.current.push(...split.lines);
         });
 
-        // Animation already played — snap visible, no replay
+        // Animation already played — snap visible, never reset
         if (hasPlayed.current) {
           gsap.set(lines.current, { y: '0%' });
           return;
@@ -78,15 +78,17 @@ export default function TextReveal({
 
         gsap.set(lines.current, { y: '100%' });
 
+        // NOTE: onStart is intentionally removed from animationProps.
+        // hasPlayed is set synchronously BEFORE the tween fires so that
+        // any ScrollTrigger.refresh() reflow triggered by a parent opacity
+        // change (e.g. useReveal wrapper) hits the early-exit above and
+        // snaps to y:0% instead of resetting lines and fighting the tween.
         const animationProps: gsap.TweenVars = {
           y: '0%',
           duration: 1,
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
-          onStart: () => {
-            hasPlayed.current = true;
-          },
         };
 
         if (animateOnScroll) {
@@ -95,21 +97,27 @@ export default function TextReveal({
           const alreadyPassed = rect.top < window.innerHeight * 0.75;
 
           if (alreadyPassed) {
-            // Element is already in/past the viewport threshold —
-            // play immediately without ScrollTrigger so it never gets skipped
+            // Element is already in/past the viewport threshold.
+            // Mark as played NOW — before the tween — so any refresh
+            // that fires during the tween's lifetime hits the snap path.
+            hasPlayed.current = true;
             gsap.to(lines.current, { ...animationProps, delay: 0 });
           } else {
-            // Element is still above the fold — set up observer
             ScrollTrigger.create({
               trigger: el,
               start: 'top 75%',
               once: true,
               onEnter: () => {
+                // Mark as played synchronously before gsap.to so that
+                // any reflow-triggered setup() call during animation
+                // snaps to y:0% and exits, never resetting lines.
+                hasPlayed.current = true;
                 gsap.to(lines.current, animationProps);
               },
             });
           }
         } else {
+          hasPlayed.current = true;
           gsap.to(lines.current, animationProps);
         }
       };
