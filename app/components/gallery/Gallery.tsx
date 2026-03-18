@@ -264,12 +264,7 @@ function GalleryModal({
   const pinchData = useRef<{ startDist: number; startScale: number } | null>(
     null,
   );
-  const panData = useRef<{
-    sx: number;
-    sy: number;
-    tx: number;
-    ty: number;
-  } | null>(null);
+
   const lastTap = useRef(0);
   const isZoomed = useRef(false);
   const getPinchDist = (t: TouchList) => {
@@ -307,24 +302,21 @@ function GalleryModal({
           startDist: getPinchDist(e.touches),
           startScale: currentScale.current,
         };
-        panData.current = null;
       } else if (e.touches.length === 1) {
         const now = Date.now();
         if (now - lastTap.current < 280) {
-          // double-tap resets zoom
-          resetZoom(true);
+          // double tap — toggle zoom
+          if (isZoomed.current) {
+            resetZoom(true);
+          } else {
+            currentScale.current = 2.5;
+            isZoomed.current = true;
+            applyTransform(true);
+          }
           lastTap.current = 0;
           return;
         }
         lastTap.current = now;
-        if (currentScale.current > 1) {
-          panData.current = {
-            sx: e.touches[0].clientX,
-            sy: e.touches[0].clientY,
-            tx: currentTrans.current.x,
-            ty: currentTrans.current.y,
-          };
-        }
       }
     };
 
@@ -344,23 +336,15 @@ function GalleryModal({
         isZoomed.current = newScale > 1;
         if (newScale === 1) currentTrans.current = { x: 0, y: 0 };
         applyTransform();
-      } else if (
-        e.touches.length === 1 &&
-        panData.current &&
-        currentScale.current > 1
-      ) {
+      }
+      // single finger move — block ALL touch movement so image stays static
+      if (e.touches.length === 1 && isZoomed.current) {
         e.preventDefault();
-        currentTrans.current = {
-          x: panData.current.tx + (e.touches[0].clientX - panData.current.sx),
-          y: panData.current.ty + (e.touches[0].clientY - panData.current.sy),
-        };
-        applyTransform();
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) pinchData.current = null;
-      if (e.touches.length === 0) panData.current = null;
       // snap back if barely zoomed
       if (currentScale.current < 1.08) resetZoom(true);
     };
@@ -376,11 +360,17 @@ function GalleryModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // ADD this useEffect right after the one above
+
   useEffect(() => {
-    resetZoom(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    currentScale.current = 1;
+    currentTrans.current = { x: 0, y: 0 };
+    isZoomed.current = false;
+    if (imageWrapRef.current) {
+      imageWrapRef.current.style.transition = '';
+      imageWrapRef.current.style.transform = '';
+    }
   }, [index]);
+
   const onPointerDown = (e: React.PointerEvent) => {
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
