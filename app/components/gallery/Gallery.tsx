@@ -82,7 +82,6 @@ function GlobalStyles() {
       }
       .g-grain { animation: g-grain 0.45s steps(1) infinite; }
 
-      /* ── Card interaction ── */
       .g-card { -webkit-tap-highlight-color: transparent; }
       .g-card:active { opacity: 0.78 !important; }
 
@@ -95,7 +94,6 @@ function GlobalStyles() {
         will-change: transform;
       }
 
-      /* ── Finishing line keyframe ── */
       @keyframes g-line-trace {
         from { transform: scaleX(0); opacity: 0.55; }
         60%  { opacity: 0.55; }
@@ -121,7 +119,7 @@ function GrainOverlay({ zIndex = 28 }: { zIndex?: number }) {
         pointerEvents: 'none',
         zIndex,
         opacity: 0.044,
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat',
         backgroundSize: '200px 200px',
         mixBlendMode: 'overlay',
@@ -252,64 +250,101 @@ function GalleryModal({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  /* ── Device check ─────────────────────────────────────────── */
   const isMobile =
     typeof window !== 'undefined' &&
     window.matchMedia('(hover: none), (max-width: 1023px)').matches;
 
-  const swipeX = useRef(0),
-    swipeY = useRef(0);
+  /* ── Swipe to navigate ────────────────────────────────────── */
+  const swipeX = useRef(0);
+  const swipeY = useRef(0);
+
+  /* ── Zoom / pan state ─────────────────────────────────────── */
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const currentScale = useRef(1);
   const currentTrans = useRef({ x: 0, y: 0 });
   const pinchData = useRef<{ startDist: number; startScale: number } | null>(
     null,
   );
-
+  const panData = useRef<{
+    sx: number;
+    sy: number;
+    tx: number;
+    ty: number;
+  } | null>(null);
   const lastTap = useRef(0);
   const isZoomed = useRef(false);
-  const getPinchDist = (t: TouchList) => {
-    const dx = t[0].clientX - t[1].clientX;
-    const dy = t[0].clientY - t[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
+  const isPinching = useRef(false);
 
-  const applyTransform = (animated = false) => {
-    const el = imageWrapRef.current;
-    if (!el) return;
-    if (animated) el.style.transition = 'transform 0.22s ease';
-    el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
-    if (animated)
-      setTimeout(() => {
-        if (imageWrapRef.current) imageWrapRef.current.style.transition = '';
-      }, 220);
-  };
-
-  const resetZoom = (animated = true) => {
-    currentScale.current = 1;
-    currentTrans.current = { x: 0, y: 0 };
-    isZoomed.current = false;
-    applyTransform(animated);
-  };
-
+  /* ── Touch listeners — re-attach on every index change ───── */
   useEffect(() => {
     const el = imageWrapRef.current;
     if (!el) return;
 
+    /* Hard-reset everything for the incoming image */
+    currentScale.current = 1;
+    currentTrans.current = { x: 0, y: 0 };
+    isZoomed.current = false;
+    isPinching.current = false;
+    pinchData.current = null;
+    panData.current = null;
+    el.style.transition = '';
+    el.style.transform = '';
+
+    /* ── Helpers ────────────────────────────────────────────── */
+    const getPinchDist = (t: TouchList) => {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    /* Prevent the image from panning outside its own edges */
+    const clampTrans = (x: number, y: number, scale: number) => {
+      const maxX = (el.offsetWidth * (scale - 1)) / 2;
+      const maxY = (el.offsetHeight * (scale - 1)) / 2;
+      return {
+        x: Math.min(maxX, Math.max(-maxX, x)),
+        y: Math.min(maxY, Math.max(-maxY, y)),
+      };
+    };
+
+    const applyTransform = (animated = false) => {
+      if (animated) el.style.transition = 'transform 0.22s ease';
+      el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
+      if (animated)
+        setTimeout(() => {
+          el.style.transition = '';
+        }, 220);
+    };
+
+    const resetZoom = (animated = true) => {
+      currentScale.current = 1;
+      currentTrans.current = { x: 0, y: 0 };
+      isZoomed.current = false;
+      isPinching.current = false;
+      applyTransform(animated);
+    };
+
+    /* ── touchstart ─────────────────────────────────────────── */
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
+        isPinching.current = true;
+        panData.current = null;
         pinchData.current = {
           startDist: getPinchDist(e.touches),
           startScale: currentScale.current,
         };
       } else if (e.touches.length === 1) {
         const now = Date.now();
+
+        /* Double-tap: toggle zoom in / out */
         if (now - lastTap.current < 280) {
-          // double tap — toggle zoom
           if (isZoomed.current) {
             resetZoom(true);
           } else {
             currentScale.current = 2.5;
+            currentTrans.current = { x: 0, y: 0 };
             isZoomed.current = true;
             applyTransform(true);
           }
@@ -317,35 +352,62 @@ function GalleryModal({
           return;
         }
         lastTap.current = now;
+
+        /* Pan only when already zoomed */
+        if (isZoomed.current) {
+          panData.current = {
+            sx: e.touches[0].clientX,
+            sy: e.touches[0].clientY,
+            tx: currentTrans.current.x,
+            ty: currentTrans.current.y,
+          };
+        }
       }
     };
 
+    /* ── touchmove ──────────────────────────────────────────── */
     const onTouchMove = (e: TouchEvent) => {
+      /* Two fingers → pinch zoom */
       if (e.touches.length === 2 && pinchData.current) {
         e.preventDefault();
-        const newDist = getPinchDist(e.touches);
         const newScale = Math.min(
           4,
           Math.max(
             1,
             pinchData.current.startScale *
-              (newDist / pinchData.current.startDist),
+              (getPinchDist(e.touches) / pinchData.current.startDist),
           ),
         );
         currentScale.current = newScale;
         isZoomed.current = newScale > 1;
         if (newScale === 1) currentTrans.current = { x: 0, y: 0 };
         applyTransform();
+        return;
       }
-      // single finger move — block ALL touch movement so image stays static
-      if (e.touches.length === 1 && isZoomed.current) {
+
+      /* One finger while zoomed → clamped pan */
+      if (e.touches.length === 1 && panData.current && isZoomed.current) {
         e.preventDefault();
+        const rawX =
+          panData.current.tx + (e.touches[0].clientX - panData.current.sx);
+        const rawY =
+          panData.current.ty + (e.touches[0].clientY - panData.current.sy);
+        currentTrans.current = clampTrans(rawX, rawY, currentScale.current);
+        applyTransform();
       }
     };
 
+    /* ── touchend ───────────────────────────────────────────── */
     const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinchData.current = null;
-      // snap back if barely zoomed
+      if (e.touches.length < 2) {
+        pinchData.current = null;
+        /* Small delay so onPointerUp doesn't fire a swipe right after pinch */
+        setTimeout(() => {
+          isPinching.current = false;
+        }, 120);
+      }
+      if (e.touches.length === 0) panData.current = null;
+      /* Snap back if barely zoomed */
       if (currentScale.current < 1.08) resetZoom(true);
     };
 
@@ -358,33 +420,28 @@ function GalleryModal({
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    index,
+  ]); /* ← re-runs for every new image, re-attaches to the new DOM node */
 
-  useEffect(() => {
-    currentScale.current = 1;
-    currentTrans.current = { x: 0, y: 0 };
-    isZoomed.current = false;
-    if (imageWrapRef.current) {
-      imageWrapRef.current.style.transition = '';
-      imageWrapRef.current.style.transform = '';
-    }
-  }, [index]);
-
+  /* ── Pointer swipe (prev / next) ──────────────────────────── */
   const onPointerDown = (e: React.PointerEvent) => {
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
   };
+
   const onPointerUp = (e: React.PointerEvent) => {
-    if (isZoomed.current) return; // don't swipe while pinched in
-    const dx = e.clientX - swipeX.current,
-      dy = Math.abs(e.clientY - swipeY.current);
+    /* Block navigation while pinching or zoomed */
+    if (isZoomed.current || isPinching.current) return;
+    const dx = e.clientX - swipeX.current;
+    const dy = Math.abs(e.clientY - swipeY.current);
     if (Math.abs(dx) > 72 && dy < 80) {
       if (dx < 0) onNext();
       else onPrev();
     }
   };
 
+  /* ── Animation variants ────────────────────────────────────── */
   const imgInitial = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
   const imgAnimate = isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 };
   const imgExit = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
@@ -410,6 +467,7 @@ function GalleryModal({
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
     >
+      {/* ── Counter ─────────────────────────────────────────── */}
       <div
         className='absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3'
         style={{ zIndex: 10 }}
@@ -428,6 +486,7 @@ function GalleryModal({
         />
       </div>
 
+      {/* ── Close ───────────────────────────────────────────── */}
       <div
         className='absolute top-4 right-4 sm:top-5 sm:right-5'
         style={{ zIndex: 10 }}
@@ -449,6 +508,7 @@ function GalleryModal({
         </NavBtn>
       </div>
 
+      {/* ── Prev ────────────────────────────────────────────── */}
       <div
         className='absolute left-3 sm:left-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -471,6 +531,7 @@ function GalleryModal({
         </NavBtn>
       </div>
 
+      {/* ── Image ───────────────────────────────────────────── */}
       <AnimatePresence mode='wait'>
         <motion.div
           key={index}
@@ -486,9 +547,14 @@ function GalleryModal({
             willChange: 'transform, opacity',
           }}
         >
+          {/* This div receives all zoom / pan transforms imperatively */}
           <div
             ref={imageWrapRef}
-            style={{ touchAction: 'none', userSelect: 'none' }}
+            style={{
+              touchAction: 'none',
+              userSelect: 'none',
+              display: 'block',
+            }}
           >
             <Image
               src={gallery[index].src}
@@ -507,6 +573,7 @@ function GalleryModal({
         </motion.div>
       </AnimatePresence>
 
+      {/* ── Next ────────────────────────────────────────────── */}
       <div
         className='absolute right-3 sm:right-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -529,13 +596,14 @@ function GalleryModal({
         </NavBtn>
       </div>
 
+      {/* ── Hint ────────────────────────────────────────────── */}
       <div
         className='absolute bottom-5 left-1/2 -translate-x-1/2'
         style={{ zIndex: 10 }}
       >
         <span className='text-[0.48rem] tracking-[0.22em] uppercase text-white/18 font-medium'>
           {isMobile
-            ? 'kaydır · kapatmak için dokun'
+            ? 'kaydır · çift dokun zoom · kapatmak için dokun'
             : '← → ok tuşları · kaydır · ESC kapat'}
         </span>
       </div>
@@ -578,7 +646,7 @@ function GalleryCard({
         cursor: 'inherit',
         minWidth: 0,
         minHeight: 0,
-        opacity: 0 /* GSAP owns until clearProps */,
+        opacity: 0,
         willChange: 'transform, opacity',
       }}
     >
@@ -626,9 +694,10 @@ function SpotlightCursor({
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const posRef = useRef({ x: -999, y: -999 }),
-    targetRef = useRef({ x: -999, y: -999 }),
-    insideRef = useRef(false);
+  const posRef = useRef({ x: -999, y: -999 });
+  const targetRef = useRef({ x: -999, y: -999 });
+  const insideRef = useRef(false);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el || window.matchMedia('(hover: none)').matches) return;
@@ -659,6 +728,7 @@ function SpotlightCursor({
       cancelAnimationFrame(raf);
     };
   }, [containerRef]);
+
   return (
     <div
       ref={wrapRef}
@@ -731,44 +801,7 @@ function SpotlightIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
- *
- *  THE ANIMATION — "DIAGONAL WAVE REVEAL"
- *  ──────────────────────────────────────
- *
- *  Philosophy: restraint IS the premium. The movements are so
- *  refined you almost don't consciously see them — you just feel
- *  the grid materialise. This is exactly what Apple does.
- *
- *  Per card:
- *    opacity  : 0 → 1
- *    scale    : 0.965 → 1        (3.5% — barely perceptible)
- *    y        : 10px → 0         (10 pixels — a whisper)
- *    ease     : 'power3.out'     (Apple's standard deceleration curve)
- *    duration : 1.1s desktop / 0.78s mobile
- *
- *  Stagger pattern — DIAGONAL WAVE:
- *    Each card's delay = (col + row) * BAND_MS
- *    This fires cards along diagonal bands: top-left corner first,
- *    bottom-right corner last. It looks like light washing over
- *    the grid at 45°. No other animation does this.
- *
- *    BAND_MS = 52ms desktop, 36ms mobile
- *    Total spread ≈ 365ms for a 4×3 grid (6 diagonal bands)
- *
- *  Finishing touch — LINE TRACE:
- *    After the last card lands (+150ms), a 1px horizontal line
- *    traces left→right along the very bottom of the grid using
- *    a CSS scaleX animation. It fades out as it reaches the right.
- *    Like a scanner completing its pass. Like an artist signing
- *    a painting. Extremely subtle but deeply satisfying.
- *
- *  Mobile:
- *    Identical logic, shorter duration, tighter stagger spread.
- *    No line trace (unnecessary on small screens).
- *    Runs at 60fps on 3-year-old hardware — only opacity+transform.
- *
- * ═══════════════════════════════════════════════════════════════ */
+/* ─── SpotlightGrid ───────────────────────────────────────────── */
 function SpotlightGrid({
   visible,
   onOpen,
@@ -789,8 +822,10 @@ function SpotlightGrid({
   type IntroPhase = 'idle' | 'cards' | 'covering' | 'spotlight';
   const [introPhase, setIntroPhase] = useState<IntroPhase>('idle');
   const [spotlightEnabled, setSpotlightEnabled] = useState(true);
+
   const spotlightEnabledRef = useRef(true);
   const pausedRef = useRef(false);
+
   useEffect(() => {
     pausedRef.current = paused;
   }, [paused]);
@@ -852,11 +887,6 @@ function SpotlightGrid({
 
   const visibleItems = gallery.slice(0, Math.min(cols * rows, gallery.length));
 
-  /* ── Diagonal band index for each card ─────────────────────
-   * Band = col + row. Top-left corner = band 0. Bottom-right = band (cols+rows-2).
-   * Cards on the same diagonal band get identical delays → appear simultaneously.
-   * The result looks like a 45° wave of light washing over the grid.
-   */
   const diagBand = useMemo(
     () => visibleItems.map((_, i) => (i % cols) + Math.floor(i / cols)),
     [cols, rows, visibleItems.length], // eslint-disable-line react-hooks/exhaustive-deps
@@ -869,7 +899,6 @@ function SpotlightGrid({
     masterTLRef.current?.kill();
     masterTLRef.current = null;
 
-    /* Reset */
     if (!visible || !cards.length) {
       gsap.set(cards, { opacity: 0, scale: 1, y: 0, clearProps: 'willChange' });
       if (lineRef.current) {
@@ -879,37 +908,28 @@ function SpotlightGrid({
       return;
     }
 
-    /* ── Per-device constants ──────────────────────────────── */
-    const CARD_DUR = IS_TOUCH ? 0.78 : 1.1; /* tween duration per card  */
-    const BAND_MS = IS_TOUCH ? 0.036 : 0.052; /* seconds between diag bands */
-    const SCALE_FROM = IS_TOUCH
-      ? 0.97
-      : 0.965; /* 3–3.5% scale — invisible unless you look */
-    const Y_FROM = IS_TOUCH ? 8 : 10; /* px — a whisper of lift */
-    const INITIAL_WAIT = IS_TOUCH
-      ? 0.03
-      : 0.05; /* tiny breath before first card */
+    const CARD_DUR = IS_TOUCH ? 0.78 : 1.1;
+    const BAND_MS = IS_TOUCH ? 0.036 : 0.052;
+    const SCALE_FROM = IS_TOUCH ? 0.97 : 0.965;
+    const Y_FROM = IS_TOUCH ? 8 : 10;
+    const INITIAL_WAIT = IS_TOUCH ? 0.03 : 0.05;
 
-    /* Finishing line fires after the last card fully lands */
     const maxBand = Math.max(...diagBand);
     const LAST_CARD_END = INITIAL_WAIT + maxBand * BAND_MS + CARD_DUR;
     const LINE_DELAY = LAST_CARD_END + 0.12;
 
     gsap.set(cards, { force3D: true });
-
     const tl = gsap.timeline();
     masterTLRef.current = tl;
 
     cards.forEach((card, i) => {
       const delay = INITIAL_WAIT + diagBand[i] * BAND_MS;
-
       gsap.set(card, {
         opacity: 0,
         scale: SCALE_FROM,
         y: Y_FROM,
         transformOrigin: '50% 50%',
       });
-
       tl.to(
         card,
         {
@@ -918,12 +938,6 @@ function SpotlightGrid({
           y: 0,
           duration: CARD_DUR,
           delay,
-          /*
-           * power3.out ≈ cubic-bezier(0.16, 1, 0.3, 1)
-           * This IS Apple's standard easing. The first 20% of the
-           * duration covers ~80% of the distance. The card appears
-           * to arrive instantly but the final landing is imperceptible.
-           */
           ease: 'power3.out',
           force3D: true,
           onComplete() {
@@ -931,16 +945,14 @@ function SpotlightGrid({
           },
         },
         0,
-      ); /* 0 = all tweens share timeline origin; delays handle ordering */
+      );
     });
 
-    /* ── Finishing line — desktop only ─────────────────────── */
     if (!IS_TOUCH && lineRef.current) {
       const line = lineRef.current;
       const trigger = setTimeout(() => {
         line.style.opacity = '1';
         line.style.animation = 'none';
-        /* Force reflow so animation restarts cleanly */
         void line.offsetWidth;
         line.style.animation =
           'g-line-trace 0.9s cubic-bezier(0.16,1,0.3,1) forwards';
@@ -1016,15 +1028,18 @@ function SpotlightGrid({
       FADE_OUT = 1000;
 
     const tick = (now: number) => {
+      /* Pause the RAF writes while modal is open — no paint behind the modal */
       if (pausedRef.current) {
         raf = requestAnimationFrame(tick);
         return;
       }
+
       const dt = lastTime >= 0 ? Math.min(now - lastTime, 64) : 0;
       lastTime = now;
       const cm = cinema.current,
         cells = centresRef.current,
         el = containerRef.current;
+
       if (!cm.manual && cells.length > 0) {
         cm.elapsed += dt;
         if (cm.phase === 'fadein') {
@@ -1055,13 +1070,16 @@ function SpotlightGrid({
           }
         }
       }
+
       if (curtainRef.current)
         curtainRef.current.style.opacity = cm.curtain.toFixed(4);
+
       const p = posRef.current,
         t = targetRef.current,
         spd = cm.manual ? 0.12 : 0.055;
       p.x += (t.x - p.x) * spd;
       p.y += (t.y - p.y) * spd;
+
       const lp = lastPaintRef.current;
       if (Math.abs(p.x - lp.x) < 0.04 && Math.abs(p.y - lp.y) < 0.04) {
         raf = requestAnimationFrame(tick);
@@ -1069,10 +1087,12 @@ function SpotlightGrid({
       }
       lp.x = p.x;
       lp.y = p.y;
+
       if (!el) {
         raf = requestAnimationFrame(tick);
         return;
       }
+
       const cw = el.clientWidth / cols,
         ch = el.clientHeight / rows;
       const spotPx = Math.max(
@@ -1085,6 +1105,7 @@ function SpotlightGrid({
         Math.min(Math.floor((p.x / 100) * cols), cols - 1) +
         Math.min(Math.floor((p.y / 100) * rows), rows - 1) * cols;
       const accent = accentColorsRef.current[Math.max(0, ci)] ?? '#ffbe46';
+
       if (veilRef.current) {
         veilRef.current.style.background = `radial-gradient(circle ${spotPx}px at ${sx} ${sy},transparent 0%,transparent 35%,rgba(13,11,9,0.58) 55%,rgba(13,11,9,0.93) 70%,rgba(13,11,9,0.99) 100%)`;
       }
@@ -1156,7 +1177,7 @@ function SpotlightGrid({
         cursor: isDesktop && spotlightEnabled ? 'none' : 'pointer',
       }}
     >
-      {/* ── Grid ── */}
+      {/* Grid */}
       <div
         style={{
           position: 'absolute',
@@ -1186,7 +1207,7 @@ function SpotlightGrid({
         ))}
       </div>
 
-      {/* ── Finishing line — desktop only ── */}
+      {/* Finishing line */}
       <div
         ref={lineRef}
         style={{
@@ -1203,7 +1224,7 @@ function SpotlightGrid({
         }}
       />
 
-      {/* ── Spotlight layers — desktop only ── */}
+      {/* Spotlight layers — desktop only */}
       {isDesktop && (
         <>
           <div
@@ -1481,7 +1502,7 @@ export default function Gallery({ id }: Props) {
     [],
   );
 
-  // AFTER
+  /* Lock scroll when modal is open, compensate for scrollbar width */
   useEffect(() => {
     const lenis = getSmoother();
     if (modalIndex !== null) {
@@ -1500,6 +1521,8 @@ export default function Gallery({ id }: Props) {
       document.body.style.paddingRight = '';
     };
   }, [modalIndex]);
+
+  /* Keyboard navigation */
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
       if (modalIndex === null) return;
@@ -1511,6 +1534,7 @@ export default function Gallery({ id }: Props) {
     return () => window.removeEventListener('keydown', handle);
   }, [modalIndex, nextImage, prevImage, closeModal]);
 
+  /* GSAP scroll-pin expand animation */
   useEffect(() => {
     let ctx: gsap.Context;
     const init = () => {
