@@ -3,6 +3,7 @@
 import { useState, useEffect, startTransition } from 'react';
 import AgeGate from '@/app/components/agegate/AgeGate';
 import Home from './components/home/Home';
+import { getSmoother } from '@/app/lib/smoother';
 
 type State = 'loading' | 'gate' | 'verified';
 
@@ -17,7 +18,11 @@ export default function Page() {
   }, []);
 
   const handleAccessGranted = () => {
-    // Remove the layout.tsx script lock before revealing the site
+    // Reset both native scroll and Lenis before revealing site
+    window.scrollTo(0, 0);
+    const lenis = getSmoother();
+    if (lenis) lenis.scrollTo(0, { immediate: true });
+
     document.documentElement.style.overflow = '';
     window.dispatchEvent(new CustomEvent('age-gate-cleared'));
     setState('verified');

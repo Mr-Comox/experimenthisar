@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/public/Icons';
+import { getSmoother } from '@/app/lib/smoother';
 
 type Props = {
   onAccessGranted: () => void;
   children?: React.ReactNode;
 };
 
-type FieldErrors = {
+type FieldState = {
   day: boolean;
   month: boolean;
   year: boolean;
@@ -20,7 +21,16 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({
+
+  // touched: has the user finished typing in this field
+  // fieldErrors: is this specific field's value invalid
+  // These are separate so year's error never bleeds into day/month borders
+  const [touched, setTouched] = useState<FieldState>({
+    day: false,
+    month: false,
+    year: false,
+  });
+  const [fieldErrors, setFieldErrors] = useState<FieldState>({
     day: false,
     month: false,
     year: false,
@@ -30,9 +40,14 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
 
+  // Lock scroll + stop Lenis + block touch scroll
   useEffect(() => {
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
+
+    // Stop Lenis if it initialized behind the gate
+    const lenis = getSmoother();
+    lenis?.stop();
 
     const preventTouch = (e: TouchEvent) => e.preventDefault();
     document.addEventListener('touchmove', preventTouch, { passive: false });
@@ -41,16 +56,18 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
       document.removeEventListener('touchmove', preventTouch);
+      getSmoother()?.start();
     };
   }, []);
 
+  // Focus day on mount
   useEffect(() => {
     const t = setTimeout(() => dayRef.current?.focus(), 300);
     return () => clearTimeout(t);
   }, []);
 
   const isDayValid = (val: string) => {
-    if (!val) return true; // empty is not invalid yet
+    if (!val) return true;
     const dd = parseInt(val, 10);
     return dd >= 1 && dd <= 31;
   };
@@ -78,40 +95,38 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       if (cleanedValue.length > 2) cleanedValue = cleanedValue.slice(0, 2);
       setBirthDate((prev) => ({ ...prev, day: cleanedValue }));
 
-      const valid = isDayValid(cleanedValue);
-      setFieldErrors((prev) => ({
-        ...prev,
-        day: !valid && cleanedValue.length === 2,
-      }));
-
-      if (!valid && cleanedValue.length === 2) {
-        // Invalid — stay in this field, show error
-        setError('Geçersiz tarih girdiniz!');
-        return;
+      if (cleanedValue.length === 2) {
+        const valid = isDayValid(cleanedValue);
+        setTouched((prev) => ({ ...prev, day: true }));
+        setFieldErrors((prev) => ({ ...prev, day: !valid }));
+        if (!valid) {
+          setError('Geçersiz tarih girdiniz!');
+          return; // block advance
+        }
+        monthRef.current?.focus();
       }
-      // Valid and complete — advance
-      if (cleanedValue.length === 2) monthRef.current?.focus();
     } else if (name === 'month') {
       if (cleanedValue.length > 2) cleanedValue = cleanedValue.slice(0, 2);
       setBirthDate((prev) => ({ ...prev, month: cleanedValue }));
 
-      const valid = isMonthValid(cleanedValue);
-      setFieldErrors((prev) => ({
-        ...prev,
-        month: !valid && cleanedValue.length === 2,
-      }));
-
-      if (!valid && cleanedValue.length === 2) {
-        setError('Geçersiz tarih girdiniz!');
-        return;
+      if (cleanedValue.length === 2) {
+        const valid = isMonthValid(cleanedValue);
+        setTouched((prev) => ({ ...prev, month: true }));
+        setFieldErrors((prev) => ({ ...prev, month: !valid }));
+        if (!valid) {
+          setError('Geçersiz tarih girdiniz!');
+          return; // block advance
+        }
+        yearRef.current?.focus();
       }
-      if (cleanedValue.length === 2) yearRef.current?.focus();
     } else if (name === 'year') {
       cleanedValue = cleanedValue.slice(0, 4);
       setBirthDate((prev) => ({ ...prev, year: cleanedValue }));
 
       if (cleanedValue.length === 4) {
         const valid = isYearValid(cleanedValue);
+        setTouched((prev) => ({ ...prev, year: true }));
+        // Only touch year's own error — never day or month
         setFieldErrors((prev) => ({ ...prev, year: !valid }));
         if (!valid) setError('Geçersiz tarih girdiniz!');
       } else {
@@ -124,12 +139,13 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
     const { name, value } = e.target;
     if (!value) return;
 
+    // Only validate the field that actually blurred — never touch others
     let invalid = false;
-
     if (name === 'day') invalid = !isDayValid(value);
     else if (name === 'month') invalid = !isMonthValid(value);
     else if (name === 'year') invalid = !isYearValid(value);
 
+    setTouched((prev) => ({ ...prev, [name]: true }));
     setFieldErrors((prev) => ({ ...prev, [name]: invalid }));
     if (invalid) setError('Geçersiz tarih girdiniz!');
   };
@@ -190,6 +206,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
     if (!is18) {
       setError('Bu siteye giriş için 18 yaşında olmanız gerekmektedir.');
+      setTouched({ day: true, month: true, year: true });
       setFieldErrors({ day: true, month: true, year: true });
       dayRef.current?.blur();
       monthRef.current?.blur();
@@ -206,12 +223,13 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
     }, 600);
   };
 
-  const inputClass = (field: keyof FieldErrors) =>
+  // Only show red border if this specific field is both touched and invalid
+  const inputClass = (field: keyof FieldState) =>
     [
       'text-center py-2 rounded-md bg-tertiaryColor border',
       'placeholder-subtleGray focus:outline-none focus:ring-2',
       'transition-colors duration-200',
-      fieldErrors[field]
+      touched[field] && fieldErrors[field]
         ? 'border-red-500/70 focus:ring-red-500/30'
         : 'border-softGray/20 focus:ring-softGray/40',
     ].join(' ');
