@@ -276,7 +276,7 @@ const Offer = ({ id }: Props) => {
   };
 
   return (
-    <section id={id} className='relative bg-secondaryColor overflow-hidden'>
+    <section id={id} className='relative bg-secondaryColor overflow-hidden '>
       {/* ─── HEADER ─── */}
       <div
         style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}

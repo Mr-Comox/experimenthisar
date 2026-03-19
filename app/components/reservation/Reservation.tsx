@@ -188,8 +188,8 @@ export default function Reservation({ id }: Props) {
             {/* Headline — TextReveal masked slide-up, same as AtmosphereSection */}
             <TextReveal animateOnScroll delay={0}>
               <Headline className='mb-8'>
-                Gecenizi <br />
-                <MainToGoldFont>önceden planlayın</MainToGoldFont>
+                Gecenizi önceden <br />
+                <MainToGoldFont>planlayın</MainToGoldFont>
               </Headline>
             </TextReveal>
 

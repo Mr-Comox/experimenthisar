@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-
-import './globals.css';
 import Script from 'next/script';
+import './globals.css';
 
 const graphik = localFont({
   src: [
@@ -14,22 +13,22 @@ const graphik = localFont({
     {
       path: '../public/fonts/Graphik-Medium-Web.woff2',
       weight: '500',
-      style: 'medium',
+      style: 'normal',
     },
     {
       path: '../public/fonts/Graphik-Semibold-Web.woff2',
       weight: '600',
-      style: 'semibold',
+      style: 'normal',
     },
     {
       path: '../public/fonts/Graphik-Bold-Web.woff2',
       weight: '700',
-      style: 'bold',
+      style: 'normal',
     },
     {
       path: '../public/fonts/Graphik-Black-Web.woff2',
       weight: '900',
-      style: 'black',
+      style: 'normal',
     },
   ],
   variable: '--font-graphik',
@@ -59,13 +58,76 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang='en' className={graphik.variable}>
+    <html suppressHydrationWarning>
       <head>
-        <Script id='scroll-reset' strategy='beforeInteractive'>
-          {`history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`}
-        </Script>
+        <meta
+          name='viewport'
+          content='width=device-width, initial-scale=1, viewport-fit=cover'
+        />
+
+        <link
+          rel='preload'
+          as='font'
+          type='font/woff2'
+          href='/fonts/Graphik-Regular-Web.woff2'
+          crossOrigin='anonymous'
+        />
+        <link
+          rel='preload'
+          as='font'
+          type='font/woff2'
+          href='/fonts/Graphik-Medium-Web.woff2'
+          crossOrigin='anonymous'
+        />
+        <link
+          rel='preload'
+          as='font'
+          type='font/woff2'
+          href='/fonts/Graphik-Semibold-Web.woff2'
+          crossOrigin='anonymous'
+        />
+        <link
+          rel='preload'
+          as='font'
+          type='font/woff2'
+          href='/fonts/Graphik-Bold-Web.woff2'
+          crossOrigin='anonymous'
+        />
+        <link
+          rel='preload'
+          as='font'
+          type='font/woff2'
+          href='/fonts/Graphik-Black-Web.woff2'
+          crossOrigin='anonymous'
+        />
+
+        <Script
+          id='scroll-reset'
+          strategy='beforeInteractive'
+          dangerouslySetInnerHTML={{
+            __html: `history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`,
+          }}
+        />
+        <Script
+          id='age-gate-scroll-lock'
+          strategy='beforeInteractive'
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (localStorage.getItem('ageVerified') !== 'true') {
+                  document.documentElement.style.overflow = 'hidden';
+                }
+              } catch(e) {}
+            `,
+          }}
+        />
       </head>
-      <body className='font-sans'>{children}</body>
+      <body
+        suppressHydrationWarning
+        className={`${graphik.variable} font-sans`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

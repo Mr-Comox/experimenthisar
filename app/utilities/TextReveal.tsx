@@ -30,7 +30,6 @@ export default function TextReveal({
       if (!containerRef.current) return;
 
       const setup = () => {
-        // Kill any ScrollTriggers bound to this container before re-creating
         ScrollTrigger.getAll()
           .filter((t) => t.trigger === containerRef.current)
           .forEach((t) => t.kill());
@@ -70,7 +69,6 @@ export default function TextReveal({
           lines.current.push(...split.lines);
         });
 
-        // Animation already played — snap visible, never reset
         if (hasPlayed.current) {
           gsap.set(lines.current, { y: '0%' });
           return;
@@ -78,11 +76,6 @@ export default function TextReveal({
 
         gsap.set(lines.current, { y: '100%' });
 
-        // NOTE: onStart is intentionally removed from animationProps.
-        // hasPlayed is set synchronously BEFORE the tween fires so that
-        // any ScrollTrigger.refresh() reflow triggered by a parent opacity
-        // change (e.g. useReveal wrapper) hits the early-exit above and
-        // snaps to y:0% instead of resetting lines and fighting the tween.
         const animationProps: gsap.TweenVars = {
           y: '0%',
           duration: 1,
@@ -97,9 +90,6 @@ export default function TextReveal({
           const alreadyPassed = rect.top < window.innerHeight * 0.75;
 
           if (alreadyPassed) {
-            // Element is already in/past the viewport threshold.
-            // Mark as played NOW — before the tween — so any refresh
-            // that fires during the tween's lifetime hits the snap path.
             hasPlayed.current = true;
             gsap.to(lines.current, { ...animationProps, delay: 0 });
           } else {
@@ -108,9 +98,6 @@ export default function TextReveal({
               start: 'top 75%',
               once: true,
               onEnter: () => {
-                // Mark as played synchronously before gsap.to so that
-                // any reflow-triggered setup() call during animation
-                // snaps to y:0% and exits, never resetting lines.
                 hasPlayed.current = true;
                 gsap.to(lines.current, animationProps);
               },
@@ -122,28 +109,38 @@ export default function TextReveal({
         }
       };
 
-      setup();
+      // Cache the promise — resolves once, then every subsequent .then()
+      // executes immediately. Zero overhead after initial font load.
+      const fontsReady = document.fonts.ready;
+
+      // Initial run — wait for fonts before first split
+      fontsReady.then(() => setup());
 
       let resizeTimer: ReturnType<typeof setTimeout>;
       const handleResize = () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-          setup();
-          ScrollTrigger.refresh(true);
+          fontsReady.then(() => {
+            setup();
+            ScrollTrigger.refresh(true);
+          });
         }, 200);
       };
 
       const handleOrientation = () => {
         setTimeout(() => {
-          setup();
-          ScrollTrigger.refresh(true);
+          fontsReady.then(() => {
+            setup();
+            ScrollTrigger.refresh(true);
+          });
         }, 400);
       };
 
+      // ScrollTrigger.refresh also triggers setup — wrap it too
+      const handleSTRefresh = () => void fontsReady.then(() => setup());
+
       window.addEventListener('resize', handleResize);
       window.addEventListener('orientationchange', handleOrientation);
-
-      const handleSTRefresh = () => setup();
       ScrollTrigger.addEventListener('refresh', handleSTRefresh);
 
       return () => {
