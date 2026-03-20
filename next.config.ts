@@ -1,7 +1,4 @@
 const nextConfig = {
-  experimental: {
-    skipMiddlewareUrlNormalize: false,
-  },
   async headers() {
     return [
       {
