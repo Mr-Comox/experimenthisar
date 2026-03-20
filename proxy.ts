@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED = ['/reservation', '/menu'];
+const PROTECTED = ['/', '/reservation', '/menu'];
 
 export function proxy(request: NextRequest) {
   const verified = request.cookies.get('ageVerified')?.value === 'true';
-  const isProtected = PROTECTED.some((path) =>
-    request.nextUrl.pathname.startsWith(path),
+  const path = request.nextUrl.pathname;
+
+  // Already on age-gate — let through regardless
+  if (path === '/age-gate') return NextResponse.next();
+
+  const isProtected = PROTECTED.some(
+    (p) => path === p || path.startsWith(p + '/'),
   );
 
   if (isProtected && !verified) {
     const url = request.nextUrl.clone();
-    url.pathname = '/';
-    url.searchParams.set('redirect', request.nextUrl.pathname);
+    url.pathname = '/age-gate';
+    // Preserve where they were trying to go
+    url.searchParams.set('redirect', path);
     return NextResponse.redirect(url);
   }
 
@@ -19,5 +25,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/reservation/:path*', '/menu/:path*'],
+  matcher: ['/', '/reservation/:path*', '/menu/:path*'],
 };

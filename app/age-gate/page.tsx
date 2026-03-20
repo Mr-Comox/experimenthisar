@@ -1,21 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/public/Icons';
-import { getSmoother } from '@/app/lib/smoother';
 
-type Props = {
-  onAccessGranted: () => void;
-};
+type FieldState = { day: boolean; month: boolean; year: boolean };
 
-type FieldState = {
-  day: boolean;
-  month: boolean;
-  year: boolean;
-};
+export default function AgeGatePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-const AgeGate = ({ onAccessGranted }: Props) => {
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -36,43 +31,18 @@ const AgeGate = ({ onAccessGranted }: Props) => {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Scroll lock
+  // If already verified just redirect immediately
   useEffect(() => {
-    const scrollY = window.scrollY;
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.overscrollBehavior = 'none';
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.right = '0';
-    document.body.style.width = '100%';
+    const verified = localStorage.getItem('ageVerified') === 'true';
+    if (verified) {
+      const redirect = searchParams.get('redirect') ?? '/';
+      router.replace(redirect);
+    }
+  }, [router, searchParams]);
 
-    const lenis = getSmoother();
-    lenis?.stop();
-
-    const preventTouch = (e: TouchEvent) => e.preventDefault();
-    document.addEventListener('touchmove', preventTouch, { passive: false });
-
-    return () => {
-      document.documentElement.style.overflow = '';
-      document.documentElement.style.overscrollBehavior = '';
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.left = '';
-      document.body.style.right = '';
-      document.body.style.width = '';
-      window.scrollTo(0, scrollY);
-      document.removeEventListener('touchmove', preventTouch);
-      getSmoother()?.start();
-    };
-  }, []);
-
-  // ── Visual Viewport API ──────────────────────────────────────────
-  // When iOS keyboard opens, the visual viewport shrinks.
-  // Fixed elements are sized to layout viewport — gap shows content.
-  // This syncs the overlay size/position to the visual viewport exactly.
+  // Visual Viewport API — keeps overlay pinned to visible area
+  // when iOS keyboard opens. Nothing behind to leak through anyway
+  // but this keeps the form centered correctly.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -88,7 +58,7 @@ const AgeGate = ({ onAccessGranted }: Props) => {
 
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
-    update(); // run immediately
+    update();
 
     return () => {
       vv.removeEventListener('resize', update);
@@ -102,20 +72,14 @@ const AgeGate = ({ onAccessGranted }: Props) => {
     return () => clearTimeout(t);
   }, []);
 
-  const isDayValid = (val: string) => {
-    if (!val) return true;
-    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 31;
-  };
-
-  const isMonthValid = (val: string) => {
-    if (!val) return true;
-    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 12;
-  };
-
-  const isYearValid = (val: string) => {
-    if (!val || val.length < 4) return true;
-    const yyyy = parseInt(val, 10);
-    return yyyy >= 1900 && yyyy <= new Date().getFullYear();
+  const isDayValid = (v: string) =>
+    !v || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 31);
+  const isMonthValid = (v: string) =>
+    !v || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 12);
+  const isYearValid = (v: string) => {
+    if (!v || v.length < 4) return true;
+    const y = parseInt(v, 10);
+    return y >= 1900 && y <= new Date().getFullYear();
   };
 
   const clearInputs = () => {
@@ -222,6 +186,7 @@ const AgeGate = ({ onAccessGranted }: Props) => {
 
   const handleEnter = () => {
     if (!isValidDate() || loading) return;
+
     const { day, month, year } = birthDate;
     const birth = new Date(
       `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
@@ -248,7 +213,8 @@ const AgeGate = ({ onAccessGranted }: Props) => {
       document.cookie =
         'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
       setExiting(true);
-      setTimeout(() => onAccessGranted(), 700);
+      const redirect = searchParams.get('redirect') ?? '/';
+      setTimeout(() => router.replace(redirect), 700);
     }, 600);
   };
 
@@ -264,9 +230,9 @@ const AgeGate = ({ onAccessGranted }: Props) => {
 
   return (
     <>
-      {/* Silent video preload — opacity 0 so nothing is visible,
-          but NOT display:none because that stops browser preloading.
-          This replaces passing <Home> as children entirely. */}
+      {/* Preload hero video and gallery images silently while user fills form.
+          opacity:0 + w:0 h:0 keeps them in render tree so browser fetches them.
+          This is the only content on this page — nothing leaks through keyboard. */}
       <video
         src='/yenihisar.mp4'
         preload='auto'
@@ -279,7 +245,6 @@ const AgeGate = ({ onAccessGranted }: Props) => {
           height: 0,
           opacity: 0,
           pointerEvents: 'none',
-          zIndex: 0,
         }}
       />
 
@@ -287,18 +252,10 @@ const AgeGate = ({ onAccessGranted }: Props) => {
         {!exiting && (
           <motion.div
             ref={overlayRef}
-            id='age-gate-overlay'
             key='age-gate'
             className='fixed z-[9999] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
-            style={{
-              // Initial values — Visual Viewport API overrides these on keyboard open
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              overscrollBehavior: 'none',
-            }}
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -310,7 +267,6 @@ const AgeGate = ({ onAccessGranted }: Props) => {
               <p className='text-2xl'>Night Club</p>
             </div>
 
-            {/* Form */}
             <div className='text-center max-w-lg w-full'>
               <h1 className='text-2xl sm:text-4xl font-bold mb-4 leading-tight'>
                 Lütfen doğum tarihinizi girin
@@ -320,7 +276,6 @@ const AgeGate = ({ onAccessGranted }: Props) => {
                 Politikamızı kabul etmiş olursunuz.
               </p>
 
-              {/* Inputs */}
               <motion.div
                 className='flex justify-center gap-4 mb-5'
                 animate={error ? { x: [-6, 6, -5, 5, -3, 3, 0] } : { x: 0 }}
@@ -370,7 +325,6 @@ const AgeGate = ({ onAccessGranted }: Props) => {
                 />
               </motion.div>
 
-              {/* Error message */}
               <AnimatePresence mode='wait'>
                 {error && (
                   <motion.p
@@ -406,7 +360,6 @@ const AgeGate = ({ onAccessGranted }: Props) => {
                       className='w-6 h-6 animate-spin'
                       viewBox='0 0 100 101'
                       fill='none'
-                      xmlns='http://www.w3.org/2000/svg'
                     >
                       <path
                         d='M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z'
@@ -428,6 +381,4 @@ const AgeGate = ({ onAccessGranted }: Props) => {
       </AnimatePresence>
     </>
   );
-};
-
-export default AgeGate;
+}
