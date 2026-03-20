@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED = ['/', '/reservation', '/menu'];
-
 export function proxy(request: NextRequest) {
   const verified = request.cookies.get('ageVerified')?.value === 'true';
   const path = request.nextUrl.pathname;
 
-  if (path === '/age-gate') return NextResponse.next();
+  console.log('[proxy] path:', path, '| verified:', verified);
 
-  const isProtected = PROTECTED.some(
-    (p) => path === p || path.startsWith(p + '/'),
-  );
+  if (path.startsWith('/age-gate')) return NextResponse.next();
 
-  if (isProtected && !verified) {
+  if (!verified) {
     const url = request.nextUrl.clone();
     url.pathname = '/age-gate';
     url.searchParams.set('redirect', path);
@@ -23,5 +19,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/reservation/:path*', '/menu/:path*'],
+  // This regex matches all routes except _next internals, api, and static files
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*|api).*)'],
 };

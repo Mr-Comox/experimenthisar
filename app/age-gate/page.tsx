@@ -32,6 +32,30 @@ export default function AgeGatePage() {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  // ✅ FIX 1: Lock body scroll/position while age gate is mounted
+  // This prevents the underlying page content from bleeding through
+  // when the iOS keyboard pushes the visual viewport up.
+  useEffect(() => {
+    const prev = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      width: document.body.style.width,
+      height: document.body.style.height,
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+
+    return () => {
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.width = prev.width;
+      document.body.style.height = prev.height;
+    };
+  }, []);
+
   // If already verified skip gate
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
@@ -47,21 +71,25 @@ export default function AgeGatePage() {
     startTransition(() => setReady(true));
   }, [router, searchParams]);
 
-  // Visual Viewport API — keeps overlay pinned when iOS keyboard opens
+  // ✅ FIX 2: Visual Viewport API — correctly pins overlay using only
+  // top/left/width/height (not bottom/right) to avoid dimension conflicts
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
+
     const update = () => {
       const el = overlayRef.current;
       if (!el) return;
-      el.style.height = `${vv.height}px`;
       el.style.top = `${vv.offsetTop}px`;
       el.style.left = `${vv.offsetLeft}px`;
       el.style.width = `${vv.width}px`;
+      el.style.height = `${vv.height}px`;
     };
+
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     update();
+
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
@@ -257,7 +285,10 @@ export default function AgeGatePage() {
             key='age-gate'
             className='fixed z-[9999] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
-            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+            // ✅ FIX 3: Use only top/left/width/height — NOT bottom/right.
+            // The Viewport API handler overwrites these dynamically,
+            // so conflicting shorthand like `inset-0` or `right/bottom` must be removed.
+            style={{ top: 0, left: 0, width: '100%', height: '100%' }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}

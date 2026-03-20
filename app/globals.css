@@ -3,7 +3,10 @@
 /* ================================================= */
 /* THEME TOKENS (Tailwind v4)                       */
 /* ================================================= */
-
+html,
+body {
+  background-color: #070707;
+}
 :root {
   --background: #ffffff;
   --foreground: #171717;
