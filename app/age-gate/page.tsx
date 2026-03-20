@@ -28,21 +28,31 @@ export default function AgeGatePage() {
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ─── Lock body scroll so nothing behind this page bleeds through ───
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    html.style.overflow = 'hidden';
+    html.style.height = '100%';
+    body.style.overflow = 'hidden';
+    body.style.height = '100%';
+    return () => {
+      html.style.overflow = '';
+      html.style.height = '';
+      body.style.overflow = '';
+      body.style.height = '';
+    };
+  }, []);
 
   useEffect(() => {
-    // iOS Safari bfcache fix — when user navigates back/forward
-    // Safari restores a visual snapshot of previous page
-    // Force reload if page is restored from cache
     const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        window.location.reload();
-      }
+      if (e.persisted) window.location.reload();
     };
     window.addEventListener('pageshow', handlePageShow);
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
-  // Check localStorage — if already verified redirect immediately
+
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
     if (verified) {
@@ -52,34 +62,9 @@ export default function AgeGatePage() {
       window.location.href = dest;
       return;
     }
-
-    // Clear any stale cookie
     document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
     startTransition(() => setReady(true));
   }, [searchParams]);
-
-  // Visual Viewport API — pins overlay when iOS keyboard opens
-  // Nothing is behind this page so this is purely for keeping
-  // the form centered correctly when keyboard appears
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => {
-      const el = overlayRef.current;
-      if (!el) return;
-      el.style.top = `${vv.offsetTop}px`;
-      el.style.left = `${vv.offsetLeft}px`;
-      el.style.width = `${vv.width}px`;
-      el.style.height = `${vv.height}px`;
-    };
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    update();
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-    };
-  }, []);
 
   // Focus day input once gate is ready
   useEffect(() => {
@@ -229,7 +214,6 @@ export default function AgeGatePage() {
         'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
       setExiting(true);
       const dest = searchParams.get('redirect') ?? '/';
-      // Full page navigation — forces server to re-check cookie
       setTimeout(() => {
         window.location.href = dest;
       }, 700);
@@ -238,7 +222,8 @@ export default function AgeGatePage() {
 
   const inputClass = (field: keyof FieldState) =>
     [
-      'text-center py-2 rounded-md bg-tertiaryColor border',
+      'text-center py-2 rounded-md bg-tertiaryColor border text-base',
+      // ↑ text-base = 16px via Tailwind — prevents iOS zoom, overrides any inherited size
       'placeholder-subtleGray focus:outline-none focus:ring-2',
       'transition-colors duration-200',
       touched[field] && fieldErrors[field]
@@ -246,12 +231,14 @@ export default function AgeGatePage() {
         : 'border-softGray/20 focus:ring-softGray/40',
     ].join(' ');
 
-  // Show solid background while localStorage check runs
-  if (!ready) return <div className='fixed inset-0 bg-secondaryColor' />;
+  // Solid bg while localStorage check runs — no flash of anything
+  if (!ready) {
+    return <div className='min-h-[100dvh] bg-secondaryColor' />;
+  }
 
   return (
     <>
-      {/* Silent video preload — zero size, completely invisible */}
+      {/* Silent video preload */}
       <video
         src='/yenihisar.mp4'
         preload='auto'
@@ -259,7 +246,7 @@ export default function AgeGatePage() {
         playsInline
         aria-hidden
         style={{
-          position: 'fixed',
+          position: 'absolute',
           width: 0,
           height: 0,
           opacity: 0,
@@ -270,11 +257,12 @@ export default function AgeGatePage() {
       <AnimatePresence>
         {!exiting && (
           <motion.div
-            ref={overlayRef}
             key='age-gate'
-            className='fixed z-[9999] bg-secondaryColor text-softWhite
+            // ── No more position:fixed — this IS the page ──────────────
+            // min-h-[100dvh] fills the viewport including notch/safe areas
+            // The visualViewport hack is gone — no longer needed
+            className='min-h-[100dvh] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
-            style={{ top: 0, left: 0, width: '100%', height: '100%' }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
@@ -310,7 +298,8 @@ export default function AgeGatePage() {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
-                  style={{ fontSize: '16px' }}
+                  // touch-action prevents double-tap zoom independently
+                  style={{ touchAction: 'manipulation' }}
                   className={`w-16 sm:w-20 ${inputClass('day')}`}
                 />
                 <input
@@ -324,7 +313,7 @@ export default function AgeGatePage() {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
-                  style={{ fontSize: '16px' }}
+                  style={{ touchAction: 'manipulation' }}
                   className={`w-16 sm:w-20 ${inputClass('month')}`}
                 />
                 <input
@@ -338,7 +327,7 @@ export default function AgeGatePage() {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
-                  style={{ fontSize: '16px' }}
+                  style={{ touchAction: 'manipulation' }}
                   className={`w-24 sm:w-28 ${inputClass('year')}`}
                 />
               </motion.div>

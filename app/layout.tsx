@@ -106,19 +106,6 @@ export default function RootLayout({
             __html: `history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`,
           }}
         />
-        <Script
-          id='age-gate-scroll-lock'
-          strategy='beforeInteractive'
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                if (window.location.pathname === '/age-gate') {
-                  document.documentElement.style.overflow = 'hidden';
-                }
-              } catch(e) {}
-            `,
-          }}
-        />
       </head>
       <body
         suppressHydrationWarning

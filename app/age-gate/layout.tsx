@@ -1,5 +1,10 @@
-export const metadata = {
-  title: 'Yeni Hisar Gazinosu',
+import type { Viewport } from 'next';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1, // ← kills iOS zoom on input focus
+  viewportFit: 'cover',
 };
 
 export default function AgeGateLayout({
@@ -7,5 +12,5 @@ export default function AgeGateLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <>{children}</>;
 }
