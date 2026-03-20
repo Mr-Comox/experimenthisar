@@ -6,7 +6,6 @@ import { scrollTo } from '@/app/lib/scrollTo';
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
-// ─── MaskedLine ───────────────────────────────────────────────────────────────
 function MaskedLine({
   children,
   delay = 0,
@@ -35,7 +34,6 @@ function MaskedLine({
   );
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
@@ -45,33 +43,19 @@ export default function Hero() {
     if (!v) return;
 
     v.muted = true;
-    v.load(); // preload bytes silently in background — but don't play yet
 
-    const alreadyVerified = localStorage.getItem('ageVerified') === 'true';
-
-    if (alreadyVerified) {
-      // Returning user — no gate, play immediately as normal
-      const tryPlay = () => {
-        v.play().catch(() => {});
-        setReady(true);
-      };
-      if (v.readyState >= 1) {
-        tryPlay();
-      } else {
-        v.addEventListener('loadedmetadata', tryPlay, { once: true });
-      }
-      return () => v.removeEventListener('loadedmetadata', tryPlay);
-    }
-
-    // First visit — gate is active, wait for it to clear
-    const onCleared = () => {
-      v.currentTime = 0; // rewind to frame 0 so user always sees from the start
+    const tryPlay = () => {
       v.play().catch(() => {});
-      setReady(true); // trigger text animations in sync with gate fade-out
+      setReady(true);
     };
 
-    window.addEventListener('age-gate-cleared', onCleared, { once: true });
-    return () => window.removeEventListener('age-gate-cleared', onCleared);
+    if (v.readyState >= 1) {
+      tryPlay();
+    } else {
+      v.addEventListener('loadedmetadata', tryPlay, { once: true });
+    }
+
+    return () => v.removeEventListener('loadedmetadata', tryPlay);
   }, []);
 
   const sharedTextClass =
