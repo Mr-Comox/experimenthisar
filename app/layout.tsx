@@ -64,8 +64,6 @@ export default function RootLayout({
           name='viewport'
           content='width=device-width, initial-scale=1, viewport-fit=cover'
         />
-
-        {/* Font preloads — fire before any JS, before React, before everything */}
         <link
           rel='preload'
           as='font'
@@ -101,8 +99,6 @@ export default function RootLayout({
           href='/fonts/Graphik-Black-Web.woff2'
           crossOrigin='anonymous'
         />
-
-        {/* Prevent scroll restoration jumping to last position on reload */}
         <Script
           id='scroll-reset'
           strategy='beforeInteractive'
@@ -110,10 +106,6 @@ export default function RootLayout({
             __html: `history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`,
           }}
         />
-
-        {/* Lock scroll on /age-gate before first paint so no scrollbar ever flashes.
-            Pathname check is safe here — no localStorage needed anymore since
-            the proxy handles routing, not client-side JS. */}
         <Script
           id='age-gate-scroll-lock'
           strategy='beforeInteractive'

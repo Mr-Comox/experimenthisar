@@ -4,10 +4,10 @@ export function proxy(request: NextRequest) {
   const verified = request.cookies.get('ageVerified')?.value === 'true';
   const path = request.nextUrl.pathname;
 
-  console.log('[proxy] path:', path, '| verified:', verified);
-
+  // Always allow age-gate page through
   if (path.startsWith('/age-gate')) return NextResponse.next();
 
+  // Not verified — redirect to age gate
   if (!verified) {
     const url = request.nextUrl.clone();
     url.pathname = '/age-gate';
@@ -19,6 +19,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // This regex matches all routes except _next internals, api, and static files
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*|api).*)'],
 };

@@ -11,7 +11,6 @@ export default function AgeGatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
-
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -32,51 +31,27 @@ export default function AgeGatePage() {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // ✅ FIX 1: Lock body scroll/position while age gate is mounted
-  // This prevents the underlying page content from bleeding through
-  // when the iOS keyboard pushes the visual viewport up.
-  useEffect(() => {
-    const prev = {
-      overflow: document.body.style.overflow,
-      position: document.body.style.position,
-      width: document.body.style.width,
-      height: document.body.style.height,
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.style.height = '100%';
-
-    return () => {
-      document.body.style.overflow = prev.overflow;
-      document.body.style.position = prev.position;
-      document.body.style.width = prev.width;
-      document.body.style.height = prev.height;
-    };
-  }, []);
-
-  // If already verified skip gate
+  // Check localStorage — if already verified redirect immediately
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
     if (verified) {
       document.cookie =
         'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
-      const redirect = searchParams.get('redirect') ?? '/';
-      router.replace(redirect);
+      const dest = searchParams.get('redirect') ?? '/';
+      window.location.href = dest;
       return;
     }
-    // Not verified — clear any stale cookie and show gate
+    // Clear any stale cookie
     document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
     startTransition(() => setReady(true));
-  }, [router, searchParams]);
+  }, [searchParams]);
 
-  // ✅ FIX 2: Visual Viewport API — correctly pins overlay using only
-  // top/left/width/height (not bottom/right) to avoid dimension conflicts
+  // Visual Viewport API — pins overlay when iOS keyboard opens
+  // Nothing is behind this page so this is purely for keeping
+  // the form centered correctly when keyboard appears
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-
     const update = () => {
       const el = overlayRef.current;
       if (!el) return;
@@ -85,18 +60,16 @@ export default function AgeGatePage() {
       el.style.width = `${vv.width}px`;
       el.style.height = `${vv.height}px`;
     };
-
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     update();
-
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
     };
   }, []);
 
-  // Focus day only after gate is ready
+  // Focus day input once gate is ready
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => dayRef.current?.focus(), 300);
@@ -243,8 +216,11 @@ export default function AgeGatePage() {
       document.cookie =
         'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
       setExiting(true);
-      const redirect = searchParams.get('redirect') ?? '/';
-      setTimeout(() => router.replace(redirect), 700);
+      const dest = searchParams.get('redirect') ?? '/';
+      // Full page navigation — forces server to re-check cookie
+      setTimeout(() => {
+        window.location.href = dest;
+      }, 700);
     }, 600);
   };
 
@@ -258,11 +234,12 @@ export default function AgeGatePage() {
         : 'border-softGray/20 focus:ring-softGray/40',
     ].join(' ');
 
+  // Show solid background while localStorage check runs
   if (!ready) return <div className='fixed inset-0 bg-secondaryColor' />;
 
   return (
     <>
-      {/* Silent video preload — zero size, never visible */}
+      {/* Silent video preload — zero size, completely invisible */}
       <video
         src='/yenihisar.mp4'
         preload='auto'
@@ -285,15 +262,11 @@ export default function AgeGatePage() {
             key='age-gate'
             className='fixed z-[9999] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
-            // ✅ FIX 3: Use only top/left/width/height — NOT bottom/right.
-            // The Viewport API handler overwrites these dynamically,
-            // so conflicting shorthand like `inset-0` or `right/bottom` must be removed.
             style={{ top: 0, left: 0, width: '100%', height: '100%' }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* Logo + name */}
             <div className='flex flex-col justify-center items-center gap-0 mb-5'>
               <Logo className='w-[70px] h-[70px] lg:w-[100px] lg:h-[100px] mb-6' />
               <p className='text-2xl -mt-7'>Yeni Hisar International</p>
