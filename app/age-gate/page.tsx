@@ -4,14 +4,13 @@ import { useState, useEffect, useRef, startTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/public/Icons';
-import PreloadImages from '../utilities/PreloadImages';
 
 type FieldState = { day: boolean; month: boolean; year: boolean };
 
 export default function AgeGatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ready, setReady] = useState(false); // gate only shows after localStorage check
+  const [ready, setReady] = useState(false);
 
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
   const [loading, setLoading] = useState(false);
@@ -33,7 +32,7 @@ export default function AgeGatePage() {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Check localStorage first — if already verified, skip gate entirely
+  // If already verified skip gate
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
     if (verified) {
@@ -43,11 +42,11 @@ export default function AgeGatePage() {
       router.replace(redirect);
       return;
     }
+    // Not verified — clear any stale cookie and show gate
     document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
-    startTransition(() => {
-      setReady(true);
-    });
+    startTransition(() => setReady(true));
   }, [router, searchParams]);
+
   // Visual Viewport API — keeps overlay pinned when iOS keyboard opens
   useEffect(() => {
     const vv = window.visualViewport;
@@ -69,7 +68,7 @@ export default function AgeGatePage() {
     };
   }, []);
 
-  // Focus day on mount only after gate is ready
+  // Focus day only after gate is ready
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => dayRef.current?.focus(), 300);
@@ -231,13 +230,11 @@ export default function AgeGatePage() {
         : 'border-softGray/20 focus:ring-softGray/40',
     ].join(' ');
 
-  // Don't render anything until localStorage check is done
-  // prevents flash of gate for already-verified users
   if (!ready) return <div className='fixed inset-0 bg-secondaryColor' />;
 
   return (
     <>
-      {/* Silent video preload */}
+      {/* Silent video preload — zero size, never visible */}
       <video
         src='/yenihisar.mp4'
         preload='auto'
@@ -252,9 +249,6 @@ export default function AgeGatePage() {
           pointerEvents: 'none',
         }}
       />
-
-      {/* Silent image preload — offscreen, never visible */}
-      <PreloadImages />
 
       <AnimatePresence>
         {!exiting && (

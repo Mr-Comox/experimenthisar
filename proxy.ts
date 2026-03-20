@@ -6,7 +6,6 @@ export function proxy(request: NextRequest) {
   const verified = request.cookies.get('ageVerified')?.value === 'true';
   const path = request.nextUrl.pathname;
 
-  // Already on age-gate — let through regardless
   if (path === '/age-gate') return NextResponse.next();
 
   const isProtected = PROTECTED.some(
@@ -16,7 +15,6 @@ export function proxy(request: NextRequest) {
   if (isProtected && !verified) {
     const url = request.nextUrl.clone();
     url.pathname = '/age-gate';
-    // Preserve where they were trying to go
     url.searchParams.set('redirect', path);
     return NextResponse.redirect(url);
   }
