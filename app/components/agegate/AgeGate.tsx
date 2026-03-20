@@ -7,7 +7,6 @@ import { getSmoother } from '@/app/lib/smoother';
 
 type Props = {
   onAccessGranted: () => void;
-  children?: React.ReactNode;
 };
 
 type FieldState = {
@@ -16,7 +15,7 @@ type FieldState = {
   year: boolean;
 };
 
-const AgeGate = ({ onAccessGranted, children }: Props) => {
+const AgeGate = ({ onAccessGranted }: Props) => {
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -35,15 +34,11 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
-  // iOS scroll lock — the standard pattern:
-  // 1. Save current scroll position
-  // 2. Fix body at that position (prevents rubber-band + keyboard scroll)
-  // 3. overscroll-behavior: none on html stops pull-to-refresh
-  // 4. Restore on cleanup
+  // Scroll lock
   useEffect(() => {
     const scrollY = window.scrollY;
-
     document.documentElement.style.overflow = 'hidden';
     document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overflow = 'hidden';
@@ -56,12 +51,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
     const lenis = getSmoother();
     lenis?.stop();
 
-    const preventTouch = (e: TouchEvent) => {
-      // Allow touch events inside the gate itself
-      const gate = document.getElementById('age-gate-overlay');
-      if (gate && gate.contains(e.target as Node)) return;
-      e.preventDefault();
-    };
+    const preventTouch = (e: TouchEvent) => e.preventDefault();
     document.addEventListener('touchmove', preventTouch, { passive: false });
 
     return () => {
@@ -79,6 +69,33 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
     };
   }, []);
 
+  // ── Visual Viewport API ──────────────────────────────────────────
+  // When iOS keyboard opens, the visual viewport shrinks.
+  // Fixed elements are sized to layout viewport — gap shows content.
+  // This syncs the overlay size/position to the visual viewport exactly.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      const el = overlayRef.current;
+      if (!el) return;
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.left = `${vv.offsetLeft}px`;
+      el.style.width = `${vv.width}px`;
+    };
+
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update(); // run immediately
+
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+
   // Focus day on mount
   useEffect(() => {
     const t = setTimeout(() => dayRef.current?.focus(), 300);
@@ -87,26 +104,21 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   const isDayValid = (val: string) => {
     if (!val) return true;
-    const dd = parseInt(val, 10);
-    return dd >= 1 && dd <= 31;
+    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 31;
   };
 
   const isMonthValid = (val: string) => {
     if (!val) return true;
-    const mm = parseInt(val, 10);
-    return mm >= 1 && mm <= 12;
+    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 12;
   };
 
   const isYearValid = (val: string) => {
     if (!val || val.length < 4) return true;
     const yyyy = parseInt(val, 10);
-    const currentYear = new Date().getFullYear();
-    return yyyy >= 1900 && yyyy <= currentYear;
+    return yyyy >= 1900 && yyyy <= new Date().getFullYear();
   };
 
   const clearInputs = () => {
-    // Blur first — iOS needs focus removed before state clears
-    // otherwise keyboard holds old values for a frame on mobile
     dayRef.current?.blur();
     monthRef.current?.blur();
     yearRef.current?.blur();
@@ -117,18 +129,16 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    let cleanedValue = value.replace(/\D/g, '');
-
+    let v = value.replace(/\D/g, '');
     setError('');
 
     if (name === 'day') {
-      if (cleanedValue.length > 2) cleanedValue = cleanedValue.slice(0, 2);
-      setBirthDate((prev) => ({ ...prev, day: cleanedValue }));
-
-      if (cleanedValue.length === 2) {
-        const valid = isDayValid(cleanedValue);
-        setTouched((prev) => ({ ...prev, day: true }));
-        setFieldErrors((prev) => ({ ...prev, day: !valid }));
+      if (v.length > 2) v = v.slice(0, 2);
+      setBirthDate((p) => ({ ...p, day: v }));
+      if (v.length === 2) {
+        const valid = isDayValid(v);
+        setTouched((p) => ({ ...p, day: true }));
+        setFieldErrors((p) => ({ ...p, day: !valid }));
         if (!valid) {
           setError('Geçersiz tarih girdiniz!');
           return;
@@ -136,13 +146,12 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
         monthRef.current?.focus();
       }
     } else if (name === 'month') {
-      if (cleanedValue.length > 2) cleanedValue = cleanedValue.slice(0, 2);
-      setBirthDate((prev) => ({ ...prev, month: cleanedValue }));
-
-      if (cleanedValue.length === 2) {
-        const valid = isMonthValid(cleanedValue);
-        setTouched((prev) => ({ ...prev, month: true }));
-        setFieldErrors((prev) => ({ ...prev, month: !valid }));
+      if (v.length > 2) v = v.slice(0, 2);
+      setBirthDate((p) => ({ ...p, month: v }));
+      if (v.length === 2) {
+        const valid = isMonthValid(v);
+        setTouched((p) => ({ ...p, month: true }));
+        setFieldErrors((p) => ({ ...p, month: !valid }));
         if (!valid) {
           setError('Geçersiz tarih girdiniz!');
           return;
@@ -150,16 +159,15 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
         yearRef.current?.focus();
       }
     } else if (name === 'year') {
-      cleanedValue = cleanedValue.slice(0, 4);
-      setBirthDate((prev) => ({ ...prev, year: cleanedValue }));
-
-      if (cleanedValue.length === 4) {
-        const valid = isYearValid(cleanedValue);
-        setTouched((prev) => ({ ...prev, year: true }));
-        setFieldErrors((prev) => ({ ...prev, year: !valid }));
+      v = v.slice(0, 4);
+      setBirthDate((p) => ({ ...p, year: v }));
+      if (v.length === 4) {
+        const valid = isYearValid(v);
+        setTouched((p) => ({ ...p, year: true }));
+        setFieldErrors((p) => ({ ...p, year: !valid }));
         if (!valid) setError('Geçersiz tarih girdiniz!');
       } else {
-        setFieldErrors((prev) => ({ ...prev, year: false }));
+        setFieldErrors((p) => ({ ...p, year: false }));
       }
     }
   };
@@ -167,25 +175,21 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (!value) return;
-
     let invalid = false;
     if (name === 'day') invalid = !isDayValid(value);
     else if (name === 'month') invalid = !isMonthValid(value);
     else if (name === 'year') invalid = !isYearValid(value);
-
-    setTouched((prev) => ({ ...prev, [name]: true }));
-    setFieldErrors((prev) => ({ ...prev, [name]: invalid }));
+    setTouched((p) => ({ ...p, [name]: true }));
+    setFieldErrors((p) => ({ ...p, [name]: invalid }));
     if (invalid) setError('Geçersiz tarih girdiniz!');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const { name } = e.currentTarget;
-
     if (e.key === 'Enter' && isValidDate()) {
       handleEnter();
       return;
     }
-
     if (e.key === 'Backspace') {
       if (name === 'month' && birthDate.month === '') {
         e.preventDefault();
@@ -201,18 +205,15 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const isValidDate = () => {
     const { day, month, year } = birthDate;
     if (!day || !month || !year) return false;
-    const dd = parseInt(day, 10);
-    const mm = parseInt(month, 10);
-    const yyyy = parseInt(year, 10);
     const currentYear = new Date().getFullYear();
     return (
-      dd >= 1 &&
-      dd <= 31 &&
-      mm >= 1 &&
-      mm <= 12 &&
+      parseInt(day, 10) >= 1 &&
+      parseInt(day, 10) <= 31 &&
+      parseInt(month, 10) >= 1 &&
+      parseInt(month, 10) <= 12 &&
       year.length === 4 &&
-      yyyy >= 1900 &&
-      yyyy <= currentYear &&
+      parseInt(year, 10) >= 1900 &&
+      parseInt(year, 10) <= currentYear &&
       !fieldErrors.day &&
       !fieldErrors.month &&
       !fieldErrors.year
@@ -221,7 +222,6 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   const handleEnter = () => {
     if (!isValidDate() || loading) return;
-
     const { day, month, year } = birthDate;
     const birth = new Date(
       `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
@@ -236,7 +236,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       setError('Bu siteye giriş için 18 yaşında olmanız gerekmektedir.');
       setTouched({ day: true, month: true, year: true });
       setFieldErrors({ day: true, month: true, year: true });
-      clearInputs(); // instant — blur fires first, then state clears
+      clearInputs();
       return;
     }
 
@@ -264,21 +264,41 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   return (
     <>
-      {/* display:none — fully removes from layout and interaction.
-          Video still preloads via <link rel=preload> in layout.tsx
-          so hiding children here doesn't hurt loading performance */}
-      <div aria-hidden style={{ display: 'none' }}>
-        {children}
-      </div>
+      {/* Silent video preload — opacity 0 so nothing is visible,
+          but NOT display:none because that stops browser preloading.
+          This replaces passing <Home> as children entirely. */}
+      <video
+        src='/yenihisar.mp4'
+        preload='auto'
+        muted
+        playsInline
+        aria-hidden
+        style={{
+          position: 'fixed',
+          width: 0,
+          height: 0,
+          opacity: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
 
       <AnimatePresence>
         {!exiting && (
           <motion.div
+            ref={overlayRef}
             id='age-gate-overlay'
             key='age-gate'
-            className='fixed inset-0 z-[9999] bg-secondaryColor text-softWhite
+            className='fixed z-[9999] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
-            style={{ overscrollBehavior: 'none', touchAction: 'pan-y' }}
+            style={{
+              // Initial values — Visual Viewport API overrides these on keyboard open
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overscrollBehavior: 'none',
+            }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}

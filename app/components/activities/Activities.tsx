@@ -185,7 +185,7 @@ const ActivitiesSlider = ({ id }: { id: string }) => {
   return (
     <section
       id={id}
-      className='relative overflow-hidden bg-[var(--color-secondaryColor,#0a0a0a)]'
+      className='relative overflow-hidden bg-[var(--color-secondaryColor,#0a0a0a)] pb-14'
     >
       {/* Top glow */}
       <div

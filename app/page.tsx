@@ -62,9 +62,5 @@ export default function Page() {
     return <div className='fixed inset-0 bg-secondaryColor' />;
   if (state === 'verified') return <Home />;
 
-  return (
-    <AgeGate onAccessGranted={handleAccessGranted}>
-      <Home />
-    </AgeGate>
-  );
+  return <AgeGate onAccessGranted={handleAccessGranted} />;
 }
