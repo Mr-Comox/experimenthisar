@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, startTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/public/Icons';
 
 type FieldState = { day: boolean; month: boolean; year: boolean };
 
 export default function AgeGatePage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [ready, setReady] = useState(false);
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
@@ -31,6 +30,18 @@ export default function AgeGatePage() {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    // iOS Safari bfcache fix — when user navigates back/forward
+    // Safari restores a visual snapshot of previous page
+    // Force reload if page is restored from cache
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
   // Check localStorage — if already verified redirect immediately
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
@@ -41,6 +52,7 @@ export default function AgeGatePage() {
       window.location.href = dest;
       return;
     }
+
     // Clear any stale cookie
     document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
     startTransition(() => setReady(true));
