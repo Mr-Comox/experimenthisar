@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, startTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/public/Icons';
+import PreloadImages from '../utilities/PreloadImages';
 
 type FieldState = { day: boolean; month: boolean; year: boolean };
 
 export default function AgeGatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [ready, setReady] = useState(false); // gate only shows after localStorage check
 
   const [birthDate, setBirthDate] = useState({ day: '', month: '', year: '' });
   const [loading, setLoading] = useState(false);
@@ -31,22 +33,25 @@ export default function AgeGatePage() {
   const yearRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // If already verified just redirect immediately
+  // Check localStorage first — if already verified, skip gate entirely
   useEffect(() => {
     const verified = localStorage.getItem('ageVerified') === 'true';
     if (verified) {
+      document.cookie =
+        'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
       const redirect = searchParams.get('redirect') ?? '/';
       router.replace(redirect);
+      return;
     }
+    document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
+    startTransition(() => {
+      setReady(true);
+    });
   }, [router, searchParams]);
-
-  // Visual Viewport API — keeps overlay pinned to visible area
-  // when iOS keyboard opens. Nothing behind to leak through anyway
-  // but this keeps the form centered correctly.
+  // Visual Viewport API — keeps overlay pinned when iOS keyboard opens
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
-
     const update = () => {
       const el = overlayRef.current;
       if (!el) return;
@@ -55,22 +60,21 @@ export default function AgeGatePage() {
       el.style.left = `${vv.offsetLeft}px`;
       el.style.width = `${vv.width}px`;
     };
-
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
     update();
-
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
     };
   }, []);
 
-  // Focus day on mount
+  // Focus day on mount only after gate is ready
   useEffect(() => {
+    if (!ready) return;
     const t = setTimeout(() => dayRef.current?.focus(), 300);
     return () => clearTimeout(t);
-  }, []);
+  }, [ready]);
 
   const isDayValid = (v: string) =>
     !v || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 31);
@@ -186,7 +190,6 @@ export default function AgeGatePage() {
 
   const handleEnter = () => {
     if (!isValidDate() || loading) return;
-
     const { day, month, year } = birthDate;
     const birth = new Date(
       `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`,
@@ -228,11 +231,13 @@ export default function AgeGatePage() {
         : 'border-softGray/20 focus:ring-softGray/40',
     ].join(' ');
 
+  // Don't render anything until localStorage check is done
+  // prevents flash of gate for already-verified users
+  if (!ready) return <div className='fixed inset-0 bg-secondaryColor' />;
+
   return (
     <>
-      {/* Preload hero video and gallery images silently while user fills form.
-          opacity:0 + w:0 h:0 keeps them in render tree so browser fetches them.
-          This is the only content on this page — nothing leaks through keyboard. */}
+      {/* Silent video preload */}
       <video
         src='/yenihisar.mp4'
         preload='auto'
@@ -247,6 +252,9 @@ export default function AgeGatePage() {
           pointerEvents: 'none',
         }}
       />
+
+      {/* Silent image preload — offscreen, never visible */}
+      <PreloadImages />
 
       <AnimatePresence>
         {!exiting && (

@@ -5,12 +5,16 @@ export default function PreloadImages() {
     <div
       aria-hidden
       style={{
-        position: 'absolute',
-        width: 0,
-        height: 0,
+        position: 'fixed',
+        // Far offscreen — not 0x0 which can cause layout issues on some
+        // mobile browsers. This guarantees nothing is ever visible.
+        top: '-9999px',
+        left: '-9999px',
+        width: '1px',
+        height: '1px',
         overflow: 'hidden',
         pointerEvents: 'none',
-        visibility: 'hidden',
+        zIndex: -1,
       }}
     >
       {gallery.map((item) => {
