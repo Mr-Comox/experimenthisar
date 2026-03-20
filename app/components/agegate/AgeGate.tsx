@@ -36,10 +36,12 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
 
-  // Lock scroll + stop Lenis + block touch scroll
+  // Lock scroll + stop Lenis + block touch scroll + fix iOS keyboard scroll
   useEffect(() => {
     document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
 
     const lenis = getSmoother();
     lenis?.stop();
@@ -50,6 +52,8 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
     return () => {
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
       document.removeEventListener('touchmove', preventTouch);
       getSmoother()?.start();
     };
@@ -63,26 +67,27 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   const isDayValid = (val: string) => {
     if (!val) return true;
-    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 31;
+    const dd = parseInt(val, 10);
+    return dd >= 1 && dd <= 31;
   };
 
   const isMonthValid = (val: string) => {
     if (!val) return true;
-    return parseInt(val, 10) >= 1 && parseInt(val, 10) <= 12;
+    const mm = parseInt(val, 10);
+    return mm >= 1 && mm <= 12;
   };
 
   const isYearValid = (val: string) => {
     if (!val || val.length < 4) return true;
     const yyyy = parseInt(val, 10);
-    return yyyy >= 1900 && yyyy <= new Date().getFullYear();
+    const currentYear = new Date().getFullYear();
+    return yyyy >= 1900 && yyyy <= currentYear;
   };
 
-  const resetAll = () => {
+  const clearInputs = () => {
     setBirthDate({ day: '', month: '', year: '' });
     setTouched({ day: false, month: false, year: false });
     setFieldErrors({ day: false, month: false, year: false });
-    // Refocus day after reset
-    setTimeout(() => dayRef.current?.focus(), 100);
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,12 +211,12 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       setError('Bu siteye giriş için 18 yaşında olmanız gerekmektedir.');
       setTouched({ day: true, month: true, year: true });
       setFieldErrors({ day: true, month: true, year: true });
-      // Clear inputs after showing error so user can try again cleanly
-      setTimeout(() => resetAll(), 2000);
+      clearInputs(); // instant, no delay
       return;
     }
 
     setLoading(true);
+    clearInputs();
 
     setTimeout(() => {
       localStorage.setItem('ageVerified', 'true');
@@ -227,8 +232,6 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       'text-center py-2 rounded-md bg-tertiaryColor border',
       'placeholder-subtleGray focus:outline-none focus:ring-2',
       'transition-colors duration-200',
-      // font-size 16px minimum — prevents iOS Safari from zooming on focus
-      'text-base',
       touched[field] && fieldErrors[field]
         ? 'border-red-500/70 focus:ring-red-500/30'
         : 'border-softGray/20 focus:ring-softGray/40',
@@ -236,15 +239,13 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   return (
     <>
-      {/* position: fixed + overflow: hidden on the wrapper prevents
-          iOS keyboard from scrolling or reflowing the hidden Home content */}
       <div
         aria-hidden
         style={{
+          pointerEvents: 'none',
+          visibility: 'hidden',
           position: 'fixed',
           inset: 0,
-          overflow: 'hidden',
-          pointerEvents: 'none',
           zIndex: 0,
         }}
       >
@@ -280,7 +281,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
               {/* Inputs */}
               <motion.div
-                className='flex justify-center gap-4 mb-3'
+                className='flex justify-center gap-4 mb-5'
                 animate={error ? { x: [-6, 6, -5, 5, -3, 3, 0] } : { x: 0 }}
                 transition={{ duration: 0.45, ease: 'easeInOut' }}
               >
@@ -295,6 +296,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
+                  style={{ fontSize: '16px' }}
                   className={`w-16 sm:w-20 ${inputClass('day')}`}
                 />
                 <input
@@ -308,6 +310,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
+                  style={{ fontSize: '16px' }}
                   className={`w-16 sm:w-20 ${inputClass('month')}`}
                 />
                 <input
@@ -321,6 +324,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
                   onChange={handleInput}
                   onKeyDown={handleKeyDown}
                   onBlur={handleBlur}
+                  style={{ fontSize: '16px' }}
                   className={`w-24 sm:w-28 ${inputClass('year')}`}
                 />
               </motion.div>
@@ -334,7 +338,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.25 }}
-                    className='text-red-400 text-xs tracking-wide mb-4'
+                    className='text-red-400 text-xs tracking-wide mb-3'
                   >
                     {error}
                   </motion.p>
@@ -344,7 +348,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
               <button
                 onClick={handleEnter}
                 disabled={!isValidDate() || loading}
-                className={`w-full py-2 rounded-md text-base font-bold transition-all duration-300 cursor-pointer
+                className={`mt-2 w-full py-2 rounded-md text-base font-bold transition-all duration-300
                            flex justify-center items-center gap-2 ${
                              !isValidDate() || loading
                                ? 'bg-softWhite/30 text-subtleGray cursor-not-allowed'
