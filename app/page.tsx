@@ -17,10 +17,16 @@ export default function Page() {
     const check = () => {
       const alreadyVerified = localStorage.getItem('ageVerified') === 'true';
 
-      if (alreadyVerified) {
+      if (!alreadyVerified) {
+        // localStorage was cleared — kill the cookie too so proxy
+        // doesn't let them bypass the gate on /menu or /reservation
+        document.cookie = 'ageVerified=; path=/; max-age=0; SameSite=Lax';
+      } else {
+        // Keep cookie in sync with localStorage
         document.cookie =
           'ageVerified=true; path=/; max-age=31536000; SameSite=Lax';
       }
+
       startTransition(() => {
         setState(alreadyVerified ? 'verified' : 'gate');
       });
@@ -43,7 +49,6 @@ export default function Page() {
     document.documentElement.style.overflow = '';
     window.dispatchEvent(new CustomEvent('age-gate-cleared'));
 
-    // If user was trying to access a protected page, send them there
     const redirect = searchParams.get('redirect');
     if (redirect) {
       router.push(redirect);

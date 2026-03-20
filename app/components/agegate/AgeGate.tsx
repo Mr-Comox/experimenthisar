@@ -36,24 +36,44 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
 
-  // Lock scroll + stop Lenis + block touch scroll + fix iOS keyboard scroll
+  // iOS scroll lock — the standard pattern:
+  // 1. Save current scroll position
+  // 2. Fix body at that position (prevents rubber-band + keyboard scroll)
+  // 3. overscroll-behavior: none on html stops pull-to-refresh
+  // 4. Restore on cleanup
   useEffect(() => {
+    const scrollY = window.scrollY;
+
     document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
     document.body.style.width = '100%';
 
     const lenis = getSmoother();
     lenis?.stop();
 
-    const preventTouch = (e: TouchEvent) => e.preventDefault();
+    const preventTouch = (e: TouchEvent) => {
+      // Allow touch events inside the gate itself
+      const gate = document.getElementById('age-gate-overlay');
+      if (gate && gate.contains(e.target as Node)) return;
+      e.preventDefault();
+    };
     document.addEventListener('touchmove', preventTouch, { passive: false });
 
     return () => {
       document.documentElement.style.overflow = '';
+      document.documentElement.style.overscrollBehavior = '';
       document.body.style.overflow = '';
       document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
       document.body.style.width = '';
+      window.scrollTo(0, scrollY);
       document.removeEventListener('touchmove', preventTouch);
       getSmoother()?.start();
     };
@@ -85,6 +105,11 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
   };
 
   const clearInputs = () => {
+    // Blur first — iOS needs focus removed before state clears
+    // otherwise keyboard holds old values for a frame on mobile
+    dayRef.current?.blur();
+    monthRef.current?.blur();
+    yearRef.current?.blur();
     setBirthDate({ day: '', month: '', year: '' });
     setTouched({ day: false, month: false, year: false });
     setFieldErrors({ day: false, month: false, year: false });
@@ -211,7 +236,7 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
       setError('Bu siteye giriş için 18 yaşında olmanız gerekmektedir.');
       setTouched({ day: true, month: true, year: true });
       setFieldErrors({ day: true, month: true, year: true });
-      clearInputs(); // instant, no delay
+      clearInputs(); // instant — blur fires first, then state clears
       return;
     }
 
@@ -239,25 +264,21 @@ const AgeGate = ({ onAccessGranted, children }: Props) => {
 
   return (
     <>
-      <div
-        aria-hidden
-        style={{
-          pointerEvents: 'none',
-          visibility: 'hidden',
-          position: 'fixed',
-          inset: 0,
-          zIndex: 0,
-        }}
-      >
+      {/* display:none — fully removes from layout and interaction.
+          Video still preloads via <link rel=preload> in layout.tsx
+          so hiding children here doesn't hurt loading performance */}
+      <div aria-hidden style={{ display: 'none' }}>
         {children}
       </div>
 
       <AnimatePresence>
         {!exiting && (
           <motion.div
+            id='age-gate-overlay'
             key='age-gate'
             className='fixed inset-0 z-[9999] bg-secondaryColor text-softWhite
                        flex flex-col items-center justify-center px-6'
+            style={{ overscrollBehavior: 'none', touchAction: 'pan-y' }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
