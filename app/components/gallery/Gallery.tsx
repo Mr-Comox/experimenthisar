@@ -11,6 +11,7 @@ import { getSmoother } from '@/app/lib/smoother';
 import { MainToGoldFont } from '@/app/utilities/LinearFontColors';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
+import { useGSAP } from '@gsap/react';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -1536,71 +1537,55 @@ export default function Gallery({ id }: Props) {
   }, [modalIndex, nextImage, prevImage, closeModal]);
 
   /* GSAP scroll-pin expand animation */
-  useEffect(() => {
-    let ctx: gsap.Context;
-    const init = () => {
-      ctx = gsap.context(() => {
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: panelRef.current,
-            start: 'top top',
-            end: '+=1500',
-            scrub: 1.0,
-            pin: true,
-            pinSpacing: true,
-            invalidateOnRefresh: true,
-            onUpdate: (self) => {
-              setExpanded(self.progress >= 0.57);
-            },
+  useGSAP(
+    () => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: panelRef.current,
+          start: 'top top',
+          end: '+=1500',
+          scrub: 1.0,
+          pin: true,
+          pinSpacing: true,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            setExpanded(self.progress >= 0.57);
           },
-        });
-        tl.to(
-          boxRef.current,
-          {
-            left: '0%',
-            right: '0%',
-            top: '0%',
-            bottom: '0%',
-            borderRadius: 0,
-            ease: 'none',
-            duration: 0.45,
-          },
+        },
+      });
+
+      tl.to(
+        boxRef.current,
+        {
+          left: '0%',
+          right: '0%',
+          top: '0%',
+          bottom: '0%',
+          borderRadius: 0,
+          ease: 'none',
+          duration: 0.45,
+        },
+        0,
+      )
+        .to(
+          headerRef.current,
+          { opacity: 0, y: -48, ease: 'none', duration: 0.2 },
           0,
         )
-          .to(
-            headerRef.current,
-            { opacity: 0, y: -48, ease: 'none', duration: 0.2 },
-            0,
-          )
-          .to(hintRef.current, { opacity: 0, ease: 'none', duration: 0.12 }, 0)
-          .to(
-            glowRef.current,
-            { opacity: 0.22, ease: 'none', duration: 0.45 },
-            0,
-          )
-          .to({}, { duration: 0.08 })
-          .to(boxRef.current, {
-            left: '12px',
-            right: '12px',
-            bottom: '12px',
-            borderRadius: 20,
-            ease: 'power4.out',
-            duration: 0.12,
-          });
-      }, panelRef);
-      ScrollTrigger.refresh();
-    };
-    let rafId: number;
-    const wait = () => {
-      if (getSmoother()) init();
-      else rafId = requestAnimationFrame(wait);
-    };
-    wait();
-    return () => {
-      cancelAnimationFrame(rafId);
-      ctx?.revert();
-    };
-  }, []);
+        .to(hintRef.current, { opacity: 0, ease: 'none', duration: 0.12 }, 0)
+        .to(glowRef.current, { opacity: 0.22, ease: 'none', duration: 0.45 }, 0)
+        .to({}, { duration: 0.08 })
+        .to(boxRef.current, {
+          left: '12px',
+          right: '12px',
+          bottom: '12px',
+          borderRadius: 20,
+          ease: 'power4.out',
+          duration: 0.12,
+        });
+    },
+    { scope: panelRef, dependencies: [] },
+  );
 
   return (
     <>
