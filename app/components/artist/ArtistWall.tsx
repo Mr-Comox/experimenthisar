@@ -94,16 +94,6 @@ function ArtistCard({
               'linear-gradient(to top, rgba(255,25,135,0.55) 0%, rgba(200,0,204,0.15) 40%, transparent 70%)',
           }}
         />
-
-        {/* Scanline texture */}
-        <div
-          className='absolute inset-0 pointer-events-none opacity-[0.018]'
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.8) 2px, rgba(255,255,255,0.8) 3px)',
-            backgroundSize: '100% 3px',
-          }}
-        />
       </div>
 
       {/* ── "SAHNE" pill (top-right) ────────────────────────────────────── */}
