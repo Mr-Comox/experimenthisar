@@ -71,8 +71,16 @@ function calcLayout(w: number, h: number) {
 function GlobalStyles() {
   return (
     <style>{`
-      .gallery-section { height: 100vh; height: 100dvh; }
-      @supports (height: 100dvh) { .gallery-section { height: 100dvh; } }
+      /* FIX 4: svh as stable intermediate fallback.
+         svh = "small viewport height" — the smallest stable size,
+         always includes the URL bar. This prevents the section from
+         jumping in the brief window before JS fires.
+         dvh is then overridden by the visualViewport JS listener. */
+      .gallery-section {
+        height: 100vh;
+        height: 100svh;
+        height: 100dvh;
+      }
 
       @keyframes g-grain {
         0%,100%{transform:translate(0,0)}   10%{transform:translate(-2%,-3%)}
@@ -255,11 +263,9 @@ function GalleryModal({
     typeof window !== 'undefined' &&
     window.matchMedia('(hover: none), (max-width: 1023px)').matches;
 
-  /* ── Swipe to navigate ──────────────────────────────────────── */
   const swipeX = useRef(0);
   const swipeY = useRef(0);
 
-  /* ── Zoom / pan — all on a STABLE ref that never unmounts ───── */
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const currentScale = useRef(1);
   const currentTrans = useRef({ x: 0, y: 0 });
@@ -276,7 +282,6 @@ function GalleryModal({
   const isZoomed = useRef(false);
   const isPinching = useRef(false);
 
-  /* ── Helpers (stable, defined once) ────────────────────────── */
   const getPinchDist = useCallback((t: TouchList) => {
     const dx = t[0].clientX - t[1].clientX;
     const dy = t[0].clientY - t[1].clientY;
@@ -316,11 +321,6 @@ function GalleryModal({
     [applyTransform],
   );
 
-  /* ── Attach touch listeners ONCE to the stable wrapper ───────
-     Empty deps [] is intentional — imageWrapRef.current never
-     changes because the outer div never unmounts. AnimatePresence
-     only swaps the Image inside, the wrapper stays mounted.
-  ──────────────────────────────────────────────────────────────── */
   useEffect(() => {
     const el = imageWrapRef.current;
     if (!el) return;
@@ -336,8 +336,6 @@ function GalleryModal({
         };
       } else if (e.touches.length === 1) {
         const now = Date.now();
-
-        /* Double-tap: toggle zoom in / out */
         if (now - lastTap.current < 280) {
           if (isZoomed.current) {
             resetZoom(true);
@@ -351,8 +349,6 @@ function GalleryModal({
           return;
         }
         lastTap.current = now;
-
-        /* Start pan when already zoomed */
         if (isZoomed.current) {
           panData.current = {
             sx: e.touches[0].clientX,
@@ -365,7 +361,6 @@ function GalleryModal({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      /* Two fingers → pinch zoom */
       if (e.touches.length === 2 && pinchData.current) {
         e.preventDefault();
         const newScale = Math.min(
@@ -382,8 +377,6 @@ function GalleryModal({
         applyTransform();
         return;
       }
-
-      /* One finger while zoomed → clamped pan */
       if (e.touches.length === 1 && panData.current && isZoomed.current) {
         e.preventDefault();
         const rawX =
@@ -398,13 +391,11 @@ function GalleryModal({
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchData.current = null;
-        /* Delay so onPointerUp doesn't fire a swipe right after pinch ends */
         setTimeout(() => {
           isPinching.current = false;
         }, 120);
       }
       if (e.touches.length === 0) panData.current = null;
-      /* Snap back if barely zoomed */
       if (currentScale.current < 1.08) resetZoom(true);
     };
 
@@ -418,14 +409,12 @@ function GalleryModal({
       el.removeEventListener('touchend', onTouchEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); /* ← [] is correct: stable node, attach once */
+  }, []);
 
-  /* ── Reset zoom when navigating to a new image ─────────────── */
   useEffect(() => {
     resetZoom(false);
   }, [index, resetZoom]);
 
-  /* ── Pointer swipe (prev / next) ───────────────────────────── */
   const onPointerDown = (e: React.PointerEvent) => {
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
@@ -441,7 +430,6 @@ function GalleryModal({
     }
   };
 
-  /* ── Animation variants ─────────────────────────────────────── */
   const imgInitial = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
   const imgAnimate = isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 };
   const imgExit = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
@@ -467,7 +455,6 @@ function GalleryModal({
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
     >
-      {/* ── Counter ─────────────────────────────────────────── */}
       <div
         className='absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3'
         style={{ zIndex: 10 }}
@@ -486,7 +473,6 @@ function GalleryModal({
         />
       </div>
 
-      {/* ── Close ───────────────────────────────────────────── */}
       <div
         className='absolute top-4 right-4 sm:top-5 sm:right-5'
         style={{ zIndex: 10 }}
@@ -508,7 +494,6 @@ function GalleryModal({
         </NavBtn>
       </div>
 
-      {/* ── Prev ────────────────────────────────────────────── */}
       <div
         className='absolute left-3 sm:left-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -531,15 +516,6 @@ function GalleryModal({
         </NavBtn>
       </div>
 
-      {/* ──────────────────────────────────────────────────────────
-          THE KEY FIX:
-          imageWrapRef is on this STABLE outer div.
-          This div never unmounts for the lifetime of the modal.
-          Touch listeners attach once in [] useEffect and persist.
-
-          AnimatePresence lives INSIDE — it only animates the
-          visual image swap. The wrapper is completely untouched.
-      ────────────────────────────────────────────────────────── */}
       <div
         ref={imageWrapRef}
         onClick={(e) => e.stopPropagation()}
@@ -577,7 +553,6 @@ function GalleryModal({
         </AnimatePresence>
       </div>
 
-      {/* ── Next ────────────────────────────────────────────── */}
       <div
         className='absolute right-3 sm:right-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -600,7 +575,6 @@ function GalleryModal({
         </NavBtn>
       </div>
 
-      {/* ── Hint ────────────────────────────────────────────── */}
       <div
         className='absolute bottom-5 left-1/2 -translate-x-1/2'
         style={{ zIndex: 10 }}
@@ -613,6 +587,7 @@ function GalleryModal({
     document.body,
   );
 }
+
 /* ─── Gallery Card ────────────────────────────────────────────── */
 function GalleryCard({
   item,
@@ -1030,7 +1005,6 @@ function SpotlightGrid({
       FADE_OUT = 1000;
 
     const tick = (now: number) => {
-      /* Pause the RAF writes while modal is open — no paint behind the modal */
       if (pausedRef.current) {
         raf = requestAnimationFrame(tick);
         return;
@@ -1179,7 +1153,6 @@ function SpotlightGrid({
         cursor: isDesktop && spotlightEnabled ? 'none' : 'pointer',
       }}
     >
-      {/* Grid */}
       <div
         style={{
           position: 'absolute',
@@ -1209,7 +1182,6 @@ function SpotlightGrid({
         ))}
       </div>
 
-      {/* Finishing line */}
       <div
         ref={lineRef}
         style={{
@@ -1226,7 +1198,6 @@ function SpotlightGrid({
         }}
       />
 
-      {/* Spotlight layers — desktop only */}
       {isDesktop && (
         <>
           <div
@@ -1279,7 +1250,6 @@ function SpotlightGrid({
         </>
       )}
 
-      {/* Edge vignette */}
       <div
         style={{
           position: 'absolute',
@@ -1291,10 +1261,8 @@ function SpotlightGrid({
         }}
       />
 
-      {/* Film grain */}
       <GrainOverlay zIndex={25} />
 
-      {/* Controls */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={
@@ -1482,6 +1450,47 @@ export default function Gallery({ id }: Props) {
     return () => clearTimeout(t);
   }, []);
 
+  /* ─── FIX 1: visualViewport listener ─────────────────────────
+     When the mobile browser URL bar hides/shows, window.innerHeight
+     and dvh both change AFTER GSAP has already pinned and measured
+     the section. This listener catches every visual viewport resize
+     (URL bar, keyboard, orientation) and:
+       1. Sets the section's pixel height to the real visual height
+          so GSAP's pin spacer never has stale measurements.
+       2. Calls ScrollTrigger.refresh() immediately — no debounce —
+          so the pin recalculates before the next paint.
+  ────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || typeof window === 'undefined') return;
+
+    const vv = window.visualViewport;
+
+    const syncHeight = () => {
+      // Use visualViewport.height when available — it's the most
+      // accurate value and excludes both the URL bar and the OSK.
+      const h = vv ? vv.height : window.innerHeight;
+      panel.style.height = `${h}px`;
+      // Immediate refresh — no debounce. The URL bar hide/show is a
+      // discrete event, not a continuous resize stream, so no
+      // throttling is needed and debouncing would leave a stale frame.
+      ScrollTrigger.refresh();
+    };
+
+    // Set before GSAP mounts its ScrollTrigger so the first
+    // measurement is already correct.
+    syncHeight();
+
+    vv?.addEventListener('resize', syncHeight);
+    // Fallback for browsers/WebViews without visualViewport support.
+    window.addEventListener('resize', syncHeight);
+
+    return () => {
+      vv?.removeEventListener('resize', syncHeight);
+      window.removeEventListener('resize', syncHeight);
+    };
+  }, []);
+
   const openModal = useCallback(
     (i: number, rect?: DOMRect) => {
       if (!expanded) return;
@@ -1504,7 +1513,6 @@ export default function Gallery({ id }: Props) {
     [],
   );
 
-  /* Lock scroll when modal is open, compensate for scrollbar width */
   useEffect(() => {
     const lenis = getSmoother();
     if (modalIndex !== null) {
@@ -1524,7 +1532,6 @@ export default function Gallery({ id }: Props) {
     };
   }, [modalIndex]);
 
-  /* Keyboard navigation */
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
       if (modalIndex === null) return;
@@ -1536,7 +1543,21 @@ export default function Gallery({ id }: Props) {
     return () => window.removeEventListener('keydown', handle);
   }, [modalIndex, nextImage, prevImage, closeModal]);
 
-  /* GSAP scroll-pin expand animation */
+  /* ─── GSAP scroll-pin expand animation ───────────────────────
+     FIX 2: The inline style={{ height: '100dvh' }} has been
+     removed from the <section> below. The CSS class .gallery-section
+     now controls the fallback height (100svh → 100dvh cascade), and
+     the visualViewport listener above overrides it with a px value
+     that is always accurate. Having both an inline dvh style AND a
+     JS px override caused a race: whichever applied last won, and
+     on first paint the inline style often won with the wrong value.
+
+     FIX 3: GSAP animation targets use functional values () => ...
+     instead of static strings like '0%'. When invalidateOnRefresh:true
+     triggers a recalculation, GSAP re-invokes these functions with
+     the freshly measured dimensions, so bottom / top are always
+     relative to the real current viewport — not the stale cached one.
+  ────────────────────────────────────────────────────────────── */
   useGSAP(
     () => {
       const tl = gsap.timeline({
@@ -1547,6 +1568,9 @@ export default function Gallery({ id }: Props) {
           scrub: 1.0,
           pin: true,
           pinSpacing: true,
+          // invalidateOnRefresh causes GSAP to re-run functional
+          // values on every ScrollTrigger.refresh() call, keeping
+          // the pin math in sync with the real viewport dimensions.
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             setExpanded(self.progress >= 0.57);
@@ -1557,10 +1581,13 @@ export default function Gallery({ id }: Props) {
       tl.to(
         boxRef.current,
         {
-          left: '0%',
-          right: '0%',
-          top: '0%',
-          bottom: '0%',
+          // FIX 3: Functional values — recomputed on every refresh.
+          // Static '0%' was baked at creation time and went stale
+          // when the URL bar hid and dvh grew.
+          left: () => 0,
+          right: () => 0,
+          top: () => 0,
+          bottom: () => 0,
           borderRadius: 0,
           ease: 'none',
           duration: 0.45,
@@ -1591,12 +1618,20 @@ export default function Gallery({ id }: Props) {
     <>
       <GlobalStyles />
       <GallerySchema />
+
+      {/*
+        FIX 2: style={{ height: '100dvh' }} removed.
+        Height is now controlled by:
+          1. CSS .gallery-section  →  100svh stable fallback
+          2. visualViewport useEffect above  →  exact px override
+        This prevents the inline dvh value from racing with the JS
+        px value and winning on the first paint with a wrong height.
+      */}
       <section
         ref={panelRef}
         id={id}
         aria-label='Hisar Nightclub Fotoğraf Galerisi'
         className='relative bg-secondaryColor gallery-section'
-        style={{ height: '100dvh' }}
       >
         <div
           ref={headerRef}
