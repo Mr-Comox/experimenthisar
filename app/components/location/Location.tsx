@@ -235,7 +235,7 @@ export default function Location({ id }: Props) {
             <p className='text-[0.55rem] uppercase tracking-[0.26em] font-medium text-softWhite/50 mb-4'>
               İletişim
             </p>
-            <div className='flex flex-col md:flex-row gap-2.5 mb-10'>
+            <div className='flex flex-col md:flex-row  gap-2.5 mb-10'>
               {[
                 { href: 'tel:+902242246634', label: '+90 (224) 224 66 34' },
                 { href: 'tel:+902242246635', label: '+90 (224) 224 66 35' },

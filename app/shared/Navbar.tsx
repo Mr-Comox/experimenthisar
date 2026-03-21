@@ -2,11 +2,10 @@
 
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import Logo from '@/public/Icons/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrollTo } from '../lib/scrollTo';
 import { getSmoother } from '../lib/smoother';
-import { ActivitiesLogo } from '@/public/Icons';
+import { Logo } from '@/public/Icons';
 
 // ─── Brand palette ─────────────────────────────────────────────────────────────
 const BRAND = {
@@ -221,7 +220,7 @@ export default function Navbar() {
                 transition: { duration: 0.2, ease: EXPO_IN },
               }}
             >
-              <ActivitiesLogo className='w-44 h-44 drop-shadow-[0_0_56px_rgba(255,25,135,0.45)]' />
+              <Logo className='w-44 h-44 drop-shadow-[0_0_56px_rgba(255,25,135,0.45)]' />
             </motion.div>
             <div
               className='absolute right-0 top-0 h-full w-28 pointer-events-none'
@@ -413,7 +412,7 @@ export default function Navbar() {
     <>
       <nav className='flex w-full fixed top-5 px-6 py-5 z-9998 items-center justify-between h-20'>
         <div>
-          <ActivitiesLogo className='w-15 h-15' />
+          <Logo className='w-15 h-15' />
         </div>
         <HamburgerBtn
           isOpen={open}

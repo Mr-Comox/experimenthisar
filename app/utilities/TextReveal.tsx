@@ -30,6 +30,7 @@ export default function TextReveal({
       if (!containerRef.current) return;
 
       const setup = () => {
+        // Kill any ScrollTriggers bound to this container before re-creating
         ScrollTrigger.getAll()
           .filter((t) => t.trigger === containerRef.current)
           .forEach((t) => t.kill());
@@ -69,6 +70,7 @@ export default function TextReveal({
           lines.current.push(...split.lines);
         });
 
+        // Animation already played — snap visible, no replay
         if (hasPlayed.current) {
           gsap.set(lines.current, { y: '0%' });
           return;
@@ -82,72 +84,51 @@ export default function TextReveal({
           stagger: 0.1,
           ease: 'expo.out',
           delay: delay,
+
+          onStart: () => {
+            hasPlayed.current = true;
+          },
         };
 
         if (animateOnScroll) {
-          const el = containerRef.current!;
-          const rect = el.getBoundingClientRect();
-          const alreadyPassed = rect.top < window.innerHeight * 0.75;
-
-          if (alreadyPassed) {
-            hasPlayed.current = true;
-            gsap.to(lines.current, { ...animationProps, delay: 0 });
-          } else {
-            ScrollTrigger.create({
-              trigger: el,
+          gsap.to(lines.current, {
+            ...animationProps,
+            scrollTrigger: {
+              trigger: containerRef.current,
               start: 'top 75%',
               once: true,
-              onEnter: () => {
-                hasPlayed.current = true;
-                gsap.to(lines.current, animationProps);
-              },
-            });
-          }
+            },
+          });
         } else {
-          hasPlayed.current = true;
           gsap.to(lines.current, animationProps);
         }
       };
 
-      // Cache the promise — resolves once, then every subsequent .then()
-      // executes immediately. Zero overhead after initial font load.
-      const fontsReady = document.fonts.ready;
-
-      // Initial run — wait for fonts before first split
-      fontsReady.then(() => setup());
+      setup();
 
       let resizeTimer: ReturnType<typeof setTimeout>;
       const handleResize = () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
-          fontsReady.then(() => {
-            setup();
-            ScrollTrigger.refresh(true);
-          });
+          setup();
+          ScrollTrigger.refresh(true);
         }, 200);
       };
 
       const handleOrientation = () => {
         setTimeout(() => {
-          fontsReady.then(() => {
-            setup();
-            ScrollTrigger.refresh(true);
-          });
+          setup();
+          ScrollTrigger.refresh(true);
         }, 400);
       };
 
-      // ScrollTrigger.refresh also triggers setup — wrap it too
-      const handleSTRefresh = () => void fontsReady.then(() => setup());
-
       window.addEventListener('resize', handleResize);
       window.addEventListener('orientationchange', handleOrientation);
-      ScrollTrigger.addEventListener('refresh', handleSTRefresh);
 
       return () => {
         clearTimeout(resizeTimer);
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('orientationchange', handleOrientation);
-        ScrollTrigger.removeEventListener('refresh', handleSTRefresh);
         splitRef.current.forEach((s) => s?.revert());
       };
     },

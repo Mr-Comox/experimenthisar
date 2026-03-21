@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import Script from 'next/script';
+
 import './globals.css';
+import Script from 'next/script';
 
 const graphik = localFont({
   src: [
@@ -58,61 +59,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html suppressHydrationWarning>
+    <html lang='en'>
       <head>
-        <meta
-          name='viewport'
-          content='width=device-width, initial-scale=1, viewport-fit=cover'
-        />
-        <link
-          rel='preload'
-          as='font'
-          type='font/woff2'
-          href='/fonts/Graphik-Regular-Web.woff2'
-          crossOrigin='anonymous'
-        />
-        <link
-          rel='preload'
-          as='font'
-          type='font/woff2'
-          href='/fonts/Graphik-Medium-Web.woff2'
-          crossOrigin='anonymous'
-        />
-        <link
-          rel='preload'
-          as='font'
-          type='font/woff2'
-          href='/fonts/Graphik-Semibold-Web.woff2'
-          crossOrigin='anonymous'
-        />
-        <link
-          rel='preload'
-          as='font'
-          type='font/woff2'
-          href='/fonts/Graphik-Bold-Web.woff2'
-          crossOrigin='anonymous'
-        />
-        <link
-          rel='preload'
-          as='font'
-          type='font/woff2'
-          href='/fonts/Graphik-Black-Web.woff2'
-          crossOrigin='anonymous'
-        />
-        <Script
-          id='scroll-reset'
-          strategy='beforeInteractive'
-          dangerouslySetInnerHTML={{
-            __html: `history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`,
-          }}
-        />
+        <Script id='scroll-reset' strategy='beforeInteractive'>
+          {`history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`}
+        </Script>
       </head>
-      <body
-        suppressHydrationWarning
-        className={`${graphik.variable} font-sans`}
-      >
-        {children}
-      </body>
+      <body className={`${graphik.variable} font-sans`}>{children}</body>
     </html>
   );
 }

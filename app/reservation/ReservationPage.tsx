@@ -554,17 +554,6 @@ export default function ReservationPage() {
                     mono: false,
                   },
                   {
-                    label: 'Tarih',
-                    value: selectedDate
-                      ? selectedDate.toLocaleDateString('tr-TR', {
-                          day: 'numeric',
-                          month: 'long',
-                        })
-                      : null,
-                    filled: !!selectedDate,
-                    mono: false,
-                  },
-                  {
                     label: 'Telefon',
                     value: validatePhone(userInfo.phone)
                       ? userInfo.phone

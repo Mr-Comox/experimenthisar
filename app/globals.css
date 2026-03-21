@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'tailwind-scrollbar-hide/v4';
 /* ================================================= */
 /* THEME TOKENS (Tailwind v4)                       */
 /* ================================================= */
@@ -7,15 +6,7 @@ html,
 body {
   background-color: #070707;
 }
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
   /* Brand Colors */
   --color-mainColor: #ff1987;
   --color-secondaryColor: #070707;
@@ -45,29 +36,9 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
-
-/* ================================================= */
-/* UTILITIES                                        */
-/* ================================================= */
-
-@layer utilities {
-  .animate-progress {
-    animation: progressFill 6s linear forwards;
-    transform-origin: left;
-  }
-
-  .text-stroke-white {
-    color: transparent;
-    -webkit-text-stroke: 1.5px rgba(251, 251, 251, 0.82);
-  }
-
-  .text-shadow-custom {
-    text-shadow:
-      -1px 1px 0 #ff1987,
-      1px 1px 0 #ff1987,
-      1px -1px 0 #ff1987,
-      -1px -1px 0 #ff1987;
-  }
+.text-stroke-white {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(251, 251, 251, 0.82);
 }
 
 /* ================================================= */
@@ -108,70 +79,4 @@ body {
   height: 20px !important;
   font-size: 18px !important;
   line-height: 28px !important;
-}
-
-/* ================================================= */
-/* TIMELINE UTILITIES                               */
-/* Add these into your existing global.css          */
-/* ================================================= */
-
-/* ================================================= */
-/* KEYFRAMES                                        */
-/* ================================================= */
-
-@keyframes progressFill {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-@keyframes logoAnimation {
-  0% {
-    stroke-dashoffset: 110;
-  }
-  70% {
-    fill: transparent;
-  }
-  100% {
-    stroke-dashoffset: 0;
-    fill: #fbfbfb;
-  }
-}
-
-@keyframes textAnimation {
-  0% {
-    stroke-dashoffset: 200;
-  }
-  70% {
-    fill: transparent;
-  }
-  100% {
-    stroke-dashoffset: 0;
-    fill: #fbfbfb;
-  }
-}
-
-/* ================================================= */
-/* LOADING SVG TARGETS                              */
-/* ================================================= */
-
-#logo-loading-animation {
-  fill: transparent;
-  stroke: #fbfbfb;
-  stroke-width: 0.25;
-  stroke-dasharray: 110;
-  stroke-dashoffset: 110;
-  animation: logoAnimation 3.5s cubic-bezier(0.35, 0.46, 0.45, 0.9) forwards;
-}
-
-#text-loading-animation {
-  fill: transparent;
-  stroke: #fbfbfb;
-  stroke-width: 0.25;
-  stroke-dasharray: 200;
-  stroke-dashoffset: 200;
-  animation: textAnimation 3.5s cubic-bezier(0.35, 0.46, 0.45, 0.9) forwards;
 }

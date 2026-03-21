@@ -1,11 +1,65 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { scrollTo } from '@/app/lib/scrollTo';
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+const SLIDES = [
+  { src: '/photo1.jpeg', alt: 'Yeni Hisar' },
+  { src: '/photo2.jpeg', alt: 'Yeni Hisar Sahne' },
+  { src: '/photo3.jpeg', alt: 'Yeni Hisar Atmosfer' },
+  { src: '/photo4.jpeg', alt: 'Yeni Hisar Atmosfer' },
+];
+
+const SLIDE_MS = 6000;
+
+const DRIFT = [
+  { x: ['0%', '-1.8%'], y: ['0%', '-0.6%'] },
+  { x: ['-1.5%', '0%'], y: ['0%', '0.6%'] },
+  { x: ['0%', '1.5%'], y: ['-0.4%', '0.4%'] },
+  { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
+];
+
+if (typeof window !== 'undefined') {
+  SLIDES.forEach(({ src }) => {
+    const img = new window.Image();
+    img.src = src;
+  });
+}
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
+// ─── ProgressBar ─────────────────────────────────────────────────────────────
+function ProgressBar({
+  active,
+  done,
+  animKey,
+  onClick,
+}: {
+  active: boolean;
+  done: boolean;
+  animKey: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label='Slayta git'
+      className='h-0.5 flex-1 relative overflow-hidden cursor-pointer bg-white/15'
+    >
+      {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
+      {active && (
+        <span
+          key={animKey}
+          className='absolute inset-0 animate-progress bg-linear-to-r from-[#FF1987] to-[#c800cc]'
+        />
+      )}
+    </button>
+  );
+}
+
+// ─── MaskedLine ───────────────────────────────────────────────────────────────
 function MaskedLine({
   children,
   delay = 0,
@@ -34,29 +88,48 @@ function MaskedLine({
   );
 }
 
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [index, setIndex] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
   const [ready, setReady] = useState(false);
 
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIndex((i) => (i + 1) % SLIDES.length);
+      setAnimKey((k) => k + 1);
+    }, SLIDE_MS);
+  }, []);
+
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
+    const img = new window.Image();
+    img.src = SLIDES[0].src;
 
-    v.muted = true;
-
-    const tryPlay = () => {
-      v.play().catch(() => {});
+    const onReady = () => {
       setReady(true);
+      startTimer();
     };
 
-    if (v.readyState >= 1) {
-      tryPlay();
+    if (img.complete) {
+      requestAnimationFrame(onReady);
     } else {
-      v.addEventListener('loadedmetadata', tryPlay, { once: true });
+      img.onload = onReady;
     }
 
-    return () => v.removeEventListener('loadedmetadata', tryPlay);
-  }, []);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [startTimer]);
+
+  const goTo = (i: number) => {
+    if (i === index) return;
+    setIndex(i);
+    setAnimKey((k) => k + 1);
+    startTimer();
+  };
 
   const sharedTextClass =
     'font-black tracking-tight leading-[0.88] ' +
@@ -65,42 +138,50 @@ export default function Hero() {
 
   return (
     <section className='relative w-full overflow-hidden bg-secondaryColor h-screen'>
-      {/* ── VIDEO ─────────────────────────────────────────────────────────── */}
-      <video
-        ref={videoRef}
-        src='/yenihisar.mp4'
-        muted
-        loop
-        playsInline
-        preload='auto'
-        className='absolute inset-0 w-full h-full object-cover'
-        style={{ zIndex: 2 }}
-      />
-
-      {/* Fade-in mask */}
-      <motion.div
-        className='absolute inset-0 pointer-events-none bg-secondaryColor'
-        initial={{ opacity: 1 }}
-        animate={ready ? { opacity: 0 } : { opacity: 1 }}
-        transition={{ duration: 1.8, ease: EASE_OUT_EXPO }}
-        style={{ zIndex: 3 }}
-      />
-
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
       <div
-        className='absolute inset-0 pointer-events-none opacity-[0.032] mix-blend-overlay'
+        className='absolute inset-0 z-[15] pointer-events-none opacity-[0.032] mix-blend-overlay'
         style={{
-          zIndex: 15,
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           backgroundSize: '200px 200px',
         }}
       />
 
+      {/* ── SLIDESHOW ─────────────────────────────────────────────────────── */}
+      <AnimatePresence mode='sync'>
+        <motion.div
+          key={index}
+          className='absolute inset-0 z-[2]'
+          initial={{ opacity: ready ? 0 : 1 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+        >
+          <motion.img
+            src={SLIDES[index].src}
+            alt={SLIDES[index].alt}
+            draggable={false}
+            fetchPriority={index === 0 ? 'high' : 'auto'}
+            onContextMenu={(e) => e.preventDefault()}
+            className='absolute inset-0 w-full h-full object-cover object-center select-none'
+            style={{
+              willChange: 'transform',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+            initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
+            animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
+            transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
+          />
+        </motion.div>
+      </AnimatePresence>
+
       {/* ── GRADIENT OVERLAY ──────────────────────────────────────────────── */}
       <div
-        className='absolute inset-0 pointer-events-none'
+        className='absolute inset-0 z-[10] pointer-events-none'
         style={{
-          zIndex: 10,
           background: `
             linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
             linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
@@ -110,113 +191,63 @@ export default function Hero() {
         }}
       />
 
-      {/* Radial edge vignette */}
-      <div
-        className='absolute inset-0 pointer-events-none'
-        style={{
-          zIndex: 11,
-          background:
-            'radial-gradient(ellipse 95% 90% at 50% 50%, transparent 38%, rgba(0,0,0,0.55) 100%)',
-        }}
-      />
-
       {/* ── CENTERED TITLE ────────────────────────────────────────────────── */}
-      <div className='absolute inset-0 z-[20] flex flex-col items-center justify-center text-center pointer-events-none select-none'>
-        {/* Eyebrow */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={ready ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.9, delay: 0.2, ease: EASE_OUT_EXPO }}
-          className='flex items-center gap-3 mb-5 sm:mb-7'
-        >
-          <div
-            className='h-px'
-            style={{
-              width: 'clamp(28px,4vw,56px)',
-              background:
-                'linear-gradient(to right, transparent, rgba(255,25,135,0.65))',
-            }}
-          />
-          <span
-            className='text-[#FBFBFB]/45 font-medium uppercase'
-            style={{ fontSize: '0.575rem', letterSpacing: '0.4em' }}
-          >
-            Atmosferi Hisset
-          </span>
-          <div
-            className='h-px'
-            style={{
-              width: 'clamp(28px,4vw,56px)',
-              background:
-                'linear-gradient(to left, transparent, rgba(255,25,135,0.65))',
-            }}
-          />
-        </motion.div>
-
+      <div className='absolute inset-0 z-[20] flex flex-col items-center justify-center text-center pointer-events-none'>
         <MaskedLine
-          delay={0.36}
+          delay={0}
           ready={ready}
           className={`text-[#FBFBFB] ${sharedTextClass}`}
         >
           YENI
         </MaskedLine>
         <MaskedLine
-          delay={0.52}
+          delay={0.18}
           ready={ready}
           className={`text-stroke-white ${sharedTextClass}`}
         >
           HISAR
         </MaskedLine>
-
-        {/* Accent rule */}
-        <motion.div
-          initial={{ scaleX: 0, opacity: 0 }}
-          animate={ready ? { scaleX: 1, opacity: 1 } : {}}
-          transition={{ duration: 1.0, delay: 0.76, ease: EASE_OUT_EXPO }}
-          className='mt-6 sm:mt-8 mb-5 sm:mb-6'
-          style={{
-            height: 1,
-            width: 'clamp(100px,18vw,220px)',
-            transformOrigin: 'center',
-            background:
-              'linear-gradient(to right, transparent, rgba(255,25,135,0.55), transparent)',
-          }}
-        />
-
-        {/* International Night Club */}
         <motion.p
+          className='text-[#FBFBFB]/60 text-sm sm:text-base landscape:max-lg:text-[0.6rem] tracking-[0.3em] landscape:max-lg:tracking-[0.2em] uppercase mt-3 landscape:max-lg:mt-1'
           initial={{ opacity: 0, y: 8 }}
-          animate={ready ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.94, ease: EASE_OUT_EXPO }}
-          className='text-[#FBFBFB]/60 text-sm sm:text-base landscape:max-lg:text-[0.6rem]
-                     tracking-[0.3em] landscape:max-lg:tracking-[0.2em] uppercase'
+          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: EASE_OUT_EXPO }}
         >
           International Night Club
         </motion.p>
       </div>
 
-      {/* ── BOTTOM BAR ────────────────────────────────────────────────────── */}
+      {/* ── PROGRESS BARS + CTA ───────────────────────────────────────────── */}
       <motion.div
-        className='absolute bottom-0 left-0 right-0 z-[20]
-                   pb-8 sm:pb-10 landscape:max-lg:pb-4
-                   px-6 sm:px-10 lg:px-14
-                   flex items-end justify-end'
+        className='absolute bottom-0 left-0 z-[20] pb-8 sm:pb-10 landscape:max-lg:pb-4 px-6 sm:px-10 lg:px-14 w-full
+                   flex items-center justify-between gap-6'
         initial={{ opacity: 0, y: 10 }}
         animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-        transition={{ duration: 0.8, delay: 1.1, ease: EASE_OUT_EXPO }}
+        transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
         style={{ willChange: 'transform, opacity' }}
       >
+        <div className='flex items-center gap-2 flex-1 max-w-40'>
+          {SLIDES.map((_, i) => (
+            <ProgressBar
+              key={i}
+              active={i === index}
+              done={i < index}
+              animKey={animKey}
+              onClick={() => goTo(i)}
+            />
+          ))}
+        </div>
+
         <motion.button
           onClick={() => scrollTo('reservation')}
           className='cursor-pointer group flex items-center gap-3 border rounded-3xl
-                     border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4
-                     landscape:max-lg:px-3 landscape:max-lg:py-2
+                     border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4 landscape:max-lg:px-3 landscape:max-lg:py-2
                      hover:border-[#FF1987]/60 transition-colors duration-300'
           whileTap={{ scale: 0.97 }}
         >
           <span
             className='text-[#FBFBFB]/75 group-hover:text-[#FBFBFB] uppercase font-bold
-                       tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
+                           tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
           >
             Rezervasyon
           </span>

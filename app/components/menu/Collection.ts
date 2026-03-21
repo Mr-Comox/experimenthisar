@@ -28,7 +28,7 @@ export const menuData = {
   Votka: [
     { name: 'Absolut' },
     { name: 'Smirnoff' },
-    { name: 'Istanblue' },
+    { name: 'İstanblue' },
     { name: 'Grey Goose' },
     { name: 'Ciroc' },
     { name: 'Belvedere' },

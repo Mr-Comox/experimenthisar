@@ -18,7 +18,7 @@ const Footer = () => {
       <div className='max-w-7xl mx-auto border-t border-[#2f3134] pt-8 pb-24 md:pb-10'>
         <div className='flex flex-col md:flex-row justify-between items-center gap-6'>
           <div className='flex flex-col items-center text-softWhite'>
-            <Logo className='w-15 h-15 lg:w-17.5 lg:h-17.5' />
+            <Logo className='w-15 h-15 ' />
             <p className='text-sm font-bold mt-1'>Yeni Hisar Internatinoal</p>
             <p className='text-sm font-bold'>Night Club</p>
           </div>

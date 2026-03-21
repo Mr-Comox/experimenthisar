@@ -35,6 +35,7 @@ const MainToGoldFont = ({ children }: { children: React.ReactNode }) => (
     {children}
   </span>
 );
+
 const QuatToLightFont = ({ children }: { children: React.ReactNode }) => (
   <span
     style={{
@@ -48,6 +49,7 @@ const QuatToLightFont = ({ children }: { children: React.ReactNode }) => (
     {children}
   </span>
 );
+
 export {
   MainColorToQuatFont,
   GoldToAmberFont,

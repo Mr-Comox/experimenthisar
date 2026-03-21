@@ -566,6 +566,7 @@ function GalleryModal({
               className='max-w-[84vw] max-h-[78vh] w-auto h-auto object-contain rounded-lg'
               priority
               unoptimized
+              crossOrigin='anonymous'
             />
             <div
               className='absolute bottom-0 left-0 right-0 h-px rounded-b-lg'
@@ -659,6 +660,7 @@ function GalleryCard({
           sizes={`${Math.round(100 / cols)}vw`}
           priority={priority}
           loading={priority ? undefined : 'lazy'}
+          crossOrigin='anonymous'
         />
       </div>
       <div

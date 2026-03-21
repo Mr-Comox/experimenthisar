@@ -5,11 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useReveal } from '@/app/utilities/useReveal';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
-import {
-  MainColorToQuatFont,
-  MainToGoldFont,
-} from '@/app/utilities/LinearFontColors';
-import { LeftLeafletIcon, RightLeafletIcon } from '@/public/Icons';
+import { MainToGoldFont } from '@/app/utilities/LinearFontColors';
 
 type Props = { id: string };
 
