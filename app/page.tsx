@@ -91,7 +91,7 @@ export default function Home() {
       </div>
 
       {/* Gallery uses GSAP pin:true — must be outside overflow-x-hidden */}
-      <Gallery id='gallery' />
+      {/* <Gallery id='gallery' /> */}
 
       <div className='overflow-x-hidden'>
         <Menu id='menu' />
