@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+  useState,
+  useMemo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,27 +79,29 @@ function GlobalStyles() {
   return (
     <style>{`
       /*
-       * Three-value height cascade for the gallery section:
+       * The section height cascade.
        *
-       *   100vh  → widest browser support (baseline)
-       *   100svh → "small viewport height" — stable, never changes
-       *            when the URL bar animates. This is the KEY mobile
-       *            fallback. It locks the section to the smallest
-       *            possible viewport so GSAP's first measurement is
-       *            always correct before JS runs.
-       *   100dvh → "dynamic viewport height" — used on supporting
-       *            browsers once URL bar has settled.
+       * 100vh  → broadest fallback
+       * 100dvh → actual visible area (changes with URL bar).
        *
-       * We intentionally do NOT override this with JS (no visualViewport
-       * listener, no setHeight). The previous approach caused
-       * ScrollTrigger.refresh() to fire dozens of times per second
-       * during scrolling — the root cause of both glitch bugs.
-       * The svh fallback + ignoreMobileResize in Home.tsx is the
-       * correct GSAP-recommended solution.
+       * We intentionally use dvh here, NOT svh. Why:
+       *   svh = small viewport (URL bar visible) → shorter than actual screen
+       *         → leaves a dead zone at the bottom when URL bar hides.
+       *   dvh = real visible area  → fills the screen correctly.
+       *
+       * GSAP stability is handled by:
+       *   1. ignoreMobileResize: true in Home.tsx → GSAP never remeasures
+       *      during scroll (URL bar animate events ignored).
+       *   2. One-time useLayoutEffect in Gallery → sets exact px height
+       *      from window.innerHeight BEFORE GSAP's first measurement,
+       *      so the pin spacer is calculated from the correct full-screen
+       *      value (window.innerHeight = largest possible = URL bar excluded).
+       *
+       * The dvh CSS is kept as a visual fallback only. The JS px value
+       * set by useLayoutEffect wins and never changes.
        */
       .gallery-section {
         height: 100vh;
-        height: 100svh;
         height: 100dvh;
       }
 
@@ -479,7 +488,6 @@ function GalleryModal({
           style={{ background: MAIN_TO_GOLD }}
         />
       </div>
-
       <div
         className='absolute top-4 right-4 sm:top-5 sm:right-5'
         style={{ zIndex: 10 }}
@@ -500,7 +508,6 @@ function GalleryModal({
           </svg>
         </NavBtn>
       </div>
-
       <div
         className='absolute left-3 sm:left-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -522,7 +529,6 @@ function GalleryModal({
           </svg>
         </NavBtn>
       </div>
-
       <div
         ref={imageWrapRef}
         onClick={(e) => e.stopPropagation()}
@@ -559,7 +565,6 @@ function GalleryModal({
           </motion.div>
         </AnimatePresence>
       </div>
-
       <div
         className='absolute right-3 sm:right-5 top-1/2 -translate-y-1/2'
         style={{ zIndex: 10 }}
@@ -581,7 +586,6 @@ function GalleryModal({
           </svg>
         </NavBtn>
       </div>
-
       <div
         className='absolute bottom-5 left-1/2 -translate-x-1/2'
         style={{ zIndex: 10 }}
@@ -1052,7 +1056,6 @@ function SpotlightGrid({
 
       if (curtainRef.current)
         curtainRef.current.style.opacity = cm.curtain.toFixed(4);
-
       const p = posRef.current,
         t = targetRef.current,
         spd = cm.manual ? 0.12 : 0.055;
@@ -1066,7 +1069,6 @@ function SpotlightGrid({
       }
       lp.x = p.x;
       lp.y = p.y;
-
       if (!el) {
         raf = requestAnimationFrame(tick);
         return;
@@ -1452,6 +1454,36 @@ export default function Gallery({ id }: Props) {
     return () => clearTimeout(t);
   }, []);
 
+  /*
+   * ── FIX FOR BUG 1: One-time height sync — runs BEFORE useGSAP ──────
+   *
+   * useLayoutEffect runs before useGSAP's internal useLayoutEffect, so
+   * GSAP measures the section AFTER this height is applied. This
+   * guarantees the pin spacer is calculated from the correct value.
+   *
+   * WHY window.innerHeight (not visualViewport, not dvh):
+   *   • window.innerHeight on iOS Safari = full screen height, URL bar
+   *     excluded. It's the LARGEST possible viewport value.
+   *   • This means the section fills the screen when URL bar is gone
+   *     (the common state during mid-page scrolling).
+   *   • When URL bar is visible, the section extends ~60-80px below the
+   *     visible area — but since it's position:fixed during the pin,
+   *     the browser simply clips it. No gap, no dead zone.
+   *   • We never update this value again. ignoreMobileResize:true in
+   *     Home.tsx ensures GSAP never remeasures mid-scroll. Stable.
+   *
+   * WHY NOT visualViewport.height:
+   *   • If URL bar is visible at mount, vv.height is SMALLER (excludes
+   *     URL bar area), leaving a dead zone when bar hides later.
+   *   • window.innerHeight always gives the largest (bar-excluded) value,
+   *     which is what we want.
+   */
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    panel.style.height = `${window.innerHeight}px`;
+  }, []); // Empty deps: run exactly once, never update
+
   const openModal = useCallback(
     (i: number, rect?: DOMRect) => {
       if (!expanded) return;
@@ -1511,7 +1543,20 @@ export default function Gallery({ id }: Props) {
           trigger: panelRef.current,
           start: 'top top',
           end: '+=1500',
-          scrub: 1.0,
+          /*
+           * FIX FOR BUG 2: scrub reduced from 1.0 → 0.3
+           *
+           * scrub: 1.0 = GSAP animation lags 1 full second behind scroll.
+           * When the user changes scroll direction quickly, the animation
+           * is still easing toward the OLD position for up to 1 second,
+           * causing the perceived "opposite direction shift".
+           *
+           * scrub: 0.3 = 300ms lag. Tight enough to feel instant on mobile,
+           * loose enough to stay smooth. Combined with touchMultiplier: 1
+           * in Home.tsx (no velocity amplification), direction changes
+           * now feel immediate with no overshoot.
+           */
+          scrub: 0.3,
           pin: true,
           pinSpacing: true,
           invalidateOnRefresh: true,
@@ -1524,11 +1569,7 @@ export default function Gallery({ id }: Props) {
       tl.to(
         boxRef.current,
         {
-          /*
-           * Functional values: re-evaluated on every invalidateOnRefresh.
-           * This ensures the target positions are always based on the
-           * real current viewport — never stale cached values.
-           */
+          // Functional values: recomputed on every invalidateOnRefresh cycle.
           left: () => 0,
           right: () => 0,
           top: () => 0,
@@ -1563,6 +1604,13 @@ export default function Gallery({ id }: Props) {
     <>
       <GlobalStyles />
       <GallerySchema />
+
+      {/*
+       * No inline style height here.
+       * Height is set by the useLayoutEffect above (window.innerHeight px)
+       * which runs before GSAP measures. The CSS class is a visual
+       * fallback only for the brief server-render / pre-hydration frame.
+       */}
       <section
         ref={panelRef}
         id={id}
