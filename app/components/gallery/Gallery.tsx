@@ -8,17 +8,19 @@ import {
   useState,
   useMemo,
 } from 'react';
-import { createPortal } from 'react-dom';
 import Image from 'next/image';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { gallery } from './Collection';
 import { getSmoother } from '@/app/lib/smoother';
+
+import { Modal } from '@/app/utilities/Modal';
 import { MainToGoldFont } from '@/app/utilities/LinearFontColors';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
-import { useGSAP } from '@gsap/react';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -264,338 +266,6 @@ function NavBtn({
     >
       {children}
     </button>
-  );
-}
-
-/* ─── Modal ───────────────────────────────────────────────────── */
-function GalleryModal({
-  index,
-  total,
-  onClose,
-  onPrev,
-  onNext,
-}: {
-  index: number;
-  total: number;
-  originRect: DOMRect | null;
-  onClose: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  const isMobile =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: none), (max-width: 1023px)').matches;
-
-  const swipeX = useRef(0);
-  const swipeY = useRef(0);
-  const imageWrapRef = useRef<HTMLDivElement>(null);
-  const currentScale = useRef(1);
-  const currentTrans = useRef({ x: 0, y: 0 });
-  const pinchData = useRef<{ startDist: number; startScale: number } | null>(
-    null,
-  );
-  const panData = useRef<{
-    sx: number;
-    sy: number;
-    tx: number;
-    ty: number;
-  } | null>(null);
-  const lastTap = useRef(0);
-  const isZoomed = useRef(false);
-  const isPinching = useRef(false);
-
-  const getPinchDist = useCallback((t: TouchList) => {
-    const dx = t[0].clientX - t[1].clientX;
-    const dy = t[0].clientY - t[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }, []);
-
-  const clampTrans = useCallback((x: number, y: number, scale: number) => {
-    const el = imageWrapRef.current;
-    if (!el) return { x, y };
-    const maxX = (el.offsetWidth * (scale - 1)) / 2;
-    const maxY = (el.offsetHeight * (scale - 1)) / 2;
-    return {
-      x: Math.min(maxX, Math.max(-maxX, x)),
-      y: Math.min(maxY, Math.max(-maxY, y)),
-    };
-  }, []);
-
-  const applyTransform = useCallback((animated = false) => {
-    const el = imageWrapRef.current;
-    if (!el) return;
-    if (animated) el.style.transition = 'transform 0.22s ease';
-    el.style.transform = `translate(${currentTrans.current.x}px, ${currentTrans.current.y}px) scale(${currentScale.current})`;
-    if (animated)
-      setTimeout(() => {
-        if (imageWrapRef.current) imageWrapRef.current.style.transition = '';
-      }, 220);
-  }, []);
-
-  const resetZoom = useCallback(
-    (animated = true) => {
-      currentScale.current = 1;
-      currentTrans.current = { x: 0, y: 0 };
-      isZoomed.current = false;
-      isPinching.current = false;
-      applyTransform(animated);
-    },
-    [applyTransform],
-  );
-
-  useEffect(() => {
-    const el = imageWrapRef.current;
-    if (!el) return;
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        isPinching.current = true;
-        panData.current = null;
-        pinchData.current = {
-          startDist: getPinchDist(e.touches),
-          startScale: currentScale.current,
-        };
-      } else if (e.touches.length === 1) {
-        const now = Date.now();
-        if (now - lastTap.current < 280) {
-          if (isZoomed.current) {
-            resetZoom(true);
-          } else {
-            currentScale.current = 2.5;
-            currentTrans.current = { x: 0, y: 0 };
-            isZoomed.current = true;
-            applyTransform(true);
-          }
-          lastTap.current = 0;
-          return;
-        }
-        lastTap.current = now;
-        if (isZoomed.current) {
-          panData.current = {
-            sx: e.touches[0].clientX,
-            sy: e.touches[0].clientY,
-            tx: currentTrans.current.x,
-            ty: currentTrans.current.y,
-          };
-        }
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinchData.current) {
-        e.preventDefault();
-        const newScale = Math.min(
-          4,
-          Math.max(
-            1,
-            pinchData.current.startScale *
-              (getPinchDist(e.touches) / pinchData.current.startDist),
-          ),
-        );
-        currentScale.current = newScale;
-        isZoomed.current = newScale > 1;
-        if (newScale === 1) currentTrans.current = { x: 0, y: 0 };
-        applyTransform();
-        return;
-      }
-      if (e.touches.length === 1 && panData.current && isZoomed.current) {
-        e.preventDefault();
-        const rawX =
-          panData.current.tx + (e.touches[0].clientX - panData.current.sx);
-        const rawY =
-          panData.current.ty + (e.touches[0].clientY - panData.current.sy);
-        currentTrans.current = clampTrans(rawX, rawY, currentScale.current);
-        applyTransform();
-      }
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        pinchData.current = null;
-        setTimeout(() => {
-          isPinching.current = false;
-        }, 120);
-      }
-      if (e.touches.length === 0) panData.current = null;
-      if (currentScale.current < 1.08) resetZoom(true);
-    };
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    resetZoom(false);
-  }, [index, resetZoom]);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    swipeX.current = e.clientX;
-    swipeY.current = e.clientY;
-  };
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (isZoomed.current || isPinching.current) return;
-    const dx = e.clientX - swipeX.current;
-    const dy = Math.abs(e.clientY - swipeY.current);
-    if (Math.abs(dx) > 72 && dy < 80) {
-      if (dx < 0) onNext();
-      else onPrev();
-    }
-  };
-
-  const imgInitial = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
-  const imgAnimate = isMobile ? { opacity: 1 } : { opacity: 1, scale: 1 };
-  const imgExit = isMobile ? { opacity: 0 } : { opacity: 0, scale: 0.97 };
-
-  return createPortal(
-    <motion.div
-      role='dialog'
-      aria-modal='true'
-      aria-label={`Hisar Nightclub — Fotoğraf ${index + 1} / ${total}`}
-      className='fixed inset-0 flex items-center justify-center'
-      style={{
-        zIndex: 99999,
-        backgroundColor: 'rgba(4,4,4,0.97)',
-        backdropFilter: isMobile ? 'blur(8px)' : 'blur(4px)',
-        WebkitBackdropFilter: isMobile ? 'blur(8px)' : 'blur(4px)',
-        willChange: 'opacity',
-      }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      onClick={onClose}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-    >
-      <div
-        className='absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3'
-        style={{ zIndex: 10 }}
-      >
-        <div
-          className='h-px w-8 opacity-35'
-          style={{ background: MAIN_TO_GOLD }}
-        />
-        <span className='text-[0.65rem] tracking-[0.28em] uppercase text-white/38 font-medium tabular-nums'>
-          {String(index + 1).padStart(2, '0')} —{' '}
-          {String(total).padStart(2, '0')}
-        </span>
-        <div
-          className='h-px w-8 opacity-35'
-          style={{ background: MAIN_TO_GOLD }}
-        />
-      </div>
-      <div
-        className='absolute top-4 right-4 sm:top-5 sm:right-5'
-        style={{ zIndex: 10 }}
-      >
-        <NavBtn
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-        >
-          <svg width='14' height='14' viewBox='0 0 14 14' fill='none'>
-            <path
-              d='M1 1L13 13M13 1L1 13'
-              stroke='currentColor'
-              strokeWidth='1.7'
-              strokeLinecap='round'
-            />
-          </svg>
-        </NavBtn>
-      </div>
-      <div
-        className='absolute left-3 sm:left-5 top-1/2 -translate-y-1/2'
-        style={{ zIndex: 10 }}
-      >
-        <NavBtn
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrev();
-          }}
-        >
-          <svg width='14' height='14' viewBox='0 0 16 16' fill='none'>
-            <path
-              d='M10 12L6 8L10 4'
-              stroke='currentColor'
-              strokeWidth='1.7'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-            />
-          </svg>
-        </NavBtn>
-      </div>
-      <div
-        ref={imageWrapRef}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'relative',
-          zIndex: 4,
-          touchAction: 'none',
-          userSelect: 'none',
-        }}
-      >
-        <AnimatePresence mode='wait'>
-          <motion.div
-            key={index}
-            initial={imgInitial}
-            animate={imgAnimate}
-            exit={imgExit}
-            transition={{ duration: isMobile ? 0.2 : 0.22, ease: 'easeOut' }}
-            style={{ willChange: 'transform, opacity', display: 'block' }}
-          >
-            <Image
-              src={gallery[index].src}
-              alt={`Hisar Nightclub — Sahne fotoğrafı ${index + 1} / ${total}`}
-              width={1400}
-              height={900}
-              className='max-w-[84vw] max-h-[78vh] w-auto h-auto object-contain rounded-lg'
-              priority
-              unoptimized
-              crossOrigin='anonymous'
-            />
-            <div
-              className='absolute bottom-0 left-0 right-0 h-px rounded-b-lg'
-              style={{ background: MAIN_TO_GOLD, opacity: 0.18 }}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-      <div
-        className='absolute right-3 sm:right-5 top-1/2 -translate-y-1/2'
-        style={{ zIndex: 10 }}
-      >
-        <NavBtn
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-        >
-          <svg width='14' height='14' viewBox='0 0 16 16' fill='none'>
-            <path
-              d='M6 4L10 8L6 12'
-              stroke='currentColor'
-              strokeWidth='1.7'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-            />
-          </svg>
-        </NavBtn>
-      </div>
-      <div
-        className='absolute bottom-5 left-1/2 -translate-x-1/2'
-        style={{ zIndex: 10 }}
-      >
-        <span className='text-[0.48rem] tracking-[0.22em] uppercase text-white/18 font-medium'>
-          {isMobile ? 'kapatmak için dokun' : '← → ok tuşları'}
-        </span>
-      </div>
-    </motion.div>,
-    document.body,
   );
 }
 
@@ -1710,10 +1380,12 @@ export default function Gallery({ id }: Props) {
 
       <AnimatePresence>
         {portalReady && modalIndex !== null && (
-          <GalleryModal
+          <Modal
+            items={gallery.map((g) => ({
+              src: g.src,
+              alt: `Hisar Nightclub — Sahne fotoğrafı ${g.id}`,
+            }))}
             index={modalIndex}
-            total={gallery.length}
-            originRect={modalOriginRect}
             onClose={closeModal}
             onPrev={prevImage}
             onNext={nextImage}

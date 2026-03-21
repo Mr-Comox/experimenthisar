@@ -8,6 +8,7 @@ import PlatformScores from './PlatformScores';
 import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
+import NavButton from '@/app/utilities/NavButton';
 
 gsap.registerPlugin(MorphSVGPlugin);
 
@@ -36,70 +37,6 @@ function useReveal(threshold = 0.4) {
   }, [threshold]);
   return { ref, visible };
 }
-
-/* ─────────────────────────────────────────────────────────────────
-   NAV BUTTON
-───────────────────────────────────────────────────────────────── */
-const NavButton = ({
-  dir,
-  onClick,
-}: {
-  dir: 'left' | 'right';
-  onClick: () => void;
-}) => {
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const handle = () => {
-    gsap.fromTo(
-      btnRef.current,
-      { scale: 0.86, force3D: true },
-      { scale: 1, duration: 0.25, ease: 'back.out(2.5)', force3D: true },
-    );
-    onClick();
-  };
-  return (
-    <button
-      ref={btnRef}
-      onClick={handle}
-      aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-      style={{
-        width: 48,
-        height: 48,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'transparent',
-        color: 'rgba(251,251,251,0.72)',
-        cursor: 'pointer',
-        border: '1px solid rgba(251,251,251,0.18)',
-        flexShrink: 0,
-        transition: 'background 0.2s',
-      }}
-    >
-      {dir === 'left' ? (
-        <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-          <path
-            d='M10 12L6 8L10 4'
-            stroke='currentColor'
-            strokeWidth='1.6'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-          />
-        </svg>
-      ) : (
-        <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-          <path
-            d='M6 4L10 8L6 12'
-            stroke='currentColor'
-            strokeWidth='1.6'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-          />
-        </svg>
-      )}
-    </button>
-  );
-};
 
 /* ─────────────────────────────────────────────────────────────────
    MORPH QUOTE ICON

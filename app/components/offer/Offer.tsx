@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
 import { QuatToLightFont } from '@/app/utilities/LinearFontColors';
+import NavButton from '@/app/utilities/NavButton';
 
 /* ─────────────────────────────────────────────────────────────────
    ICONS
@@ -155,64 +156,6 @@ const services = [
 ];
 
 type Props = { id: string };
-
-/* ─────────────────────────────────────────────────────────────────
-   NAV BUTTON
-───────────────────────────────────────────────────────────────── */
-const NavButton = ({
-  dir,
-  disabled,
-  onClick,
-}: {
-  dir: 'left' | 'right';
-  disabled: boolean;
-  onClick: () => void;
-}) => (
-  <motion.button
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={dir === 'left' ? 'Önceki' : 'Sonraki'}
-    whileTap={
-      disabled ? {} : { scale: 0.88, backgroundColor: 'rgba(251,251,251,0.14)' }
-    }
-    transition={{ duration: 0.12, ease: 'easeOut' }}
-    style={{
-      width: 48,
-      height: 48,
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: disabled ? 'rgba(251,251,251,0.18)' : 'rgba(251,251,251,0.72)',
-      cursor: disabled ? 'default' : 'pointer',
-      border: '1px solid rgba(251,251,251,0.18)',
-      flexShrink: 0,
-      transition: 'background 0.2s, color 0.2s',
-    }}
-  >
-    {dir === 'left' ? (
-      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-        <path
-          d='M10 12L6 8L10 4'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    ) : (
-      <svg width='15' height='15' viewBox='0 0 16 16' fill='none'>
-        <path
-          d='M6 4L10 8L6 12'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    )}
-  </motion.button>
-);
 
 /* ─────────────────────────────────────────────────────────────────
    ROOT

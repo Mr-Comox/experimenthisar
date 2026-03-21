@@ -682,7 +682,6 @@ const AboutUs = ({ id }: Props) => (
     <StatsSection />
     <div className='w-full h-px bg-white/[0.07]' />
     <SecuritySection />
-    <div className='w-full h-px bg-white/[0.07]' />
   </section>
 );
 

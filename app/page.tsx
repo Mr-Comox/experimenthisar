@@ -17,6 +17,7 @@ import Testimonials from './components/testimonials/Testimonials';
 import Location from './components/location/Location';
 import Reservation from './components/reservation/Reservation';
 import Footer from './components/footer/Footer';
+import ArtistWall from './components/artist/ArtistWall';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -119,7 +120,7 @@ export default function Home() {
     <main ref={mainRef} className='relative'>
       <Navbar />
       <Hero />
-
+      <ArtistWall />
       {/*
        * overflow-x-hidden creates a new scroll container in all browsers.
        * Components using GSAP pin:true or position:sticky MUST live
@@ -128,7 +129,6 @@ export default function Home() {
        */}
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
-        <Offer id='offer' />
         <Activities id='activities' />
       </div>
 
@@ -136,6 +136,7 @@ export default function Home() {
       <Gallery id='gallery' />
 
       <div className='overflow-x-hidden'>
+        <Offer id='offer' />
         <Menu id='menu' />
         <Testimonials id='testimonials' />
         <Location id='location' />

@@ -212,6 +212,7 @@ export default function Reservation({ id }: Props) {
             />
 
             {/* Benefits — Nike checkmarks */}
+
             <div className='flex flex-col gap-5 mb-12 lg:mb-14'>
               {BENEFITS.map((b, i) => (
                 <div
@@ -236,20 +237,21 @@ export default function Reservation({ id }: Props) {
                   >
                     <CheckIcon />
                   </div>
-
                   <div className='pt-2'>
-                    <p
-                      className='text-white/80 font-semibold mb-1'
-                      style={{ fontSize: 'clamp(0.9rem, 1.3vw, 1.05rem)' }}
-                    >
-                      {b.label}
-                    </p>
-                    <p
-                      className='text-white/38 leading-[1.65]'
-                      style={{ fontSize: 'clamp(0.85rem, 1.1vw, 0.9375rem)' }}
-                    >
-                      {b.text}
-                    </p>
+                    <TextReveal>
+                      <p
+                        className='text-white/80 font-semibold mb-1'
+                        style={{ fontSize: 'clamp(0.9rem, 1.3vw, 1.05rem)' }}
+                      >
+                        {b.label}
+                      </p>
+                      <p
+                        className='text-white/38 leading-[1.65]'
+                        style={{ fontSize: 'clamp(0.85rem, 1.1vw, 0.9375rem)' }}
+                      >
+                        {b.text}
+                      </p>
+                    </TextReveal>
                   </div>
                 </div>
               ))}
