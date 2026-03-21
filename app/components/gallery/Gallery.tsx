@@ -71,11 +71,25 @@ function calcLayout(w: number, h: number) {
 function GlobalStyles() {
   return (
     <style>{`
-      /* FIX 4: svh as stable intermediate fallback.
-         svh = "small viewport height" — the smallest stable size,
-         always includes the URL bar. This prevents the section from
-         jumping in the brief window before JS fires.
-         dvh is then overridden by the visualViewport JS listener. */
+      /*
+       * Three-value height cascade for the gallery section:
+       *
+       *   100vh  → widest browser support (baseline)
+       *   100svh → "small viewport height" — stable, never changes
+       *            when the URL bar animates. This is the KEY mobile
+       *            fallback. It locks the section to the smallest
+       *            possible viewport so GSAP's first measurement is
+       *            always correct before JS runs.
+       *   100dvh → "dynamic viewport height" — used on supporting
+       *            browsers once URL bar has settled.
+       *
+       * We intentionally do NOT override this with JS (no visualViewport
+       * listener, no setHeight). The previous approach caused
+       * ScrollTrigger.refresh() to fire dozens of times per second
+       * during scrolling — the root cause of both glitch bugs.
+       * The svh fallback + ignoreMobileResize in Home.tsx is the
+       * correct GSAP-recommended solution.
+       */
       .gallery-section {
         height: 100vh;
         height: 100svh;
@@ -265,7 +279,6 @@ function GalleryModal({
 
   const swipeX = useRef(0);
   const swipeY = useRef(0);
-
   const imageWrapRef = useRef<HTMLDivElement>(null);
   const currentScale = useRef(1);
   const currentTrans = useRef({ x: 0, y: 0 });
@@ -324,7 +337,6 @@ function GalleryModal({
   useEffect(() => {
     const el = imageWrapRef.current;
     if (!el) return;
-
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
@@ -359,7 +371,6 @@ function GalleryModal({
         }
       }
     };
-
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && pinchData.current) {
         e.preventDefault();
@@ -387,7 +398,6 @@ function GalleryModal({
         applyTransform();
       }
     };
-
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchData.current = null;
@@ -398,11 +408,9 @@ function GalleryModal({
       if (e.touches.length === 0) panData.current = null;
       if (currentScale.current < 1.08) resetZoom(true);
     };
-
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
-
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
@@ -419,7 +427,6 @@ function GalleryModal({
     swipeX.current = e.clientX;
     swipeY.current = e.clientY;
   };
-
   const onPointerUp = (e: React.PointerEvent) => {
     if (isZoomed.current || isPinching.current) return;
     const dx = e.clientX - swipeX.current;
@@ -863,7 +870,6 @@ function SpotlightGrid({
   }, [visible, isDesktop]);
 
   const visibleItems = gallery.slice(0, Math.min(cols * rows, gallery.length));
-
   const diagBand = useMemo(
     () => visibleItems.map((_, i) => (i % cols) + Math.floor(i / cols)),
     [cols, rows, visibleItems.length], // eslint-disable-line react-hooks/exhaustive-deps
@@ -890,7 +896,6 @@ function SpotlightGrid({
     const SCALE_FROM = IS_TOUCH ? 0.97 : 0.965;
     const Y_FROM = IS_TOUCH ? 8 : 10;
     const INITIAL_WAIT = IS_TOUCH ? 0.03 : 0.05;
-
     const maxBand = Math.max(...diagBand);
     const LAST_CARD_END = INITIAL_WAIT + maxBand * BAND_MS + CARD_DUR;
     const LINE_DELAY = LAST_CARD_END + 0.12;
@@ -945,7 +950,6 @@ function SpotlightGrid({
     };
   }, [visible, cols, rows, diagBand]);
 
-  /* ── Spotlight RAF ──────────────────────────────────────────── */
   const curtainRef = useRef<HTMLDivElement>(null);
   const lastPaintRef = useRef({ x: -1, y: -1 });
   const cinema = useRef({
@@ -1009,7 +1013,6 @@ function SpotlightGrid({
         raf = requestAnimationFrame(tick);
         return;
       }
-
       const dt = lastTime >= 0 ? Math.min(now - lastTime, 64) : 0;
       lastTime = now;
       const cm = cinema.current,
@@ -1260,7 +1263,6 @@ function SpotlightGrid({
             'radial-gradient(ellipse 95% 95% at 50% 50%, transparent 55%, rgba(8,6,4,0.88) 100%)',
         }}
       />
-
       <GrainOverlay zIndex={25} />
 
       <motion.div
@@ -1450,47 +1452,6 @@ export default function Gallery({ id }: Props) {
     return () => clearTimeout(t);
   }, []);
 
-  /* ─── FIX 1: visualViewport listener ─────────────────────────
-     When the mobile browser URL bar hides/shows, window.innerHeight
-     and dvh both change AFTER GSAP has already pinned and measured
-     the section. This listener catches every visual viewport resize
-     (URL bar, keyboard, orientation) and:
-       1. Sets the section's pixel height to the real visual height
-          so GSAP's pin spacer never has stale measurements.
-       2. Calls ScrollTrigger.refresh() immediately — no debounce —
-          so the pin recalculates before the next paint.
-  ────────────────────────────────────────────────────────────── */
-  useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel || typeof window === 'undefined') return;
-
-    const vv = window.visualViewport;
-
-    const syncHeight = () => {
-      // Use visualViewport.height when available — it's the most
-      // accurate value and excludes both the URL bar and the OSK.
-      const h = vv ? vv.height : window.innerHeight;
-      panel.style.height = `${h}px`;
-      // Immediate refresh — no debounce. The URL bar hide/show is a
-      // discrete event, not a continuous resize stream, so no
-      // throttling is needed and debouncing would leave a stale frame.
-      ScrollTrigger.refresh();
-    };
-
-    // Set before GSAP mounts its ScrollTrigger so the first
-    // measurement is already correct.
-    syncHeight();
-
-    vv?.addEventListener('resize', syncHeight);
-    // Fallback for browsers/WebViews without visualViewport support.
-    window.addEventListener('resize', syncHeight);
-
-    return () => {
-      vv?.removeEventListener('resize', syncHeight);
-      window.removeEventListener('resize', syncHeight);
-    };
-  }, []);
-
   const openModal = useCallback(
     (i: number, rect?: DOMRect) => {
       if (!expanded) return;
@@ -1543,21 +1504,6 @@ export default function Gallery({ id }: Props) {
     return () => window.removeEventListener('keydown', handle);
   }, [modalIndex, nextImage, prevImage, closeModal]);
 
-  /* ─── GSAP scroll-pin expand animation ───────────────────────
-     FIX 2: The inline style={{ height: '100dvh' }} has been
-     removed from the <section> below. The CSS class .gallery-section
-     now controls the fallback height (100svh → 100dvh cascade), and
-     the visualViewport listener above overrides it with a px value
-     that is always accurate. Having both an inline dvh style AND a
-     JS px override caused a race: whichever applied last won, and
-     on first paint the inline style often won with the wrong value.
-
-     FIX 3: GSAP animation targets use functional values () => ...
-     instead of static strings like '0%'. When invalidateOnRefresh:true
-     triggers a recalculation, GSAP re-invokes these functions with
-     the freshly measured dimensions, so bottom / top are always
-     relative to the real current viewport — not the stale cached one.
-  ────────────────────────────────────────────────────────────── */
   useGSAP(
     () => {
       const tl = gsap.timeline({
@@ -1568,9 +1514,6 @@ export default function Gallery({ id }: Props) {
           scrub: 1.0,
           pin: true,
           pinSpacing: true,
-          // invalidateOnRefresh causes GSAP to re-run functional
-          // values on every ScrollTrigger.refresh() call, keeping
-          // the pin math in sync with the real viewport dimensions.
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             setExpanded(self.progress >= 0.57);
@@ -1581,9 +1524,11 @@ export default function Gallery({ id }: Props) {
       tl.to(
         boxRef.current,
         {
-          // FIX 3: Functional values — recomputed on every refresh.
-          // Static '0%' was baked at creation time and went stale
-          // when the URL bar hid and dvh grew.
+          /*
+           * Functional values: re-evaluated on every invalidateOnRefresh.
+           * This ensures the target positions are always based on the
+           * real current viewport — never stale cached values.
+           */
           left: () => 0,
           right: () => 0,
           top: () => 0,
@@ -1618,15 +1563,6 @@ export default function Gallery({ id }: Props) {
     <>
       <GlobalStyles />
       <GallerySchema />
-
-      {/*
-        FIX 2: style={{ height: '100dvh' }} removed.
-        Height is now controlled by:
-          1. CSS .gallery-section  →  100svh stable fallback
-          2. visualViewport useEffect above  →  exact px override
-        This prevents the inline dvh value from racing with the JS
-        px value and winning on the first paint with a wrong height.
-      */}
       <section
         ref={panelRef}
         id={id}

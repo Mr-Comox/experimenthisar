@@ -24,6 +24,29 @@ export default function Home() {
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    /*
+     * ── FIX FOR BUG 2: ignoreMobileResize ────────────────────────────
+     *
+     * This is the single most important fix for the "page shifts when
+     * scrolling up/down past gallery" bug.
+     *
+     * Without this, ScrollTrigger re-measures and repositions ALL pin
+     * spacers on every viewport resize — including the tiny, continuous
+     * resize events fired by mobile browsers as the URL bar animates
+     * in/out during scrolling. Each remeasurement desynchronises the
+     * pin spacer height from Lenis's virtual scroll position, causing
+     * the content above/below the pinned section to jump.
+     *
+     * ignoreMobileResize tells ScrollTrigger to ignore resize events
+     * where only the vertical height changed by a small amount (i.e.
+     * URL bar show/hide). It still responds to real orientation changes
+     * and desktop resizes. This is GSAP's official recommendation for
+     * Lenis + mobile pin layouts.
+     *
+     * Must be called BEFORE Lenis and ScrollTrigger are initialised.
+     */
+    ScrollTrigger.config({ ignoreMobileResize: true });
+
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -38,27 +61,65 @@ export default function Home() {
 
     setSmoother(lenis);
 
-    // ─── ResizeObserver ───────────────────────────────────────────────
-    // Any dynamic height change above a pinned section (e.g. countdown
-    // card → now card in Timeline) shifts that section's scroll offset.
-    // ScrollTrigger only remeasures on window resize by default, so the
-    // pin spacer goes stale and the snap/break happens.
-    // Watching <main> with ResizeObserver catches every layout change —
-    // countdown swap, image load, font swap, anything — and refreshes.
+    /*
+     * ── FIX FOR BUG 1: scroll-aware ResizeObserver ───────────────────
+     *
+     * The previous ResizeObserver called ScrollTrigger.refresh() on
+     * any <main> size change. The problem:
+     *
+     *   1. The Gallery's visualViewport listener (now removed) was
+     *      setting panel.style.height = px on every URL-bar event.
+     *   2. That changed <main>'s height.
+     *   3. ResizeObserver fired and called refresh() with only 120ms
+     *      debounce — still fast enough to fire mid-scroll.
+     *   4. refresh() + Lenis running = pin spacer jumps = glitch.
+     *
+     * Two changes here:
+     *
+     *   a) isScrolling guard: track whether Lenis is actively moving.
+     *      If it is, skip the refresh — the layout hasn't settled yet.
+     *      Refresh will happen naturally once scroll stops.
+     *
+     *   b) Debounce increased from 120ms → 400ms: content layout
+     *      changes (image loads, font swaps, countdowns) need a longer
+     *      settling window on mobile, especially after orientation change.
+     *
+     * Together these ensure refresh() only fires when the page is truly
+     * at rest, never while Lenis is animating the scroll position.
+     */
+    let isScrolling = false;
+    let scrollIdleTimer: ReturnType<typeof setTimeout>;
+
+    lenis.on('scroll', () => {
+      isScrolling = true;
+      clearTimeout(scrollIdleTimer);
+      // Mark scroll as idle 200ms after the last scroll event.
+      // This is shorter than the ResizeObserver debounce so that
+      // if a resize fires right as scrolling stops, the flag has
+      // already cleared by the time the debounce resolves.
+      scrollIdleTimer = setTimeout(() => {
+        isScrolling = false;
+      }, 200);
+    });
+
     let refreshTimeout: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {
-      // Debounce: layout can change in several frames (e.g. image loads),
-      // wait for it to settle before refreshing.
       clearTimeout(refreshTimeout);
       refreshTimeout = setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 120);
+        // Only refresh when Lenis is idle. If the user is still
+        // scrolling, the layout hasn't settled — skip and wait
+        // for the next ResizeObserver event after scroll stops.
+        if (!isScrolling) {
+          ScrollTrigger.refresh();
+        }
+      }, 400); // increased from 120ms → 400ms
     });
 
     if (mainRef.current) ro.observe(mainRef.current);
 
     return () => {
       clearTimeout(refreshTimeout);
+      clearTimeout(scrollIdleTimer);
       ro.disconnect();
       clearSmoother();
       gsap.ticker.remove(tickerFn);
@@ -77,13 +138,8 @@ export default function Home() {
        * will be clipped and miscalculated inside it.
        *
        * Rule: components that use pin:true (Gallery) or position:sticky
-       * (Gratitude) must live OUTSIDE overflow-x-hidden wrappers.
-       *
-       * overflow-x-hidden is only needed to contain sections that have
-       * elements visually overflowing the viewport edge (slide-in panels,
-       * parallax layers, etc.). Keep those sections in their own wrapper.
+       * must live OUTSIDE overflow-x-hidden wrappers.
        */}
-
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
         <Offer id='offer' />
@@ -91,7 +147,7 @@ export default function Home() {
       </div>
 
       {/* Gallery uses GSAP pin:true — must be outside overflow-x-hidden */}
-      {/* <Gallery id='gallery' /> */}
+      <Gallery id='gallery' />
 
       <div className='overflow-x-hidden'>
         <Menu id='menu' />
