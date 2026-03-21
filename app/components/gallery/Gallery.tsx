@@ -1106,7 +1106,6 @@ export default function Gallery({ id }: Props) {
   const glowRef = useRef<HTMLDivElement>(null);
 
   const [modalIndex, setModalIndex] = useState<number | null>(null);
-  const [modalOriginRect, setModalOriginRect] = useState<DOMRect | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -1155,9 +1154,8 @@ export default function Gallery({ id }: Props) {
   }, []); // Empty deps: run exactly once, never update
 
   const openModal = useCallback(
-    (i: number, rect?: DOMRect) => {
+    (i: number) => {
       if (!expanded) return;
-      setModalOriginRect(rect ?? null);
       setModalIndex(i);
     },
     [expanded],

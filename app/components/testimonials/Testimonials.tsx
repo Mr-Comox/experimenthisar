@@ -5,7 +5,7 @@ import gsap from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { testimonies } from './Collection';
 import PlatformScores from './PlatformScores';
-import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
+import { MainToGoldFont } from '@/app/utilities/LinearFontColors';
 import TextReveal from '@/app/utilities/TextReveal';
 import { Headline } from '@/app/utilities/Headline';
 import NavButton from '@/app/utilities/NavButton';
@@ -350,7 +350,7 @@ const Testimonials = ({ id }: Props) => {
           <div style={{ marginTop: 'clamp(-8px, -0.5vw, -2px)' }}>
             <TextReveal animateOnScroll delay={0.1}>
               <Headline>
-                <MainColorToQuatFont>deneyimleri</MainColorToQuatFont>
+                <MainToGoldFont>deneyimleri</MainToGoldFont>
               </Headline>
             </TextReveal>
           </div>

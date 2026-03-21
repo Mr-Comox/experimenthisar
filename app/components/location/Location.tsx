@@ -113,9 +113,9 @@ export default function Location({ id }: Props) {
       {/* ═══════════════════════════════════════════════════
           SPLIT — map left  ·  info right
       ═══════════════════════════════════════════════════ */}
-      <div className='flex flex-col lg:flex-row min-h-[88vh] lg:min-h-[800px]'>
+      <div className='flex flex-col lg:flex-row min-h-[88vh] lg:min-h-200'>
         {/* ── MAP — left 56% ── */}
-        <div className='relative w-full lg:w-[56%] h-[60vw] min-h-[340px] lg:h-auto shrink-0'>
+        <div className='relative w-full lg:w-[56%] h-[60vw] min-h-85 lg:h-auto shrink-0'>
           {mounted && TOKEN ? (
             <Map
               initialViewState={{ ...MARKER, zoom: 15.5 }}
@@ -158,16 +158,16 @@ export default function Location({ id }: Props) {
         {/* ── INFO PANEL — right 44% ── */}
         <div
           ref={ref}
-          className='relative flex-1 flex flex-col justify-between px-8 sm:px-12 lg:pl-14 xl:pl-18 lg:pr-20 xl:pr-28 py-16 lg:py-20 overflow-hidden border-t lg:border-t-0 lg:border-l border-white/[0.06]'
+          className='relative flex-1 flex flex-col justify-between px-8 sm:px-12 lg:pl-14 xl:pl-18 lg:pr-20 xl:pr-28 py-16 lg:py-20 overflow-hidden border-t lg:border-t-0 lg:border-l border-white/6'
         >
           {/* ── Headline ── */}
           <div className='relative mb-7'>
             <TextReveal>
               <Headline
                 className={`
-                font-bold text-white leading-[1.0] tracking-[-0.03em]
+                font-bold text-white leading-none tracking-[-0.03em]
                 text-[clamp(2.8rem,5vw,4.8rem)]
-                transition-[opacity,transform] duration-[900ms] delay-75 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
+                transition-[opacity,transform] duration-900 delay-75 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
                 ${on ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
                 `}
               >
@@ -186,7 +186,7 @@ export default function Location({ id }: Props) {
           <div
             className={`
               relative mb-16 mt-8
-              transition-[opacity,transform] duration-[800ms] delay-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
+              transition-[opacity,transform] duration-800 delay-150 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
               ${on ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
             `}
           >
@@ -201,7 +201,7 @@ export default function Location({ id }: Props) {
                     key={day}
                     className={`
                       flex items-center justify-between py-3
-                      ${i < SCHEDULE.length - 1 ? 'border-b border-white/[0.05]' : ''}
+                      ${i < SCHEDULE.length - 1 ? 'border-b border-white/5' : ''}
                     `}
                   >
                     <span
@@ -228,7 +228,7 @@ export default function Location({ id }: Props) {
           <div
             className={`
               relative
-              transition-[opacity,transform] duration-[800ms] delay-[230ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
+              transition-[opacity,transform] duration-800 delay-230 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]
               ${on ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}
             `}
           >
@@ -270,12 +270,12 @@ export default function Location({ id }: Props) {
               href={MAPS_URL}
               target='_blank'
               rel='noopener noreferrer'
-              className='group flex items-center justify-between w-full py-4 px-5 rounded-2xl border border-white/[0.07] hover:border-mainColor/28 bg-white/[0.018] hover:bg-mainColor/[0.04] transition-all duration-300'
+              className='group flex items-center justify-between w-full py-4 px-5 rounded-2xl border border-white/7 hover:border-mainColor/28 bg-white/[0.018] hover:bg-mainColor/4 transition-all duration-300'
             >
               <span className='text-[0.78rem] tracking-[0.16em] uppercase font-medium text-white/40 group-hover:text-white/75 transition-colors duration-300'>
                 Yol Tarifi Al
               </span>
-              <span className='w-7 h-7 rounded-full border border-white/[0.08] group-hover:border-mainColor/35 flex items-center justify-center shrink-0 transition-colors duration-300'>
+              <span className='w-7 h-7 rounded-full border border-white/8 group-hover:border-mainColor/35 flex items-center justify-center shrink-0 transition-colors duration-300'>
                 <svg
                   width='9'
                   height='9'
@@ -298,7 +298,7 @@ export default function Location({ id }: Props) {
       </div>
 
       {/* ── BOTTOM RULE ── */}
-      <div className='w-full h-px bg-white/[0.07]' />
+      <div className='w-full h-px bg-white/7' />
     </section>
   );
 }

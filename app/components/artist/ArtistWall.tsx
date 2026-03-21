@@ -96,26 +96,8 @@ function ArtistCard({
         />
       </div>
 
-      {/* ── "SAHNE" pill (top-right) ────────────────────────────────────── */}
-      <motion.div
-        className='absolute top-5 right-5 z-[3] rounded-full px-3 py-1'
-        animate={{
-          opacity: hovered ? 1 : 0,
-          y: hovered ? 0 : -6,
-        }}
-        transition={{ duration: 0.35, delay: hovered ? 0.05 : 0 }}
-        style={{
-          border: '1px solid rgba(255,25,135,0.35)',
-          background: 'rgba(255,25,135,0.15)',
-        }}
-      >
-        <span className='text-[0.6rem] font-bold tracking-[0.25em] text-[#FF1987] uppercase'>
-          Sahne
-        </span>
-      </motion.div>
-
       {/* ── Artist name + role (bottom) ────────────────────────────────── */}
-      <div className='absolute bottom-0 left-0 right-0 z-[3] p-6 lg:p-7'>
+      <div className='absolute bottom-0 left-0 right-0 z-3 p-6 lg:p-7'>
         <div className='overflow-hidden'>
           <motion.h3
             className='font-black tracking-[-0.02em] text-white'
@@ -177,14 +159,14 @@ export default function ArtistWall({ id }: Props) {
     >
       {/* ── Grain overlay ────────────────────────────────────────────────── */}
       <div
-        className='absolute inset-0 z-[1] pointer-events-none opacity-[0.025] mix-blend-overlay'
+        className='absolute inset-0 z-1 pointer-events-none opacity-[0.025] mix-blend-overlay'
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           backgroundSize: '200px 200px',
         }}
       />
 
-      <div className='relative z-[2] px-6 sm:px-12 lg:px-24 xl:px-32'>
+      <div className='relative z-2 px-6 sm:px-12 lg:px-24 xl:px-32'>
         {/* ── Section header ──────────────────────────────────────────────── */}
         <div className='flex items-center justify-between mb-12 lg:mb-16'>
           <div className='flex items-center gap-5'>
@@ -217,7 +199,7 @@ export default function ArtistWall({ id }: Props) {
           {ARTISTS.map((artist, i) => (
             <div
               key={artist.name}
-              className='snap-center flex-shrink-0'
+              className='snap-center shrink-0'
               style={{
                 width: 'clamp(260px, 72vw, 430px)',
                 aspectRatio: '3/4',
@@ -240,11 +222,11 @@ export default function ArtistWall({ id }: Props) {
           animate={isInView ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.8, delay: 0.7 }}
         >
-          <div className='h-px flex-1 bg-white/[0.06]' />
+          <div className='h-px flex-1 bg-white/6' />
           <p className='text-[0.6rem] tracking-[0.35em] uppercase text-white/20 font-medium'>
             Yeni Hisar · 1964
           </p>
-          <div className='h-px flex-1 bg-white/[0.06]' />
+          <div className='h-px flex-1 bg-white/6' />
         </motion.div>
       </div>
 

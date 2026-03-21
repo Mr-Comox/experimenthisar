@@ -8,7 +8,7 @@ import { useRef, useEffect, useState } from 'react';
  *
  * @param threshold  IntersectionObserver threshold (0–1). Default: 0.08.
  */
-export function useReveal(threshold = 0.08) {
+export function useReveal(threshold = 0.2) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 

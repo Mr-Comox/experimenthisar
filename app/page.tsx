@@ -129,14 +129,14 @@ export default function Home() {
        */}
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
-        <Activities id='activities' />
+        <Offer id='offer' />
       </div>
 
       {/* Gallery uses GSAP pin:true — must be outside overflow-x-hidden */}
       <Gallery id='gallery' />
 
       <div className='overflow-x-hidden'>
-        <Offer id='offer' />
+        <Activities id='activities' />
         <Menu id='menu' />
         <Testimonials id='testimonials' />
         <Location id='location' />

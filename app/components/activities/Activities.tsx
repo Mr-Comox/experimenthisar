@@ -108,7 +108,7 @@ const InfiniteCarousel = memo(() => {
   const trackRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const NORMAL_DURATION = '35s';
+  const NORMAL_DURATION = '20s';
 
   useLayoutEffect(() => {
     const track = trackRef.current;
@@ -168,8 +168,8 @@ const InfiniteCarousel = memo(() => {
       </div>
 
       {/* Edge fades */}
-      <div className='pointer-events-none absolute left-0 top-0 bottom-0 w-12 sm:w-20 xl:w-32 bg-gradient-to-r from-[var(--color-secondaryColor,#0a0a0a)] to-transparent z-10' />
-      <div className='pointer-events-none absolute right-0 top-0 bottom-0 w-12 sm:w-20 xl:w-32 bg-gradient-to-l from-[var(--color-secondaryColor,#0a0a0a)] to-transparent z-10' />
+      <div className='pointer-events-none absolute left-0 top-0 bottom-0 w-12 sm:w-20 xl:w-32 bg-linear-to-r from-(--color-secondaryColor,#0a0a0a) to-transparent z-10' />
+      <div className='pointer-events-none absolute right-0 top-0 bottom-0 w-12 sm:w-20 xl:w-32 bg-linear-to-l from-(--color-secondaryColor,#0a0a0a) to-transparent z-10' />
     </div>
   );
 });
@@ -185,7 +185,7 @@ const ActivitiesSlider = ({ id }: { id: string }) => {
   return (
     <section
       id={id}
-      className='relative overflow-hidden bg-[var(--color-secondaryColor,#0a0a0a)] pb-14'
+      className='relative overflow-hidden bg-(--color-secondaryColor,#0a0a0a) pb-14'
     >
       {/* Top glow */}
       <div
@@ -200,7 +200,7 @@ const ActivitiesSlider = ({ id }: { id: string }) => {
         <SectionHeader />
       </div>
 
-      <div className='w-full h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent' />
+      <div className='w-full h-px bg-linear-to-r from-transparent via-white/[0.07] to-transparent' />
 
       <div
         ref={carouselRef}
