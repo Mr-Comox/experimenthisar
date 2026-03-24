@@ -1,7 +1,12 @@
+import { Suspense } from 'react';
 import ThankYouPage from './ThankYou';
 
 const page = () => {
-  return <ThankYouPage />;
+  return (
+    <Suspense fallback={null}>
+      <ThankYouPage />
+    </Suspense>
+  );
 };
 
 export default page;
