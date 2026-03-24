@@ -1,12 +1,12 @@
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from 'react';
 import ThankYouPage from './ThankYou';
 
-const page = () => {
+export default function Page() {
   return (
     <Suspense fallback={null}>
       <ThankYouPage />
     </Suspense>
   );
-};
-
-export default page;
+}
