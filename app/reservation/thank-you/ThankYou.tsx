@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
 import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
@@ -766,10 +766,16 @@ function ThankYouInner({ id }: { id: string | null }) {
     </main>
   );
 }
-
-// ─── Outer Component (owns useSearchParams) ───────────────────────────────────
-export default function ThankYouPage() {
+function ThankYouWithParams() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   return <ThankYouInner id={id} />;
+}
+// ─── Outer Component (owns useSearchParams) ───────────────────────────────────
+export default function ThankYouPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThankYouWithParams />
+    </Suspense>
+  );
 }
