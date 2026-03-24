@@ -132,10 +132,9 @@ const VALUE_STYLE: React.CSSProperties = {
   display: 'block',
 };
 
-export default function ThankYouPage() {
+// ─── Inner Component (receives id as prop) ────────────────────────────────────
+function ThankYouInner({ id }: { id: string | null }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -147,7 +146,6 @@ export default function ThankYouPage() {
   const [animPhase, setAnimPhase] = useState<
     'animating' | 'drawing' | 'reveal'
   >('animating');
-
   const fetched = useRef(false);
   const ballRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
@@ -163,20 +161,14 @@ export default function ThankYouPage() {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
 
-        // All positions = translate from ball's natural top-left (top:0, left:0 inside slot).
-        // No xPercent/yPercent — pure pixel math so centering is exact.
-
-        // Large ball centered at viewport center
         const startX = vw / 2 - START_PX / 2 - r.left;
         const startY = vh / 2 - START_PX / 2 - r.top;
 
-        // Small ball centered at viewport center (after shrink)
         const shrunkX = vw / 2 - FINAL_PX / 2 - r.left;
         const shrunkY = vh / 2 - FINAL_PX / 2 - r.top;
 
         const tl = gsap.timeline();
 
-        // 1. Place ball: large, centered at viewport center, invisible
         tl.set(ball, {
           width: START_PX,
           height: START_PX,
@@ -186,10 +178,8 @@ export default function ThankYouPage() {
           borderRadius: '50%',
         });
 
-        // 2. Fade in
         tl.to(ball, { opacity: 1, duration: 0.28, ease: 'power2.out' });
 
-        // 3. Shrink to FINAL_PX — stays perfectly centered at viewport center
         tl.to(ball, {
           width: FINAL_PX,
           height: FINAL_PX,
@@ -202,7 +192,6 @@ export default function ThankYouPage() {
           },
         });
 
-        // 4. Travel to its slot (top-left 0,0 = perfectly in the FINAL_PX slot)
         tl.to(ball, {
           x: 0,
           y: 0,
@@ -370,7 +359,6 @@ export default function ThankYouPage() {
           }}
         >
           <div className='w-full max-w-[600px] lg:max-w-[700px] xl:max-w-[780px] flex flex-col items-center'>
-            {/* SLOT */}
             <div
               ref={slotRef}
               className='relative mb-12'
@@ -777,4 +765,11 @@ export default function ThankYouPage() {
       )}
     </main>
   );
+}
+
+// ─── Outer Component (owns useSearchParams) ───────────────────────────────────
+export default function ThankYouPage() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
+  return <ThankYouInner id={id} />;
 }
