@@ -25,7 +25,6 @@ const TABS = [
 const GROUPS: Record<string, { id: string; label: string }[]> = {
   restoran: [
     { id: 'about', label: 'Hakkımızda' },
-    { id: 'offer', label: 'Hizmetler' },
     { id: 'menu', label: 'Menü' },
     { id: 'testimonials', label: 'Yorumlar' },
   ],

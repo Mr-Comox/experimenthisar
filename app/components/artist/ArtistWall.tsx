@@ -1,77 +1,58 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
+import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/app/utilities/Modal';
+import { useReveal } from '@/app/utilities/useReveal';
+import TextReveal from '@/app/utilities/TextReveal';
+import { Headline } from '@/app/utilities/Headline';
+import { MainColorToQuatFont } from '@/app/utilities/LinearFontColors';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const ARTISTS = [
-  {
-    src: '/ahu.jpg',
-    name: 'Ahu',
-    index: '01',
-  },
-  {
-    src: '/didem.jpg',
-    name: 'Didem',
-    index: '02',
-  },
-  {
-    src: '/seda.jpg',
-    name: 'Seda',
-    index: '03',
-  },
+  { src: '/ahu.jpg', name: 'Ahu', role: 'Solist' },
+  { src: '/didem.jpg', name: 'Didem', role: 'Solist' },
+  { src: '/seda.jpg', name: 'Seda', role: 'Solist' },
 ];
 
 const MODAL_ITEMS = ARTISTS.map((a) => ({ src: a.src, alt: a.name }));
-
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
 // ─── Artist Card ──────────────────────────────────────────────────────────────
 function ArtistCard({
   artist,
   i,
-  sectionVisible,
+  visible,
   onClick,
 }: {
   artist: (typeof ARTISTS)[0];
   i: number;
-  sectionVisible: boolean;
+  visible: boolean;
   onClick: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 60, scale: 0.96 }}
-      animate={
-        sectionVisible
-          ? { opacity: 1, y: 0, scale: 1 }
-          : { opacity: 0, y: 60, scale: 0.96 }
-      }
-      transition={{
-        duration: 1.1,
-        delay: 0.15 + i * 0.13,
-        ease: EASE_OUT_EXPO,
-      }}
-      className='relative w-full h-full cursor-pointer'
+    <div
+      className='relative w-full h-full cursor-pointer group'
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible
+          ? 'translateY(0) scale(1)'
+          : 'translateY(48px) scale(0.96)',
+        transition: `opacity 1s cubic-bezier(0.16,1,0.3,1), transform 1s cubic-bezier(0.16,1,0.3,1)`,
+        transitionDelay: `${0.2 + i * 0.15}s`,
+      }}
     >
-      {/* ── Photo ──────────────────────────────────────────────────────── */}
-      <div className='absolute inset-0 rounded-2xl overflow-hidden'>
-        <motion.img
+      {/* ── Photo ── */}
+      <div className='absolute inset-0 rounded-sm overflow-hidden'>
+        <Image
           src={artist.src}
           alt={artist.name}
+          fill
+          unoptimized
           draggable={false}
-          fetchPriority='high'
-          loading='eager'
-          decoding='sync'
           onContextMenu={(e) => e.preventDefault()}
-          className='w-full h-full object-cover object-top select-none'
-          animate={{ scale: hovered ? 1.06 : 1.0 }}
-          transition={{ duration: 0.9, ease: EASE_OUT_EXPO }}
+          className='object-cover object-top select-none transition-transform duration-700 ease-out group-hover:scale-[1.04]'
           style={{ willChange: 'transform' }}
         />
 
@@ -80,46 +61,43 @@ function ArtistCard({
           className='absolute inset-0'
           style={{
             background:
-              'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.28) 45%, transparent 75%)',
+              'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.22) 50%, transparent 75%)',
           }}
         />
 
-        {/* Hover gradient — pink tint */}
-        <motion.div
-          className='absolute inset-0'
-          animate={{ opacity: hovered ? 1 : 0 }}
-          transition={{ duration: 0.5 }}
+        {/* Hover tint — pink */}
+        <div
+          className='absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500'
           style={{
             background:
-              'linear-gradient(to top, rgba(255,25,135,0.55) 0%, rgba(200,0,204,0.15) 40%, transparent 70%)',
+              'linear-gradient(to top, rgba(255,25,135,0.5) 0%, rgba(200,0,204,0.12) 45%, transparent 70%)',
           }}
         />
       </div>
 
-      {/* ── Artist name + role (bottom) ────────────────────────────────── */}
-      <div className='absolute bottom-0 left-0 right-0 z-3 p-6 lg:p-7'>
-        <div className='overflow-hidden'>
-          <motion.h3
-            className='font-black tracking-[-0.02em] text-white'
-            style={{ fontSize: 'clamp(2rem, 3.5vw, 3rem)' }}
-          >
-            {artist.name}
-          </motion.h3>
-        </div>
+      {/* ── Name + role (bottom) ── */}
+      <div className='absolute bottom-0 left-0 right-0 z-10 p-6 lg:p-7'>
+        <p
+          className='text-white/40 uppercase tracking-[0.28em] font-medium mb-2 group-hover:text-white/60 transition-colors duration-300'
+          style={{ fontSize: 'clamp(0.55rem, 0.8vw, 0.7rem)' }}
+        >
+          {artist.role}
+        </p>
+
+        <h3
+          className='font-black tracking-[-0.02em] text-white leading-none'
+          style={{ fontSize: 'clamp(2rem, 3.5vw, 3rem)' }}
+        >
+          {artist.name}
+        </h3>
 
         {/* Animated underline */}
-        <motion.div
-          className='mt-3 h-px'
-          animate={{ width: hovered ? '40%' : '0%' }}
-          transition={{
-            duration: 0.5,
-            delay: hovered ? 0.1 : 0,
-            ease: EASE_OUT_EXPO,
-          }}
+        <div
+          className='mt-3 h-px w-0 group-hover:w-[45%] transition-all duration-500 delay-75'
           style={{ background: 'linear-gradient(90deg, #FF1987, #c800cc)' }}
         />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -127,9 +105,7 @@ function ArtistCard({
 type Props = { id?: string };
 
 export default function ArtistWall({ id }: Props) {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(sectionRef, { once: true, margin: '-10% 0px' });
-
+  const { ref, visible } = useReveal();
   const [modalIndex, setModalIndex] = useState<number | null>(null);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -154,10 +130,10 @@ export default function ArtistWall({ id }: Props) {
   return (
     <section
       id={id}
-      ref={sectionRef}
-      className='relative bg-secondaryColor overflow-hidden pt-20'
+      ref={ref}
+      className='relative bg-secondaryColor overflow-hidden'
     >
-      {/* ── Grain overlay ────────────────────────────────────────────────── */}
+      {/* ── Grain overlay ── */}
       <div
         className='absolute inset-0 z-1 pointer-events-none opacity-[0.025] mix-blend-overlay'
         style={{
@@ -166,34 +142,48 @@ export default function ArtistWall({ id }: Props) {
         }}
       />
 
-      <div className='relative z-2 px-6 sm:px-12 lg:px-24 xl:px-32'>
-        {/* ── Section header ──────────────────────────────────────────────── */}
-        <div className='flex items-center justify-between mb-12 lg:mb-16'>
-          <div className='flex items-center gap-5'>
-            <motion.div
-              className='h-px bg-[#FF1987]'
-              initial={{ width: 0 }}
-              animate={isInView ? { width: 32 } : { width: 0 }}
-              transition={{ duration: 0.8, delay: 0.1, ease: EASE_OUT_EXPO }}
-            />
-            <motion.p
-              className='text-[0.65rem] tracking-[0.4em] uppercase text-white/55'
-              initial={{ opacity: 0, x: -10 }}
-              animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
-              transition={{ duration: 0.7, delay: 0.2, ease: EASE_OUT_EXPO }}
+      <div className='relative z-2 pt-24 lg:pt-36 pb-24 lg:pb-32'>
+        {/* ── Section header ── */}
+        <div className='px-6 sm:px-12 lg:px-24 xl:px-32 mb-16 lg:mb-20'>
+          <TextReveal animateOnScroll>
+            <Headline className='mb-8 max-w-3xl'>
+              Sahnede iz
+              <br />
+              <MainColorToQuatFont>bırakan isimler</MainColorToQuatFont>
+            </Headline>
+          </TextReveal>
+
+          <TextReveal animateOnScroll delay={0.15}>
+            <p
+              className='text-white/55 leading-[1.72] max-w-xl'
+              style={{ fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)' }}
             >
-              Sanatçılarımız
-            </motion.p>
-          </div>
+              Yıllar içinde nice değerli sanatçıya ev sahipliği yapmış bu
+              sahnede, her gece yeni bir performans, yeni bir anı doğuyor.
+            </p>
+          </TextReveal>
         </div>
 
-        {/* ── Cards ───────────────────────────────────────────────────────── */}
+        {/*
+          ── Horizontal scroll track ──────────────────────────────────────────
+          Card widths are set so the next card always peeks:
+            Mobile  (default) : ~82vw  → 1 card + peek of 2nd
+            Tablet  (sm/md)   : ~47vw  → 2 cards + peek of 3rd
+            Desktop (lg+)     : ~30vw  → 3 cards + peek of 4th
+
+          Left edge aligns with section text; right side intentionally
+          has minimal padding so the partially-visible card signals scroll.
+        ────────────────────────────────────────────────────────────────────── */}
         <div
-          className='flex gap-4 lg:gap-5
-                     overflow-x-auto
-                     snap-x snap-mandatory
-                     pb-4
-                     [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+          className='
+            flex gap-4 lg:gap-5
+            overflow-x-auto
+            snap-x snap-mandatory
+            pl-6 sm:pl-12 lg:pl-24 xl:pl-32
+            pr-10
+            pb-4
+            [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+          '
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {ARTISTS.map((artist, i) => (
@@ -208,29 +198,15 @@ export default function ArtistWall({ id }: Props) {
               <ArtistCard
                 artist={artist}
                 i={i}
-                sectionVisible={isInView}
+                visible={visible}
                 onClick={() => setModalIndex(i)}
               />
             </div>
           ))}
         </div>
-
-        {/* ── Bottom label strip ──────────────────────────────────────────── */}
-        <motion.div
-          className='flex items-center gap-3 mt-10 lg:mt-12'
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
-        >
-          <div className='h-px flex-1 bg-white/6' />
-          <p className='text-[0.6rem] tracking-[0.35em] uppercase text-white/20 font-medium'>
-            Yeni Hisar · 1964
-          </p>
-          <div className='h-px flex-1 bg-white/6' />
-        </motion.div>
       </div>
 
-      {/* ── Modal ───────────────────────────────────────────────────────────── */}
+      {/* ── Modal ── */}
       <AnimatePresence>
         {portalReady && modalIndex !== null && (
           <Modal

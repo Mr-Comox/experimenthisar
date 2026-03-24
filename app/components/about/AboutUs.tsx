@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 
 import { useReveal } from '@/app/utilities/useReveal';
 import AnimatedCounter from '@/app/utilities/AnimatedCounter';
@@ -14,6 +14,7 @@ import {
   QuatToLightFont,
 } from '@/app/utilities/LinearFontColors';
 import { Headline } from '@/app/utilities/Headline';
+import NavButton from '@/app/utilities/NavButton';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -21,12 +22,6 @@ gsap.registerPlugin(ScrollTrigger);
    HELPERS
 ───────────────────────────────────────────────────────────────── */
 type Props = { id: string };
-
-const STATS = [
-  { value: '800+', label: 'Etkinlik' },
-  { value: '20000+', label: 'Mutlu Misafir' },
-  { value: '7000+', label: 'Canlı Performans' },
-] as const;
 
 const PILLARS = [
   {
@@ -271,72 +266,227 @@ const HistorySection = () => {
 /* ─────────────────────────────────────────────────────────────────
    STATS SECTION
 ───────────────────────────────────────────────────────────────── */
-const StatsSection = () => {
-  const { ref, visible } = useReveal(0.24);
-  return (
-    <div className='px-6 sm:px-12 lg:px-24 xl:px-32 py-24 lg:py-32 border-t border-white/[0.07]'>
-      <div ref={ref}>
-        <div className='max-w-3xl mb-10 mt-20'>
-          <TextReveal delay={0}>
-            <Headline
-              className='mb-6'
-              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-            >
-              Rakamlarla <GoldToAmberFont> Yeni Hisar</GoldToAmberFont>
-            </Headline>
-          </TextReveal>
+const STAT_ROWS = [
+  {
+    label: 'Etkinlik',
+    sub: 'Kapılarımızdan geçen her gece, ayrı bir hikâye.',
+    numeric: 800,
+    suffix: '+',
+    accent: 'linear-gradient(135deg, #b8860b 0%, #ffd700 40%, #ff8c00 100%)',
+  },
+  {
+    label: 'Mutlu Misafir',
+    sub: 'Her misafir, hikâyemizin yeni bir parçasıdır.',
+    numeric: 20000,
+    suffix: '+',
+    accent: 'linear-gradient(135deg, #ff1987 0%, #ff6ec7 60%, #ffaadd 100%)',
+  },
+  {
+    label: 'Canlı Performans',
+    sub: 'Sahnemizde yankılanan her ses, kalıcı bir iz bıraktı.',
+    numeric: 7000,
+    suffix: '+',
+    accent: 'linear-gradient(135deg, #b8860b 0%, #ffd700 40%, #ff8c00 100%)',
+  },
+] as const;
 
-          <TextReveal delay={0.15}>
-            <Body style={{ fontSize: 'clamp(1rem, 1.6vw, 1.0625rem)' }}>
-              60 yılı aşan geçmişimiz, binlerce misafirimiz ve yüzlerce sahne
-              gecesiyle şekillenen bir deneyim birikimi.
-            </Body>
+/* ─────────────────────────────────────────────────────────────────
+   STAT ROW — own IntersectionObserver per row so each counter
+   fires only when that specific row scrolls into view.
+───────────────────────────────────────────────────────────────── */
+// Total time before ghost appears: AnimatedCounter delay (400ms) + duration (1800ms)
+const COUNTER_TOTAL_MS = 400 + 1800;
+
+const StatRow = ({
+  stat,
+  i,
+  isLast,
+}: {
+  stat: (typeof STAT_ROWS)[number];
+  i: number;
+  isLast: boolean;
+}) => {
+  const { ref, visible } = useReveal(0.35);
+  const isEven = i % 2 === 0;
+
+  // Ghost watermark is hidden until the counter finishes counting
+  const [ghostVisible, setGhostVisible] = useState(false);
+  useEffect(() => {
+    if (!visible) return;
+    const id = setTimeout(() => setGhostVisible(true), COUNTER_TOTAL_MS);
+    return () => clearTimeout(id);
+  }, [visible]);
+
+  return (
+    <div ref={ref} className='relative'>
+      {/* Top border */}
+      <div
+        className='w-full h-px'
+        style={{
+          background:
+            i === 0
+              ? 'linear-gradient(90deg, rgba(255,215,0,0.25) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)'
+              : 'rgba(255,255,255,0.06)',
+        }}
+      />
+
+      <div
+        className={`flex flex-col lg:flex-row items-start lg:items-center py-10 lg:py-14 ${isEven ? '' : 'lg:flex-row-reverse'}`}
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'none' : `translateX(${isEven ? -20 : 20}px)`,
+          transition:
+            'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
+        }}
+      >
+        {/* Ghost watermark — fades in once the counter lands on its final value */}
+        <div
+          aria-hidden='true'
+          className='pointer-events-none select-none absolute'
+          style={{
+            fontSize: 'clamp(7rem, 17vw, 16rem)',
+            fontWeight: 900,
+            lineHeight: 1,
+            letterSpacing: '-0.06em',
+            top: '50%',
+            [isEven ? 'right' : 'left']: '-1%',
+            transform: 'translateY(-50%)',
+            background: stat.accent,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            opacity: ghostVisible ? 0.045 : 0,
+            transition: 'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94)',
+          }}
+        >
+          {stat.numeric.toLocaleString()}+
+        </div>
+
+        {/* Counter — plays only when THIS row is visible */}
+        <div className='lg:w-[42%]'>
+          <AnimatedCounter
+            value={stat.numeric}
+            suffix={stat.suffix}
+            duration={1800}
+            play={visible}
+            className='font-black leading-none tracking-[-0.04em]'
+            style={{
+              fontSize: 'clamp(3rem, 8.5vw, 7.5rem)',
+              background: stat.accent,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              display: 'block',
+              lineHeight: 0.95,
+            }}
+          />
+        </div>
+
+        {/* Connector line — desktop only */}
+        <div
+          className='hidden lg:flex items-center flex-1 px-8 xl:px-12'
+          aria-hidden
+        >
+          <div
+            className='w-full h-px'
+            style={{
+              background: `linear-gradient(${isEven ? '90deg' : '270deg'}, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)`,
+            }}
+          />
+        </div>
+
+        {/* Label + sub */}
+        <div
+          className={`mt-4 lg:mt-0 lg:w-[34%] ${isEven ? 'lg:text-right' : 'lg:text-left'}`}
+        >
+          <p
+            className='text-white font-semibold leading-tight mb-2'
+            style={{ fontSize: 'clamp(1.4rem, 2.5vw, 2rem)' }}
+          >
+            {stat.label}
+          </p>
+          <Body style={{ fontSize: 'clamp(0.875rem, 1.2vw, 1rem)' }}>
+            {stat.sub}
+          </Body>
+        </div>
+      </div>
+
+      {/* Bottom border on last row */}
+      {isLast && (
+        <div
+          className='w-full h-px'
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   STATS SECTION — header keeps its own reveal; rows use StatRow
+───────────────────────────────────────────────────────────────── */
+const StatsSection = () => {
+  const { ref, visible } = useReveal(0.12); // header only
+
+  return (
+    <div className='relative overflow-hidden px-6 sm:px-12 lg:px-24 xl:px-32 py-24 lg:py-36 border-t border-white/[0.07]'>
+      {/* Ambient glow */}
+      <div
+        className='pointer-events-none absolute inset-0'
+        style={{
+          background:
+            'radial-gradient(ellipse 55% 40% at 10% 50%, rgba(184,134,11,0.07) 0%, transparent 60%), radial-gradient(ellipse 40% 35% at 90% 30%, rgba(255,25,135,0.06) 0%, transparent 55%)',
+        }}
+      />
+
+      {/* Left decorative rule */}
+      <div
+        className='pointer-events-none absolute top-0 bottom-0 hidden lg:block'
+        style={{
+          left: 'clamp(24px, 4.16vw, 96px)',
+          width: 1,
+          background:
+            'linear-gradient(180deg, transparent 0%, rgba(255,215,0,0.18) 30%, rgba(255,25,135,0.14) 70%, transparent 100%)',
+        }}
+      />
+
+      <div className='relative max-w-7xl'>
+        {/* Header — own reveal */}
+        <div
+          ref={ref}
+          className='mb-20 lg:mb-28'
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'none' : 'translateY(32px)',
+            transition:
+              'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
+          }}
+        >
+          <TextReveal animateOnScroll>
+            <Headline style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}>
+              Rakamlarla <br />
+              <GoldToAmberFont>Yeni Hisar</GoldToAmberFont>
+            </Headline>
           </TextReveal>
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-20 lg:gap-x-14 xl:gap-x-16 lg:text-center gap-y-20 py-16'>
-          {STATS.map((stat, i) => {
-            const numericValue = parseInt(stat.value.replace(/\D/g, ''), 10);
-            const suffix = stat.value.replace(/[0-9]/g, '');
-            return (
-              <div
-                key={stat.label}
-                style={{
-                  opacity: visible ? 1 : 0,
-                  transform: visible ? 'none' : 'translateY(24px)',
-                  transition: `opacity 0.9s ease ${200 + i * 100}ms, transform 0.9s ease ${200 + i * 100}ms`,
-                }}
-              >
-                <AnimatedCounter
-                  value={numericValue}
-                  suffix={suffix}
-                  duration={1800}
-                  play={visible}
-                  className='font-bold leading-none mb-3 tracking-[-0.03em]'
-                  style={{
-                    fontSize: 'clamp(3.5rem, 5.5vw, 5.1rem)',
-                    background:
-                      'linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #ff8c00 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    display: 'block',
-                  }}
-                />
-                <p
-                  className='text-white/70'
-                  style={{ fontSize: 'clamp(1rem, 1.4vw, 1.3rem)' }}
-                >
-                  {stat.label}
-                </p>
-              </div>
-            );
-          })}
+        {/* Each row manages its own visibility + counter */}
+        <div className='flex flex-col'>
+          {STAT_ROWS.map((stat, i) => (
+            <StatRow
+              key={stat.label}
+              stat={stat}
+              i={i}
+              isLast={i === STAT_ROWS.length - 1}
+            />
+          ))}
         </div>
       </div>
     </div>
   );
 };
 
+/* ─────────────────────────────────────────────────────────────────
+   SHIELD VISUAL
+───────────────────────────────────────────────────────────────── */
 const ShieldVisual = ({ visible }: { visible: boolean }) => (
   <div
     className='relative flex items-center justify-center mx-auto'
@@ -431,14 +581,62 @@ const HEADLINE_LINE1 = 'Eğlenceniz için';
 const HEADLINE_LINE2 = 'maksimum güvenlik';
 
 /* ─────────────────────────────────────────────────────────────────
-   SECURITY SECTION — FIXED FOR MOBILE
-   Key fixes:
-   1. Font size clamp lowered from 3rem to 1.75rem minimum
-   2. whiteSpace: 'nowrap' removed from all four headline divs
-   3. overflow-hidden added to headline wrapper to contain anim divs
+   SECURITY SECTION
 ───────────────────────────────────────────────────────────────── */
 const SecuritySection = () => {
   const { ref, visible } = useReveal(0.08);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const syncScrollState = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const { scrollLeft, clientWidth, scrollWidth } = track;
+    setCanScrollLeft(scrollLeft > 2);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    let closest = 0;
+    let minDist = Infinity;
+    cardRefs.current.forEach((card, i) => {
+      if (!card) return;
+      const dist = Math.abs(card.offsetLeft - scrollLeft - paddingLeft);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = i;
+      }
+    });
+    setActiveIndex(closest);
+  }, []);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    syncScrollState();
+    el.addEventListener('scroll', syncScrollState, { passive: true });
+    window.addEventListener('resize', syncScrollState);
+    return () => {
+      el.removeEventListener('scroll', syncScrollState);
+      window.removeEventListener('resize', syncScrollState);
+    };
+  }, [syncScrollState]);
+
+  const scrollToCard = useCallback((index: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const clamped = Math.max(0, Math.min(index, PILLARS.length - 1));
+    const card = cardRefs.current[clamped];
+    if (!card) return;
+    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
+    track.scrollTo({ left: card.offsetLeft - paddingLeft, behavior: 'smooth' });
+  }, []);
+
+  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+    cardRefs.current[i] = el;
+  };
 
   const l1BaseRef = useRef<HTMLDivElement>(null);
   const l1AnimRef = useRef<HTMLDivElement>(null);
@@ -467,11 +665,9 @@ const SecuritySection = () => {
       end: 'top 30%',
       onUpdate: (self) => {
         const offset = Math.round(self.progress * total);
-
         const o1 = Math.min(offset, chars1.length);
         l1Anim.textContent =
           chars1.slice(0, o1).join('') + dots1.slice(o1).join('');
-
         const o2 = Math.max(0, offset - chars1.length);
         const revealed = chars2.slice(0, o2).join('');
         const remain = dots2.slice(o2).join('');
@@ -480,9 +676,47 @@ const SecuritySection = () => {
           : remain;
       },
     });
-
     return () => st.kill();
   }, []);
+
+  const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
+
+  const renderCard = (pillar: (typeof PILLARS)[number], i: number) => (
+    <div
+      className='rounded-2xl p-8 lg:p-10'
+      style={{
+        width: '100%',
+        background: 'rgba(255,255,255,0.001)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'none' : 'translateY(28px)',
+        transition: `opacity 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms, transform 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms`,
+      }}
+    >
+      <div
+        className='mb-6 inline-flex items-center justify-center rounded-xl'
+        style={{
+          width: 56,
+          height: 56,
+          background: 'rgba(255,25,135,0.08)',
+          border: '1px solid rgba(255,25,135,0.18)',
+          color: 'rgba(255,100,160,0.9)',
+        }}
+      >
+        {pillar.icon}
+      </div>
+
+      <p
+        className='text-white font-semibold mb-4'
+        style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.375rem)' }}
+      >
+        {pillar.label}
+      </p>
+      <Body style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)' }}>
+        {pillar.text}
+      </Body>
+    </div>
+  );
 
   return (
     <div className='relative overflow-hidden'>
@@ -501,174 +735,209 @@ const SecuritySection = () => {
           backgroundSize: '60px 60px',
         }}
       />
-      <div
-        ref={ref}
-        className='relative px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-36 pb-24 lg:pb-32'
-      >
+
+      <div ref={ref} className='relative pt-24 lg:pt-36'>
+        {/* ── Header block ── */}
         <div
-          className='flex flex-col lg:flex-row items-center lg:items-start gap-14 lg:gap-20 mb-24'
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'none' : 'translateY(40px)',
-            transition:
-              'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-          }}
+          style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
+          className='pb-12'
         >
-          <ShieldVisual visible={visible} />
-          <div className='flex-1 lg:pt-6 min-w-0'>
-            {/* ── Decode headline — FIXED: smaller min font, no nowrap ── */}
-            <h2
-              className='text-white font-bold leading-[1.15] tracking-[-0.025em] mb-8'
-              style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-            >
-              {/* Line 1 */}
-              <div style={{ position: 'relative', display: 'block' }}>
-                {/* Base: invisible, drives natural height & wrapping */}
-                <div ref={l1BaseRef} style={{ opacity: 0 }}>
-                  {HEADLINE_LINE1}
+          <div
+            className='flex flex-col lg:flex-row items-center lg:items-start gap-14 lg:gap-20'
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'none' : 'translateY(40px)',
+              transition:
+                'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
+            }}
+          >
+            <ShieldVisual visible={visible} />
+            <div className='flex-1 lg:pt-6 min-w-0'>
+              <h2
+                className='text-white font-bold leading-[1.15] tracking-[-0.025em] mb-8'
+                style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
+              >
+                <div style={{ position: 'relative', display: 'block' }}>
+                  <div ref={l1BaseRef} style={{ opacity: 0 }}>
+                    {HEADLINE_LINE1}
+                  </div>
+                  <div
+                    ref={l1AnimRef}
+                    aria-hidden='true'
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+                  />
                 </div>
-                {/* Animated overlay — positioned to match base */}
-                <div
-                  ref={l1AnimRef}
-                  aria-hidden='true'
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                  }}
-                />
-              </div>
-
-              {/* Line 2 */}
-              <div style={{ position: 'relative', display: 'block' }}>
-                <div ref={l2BaseRef} style={{ opacity: 0 }}>
-                  {HEADLINE_LINE2}
+                <div style={{ position: 'relative', display: 'block' }}>
+                  <div ref={l2BaseRef} style={{ opacity: 0 }}>
+                    {HEADLINE_LINE2}
+                  </div>
+                  <div
+                    ref={l2AnimRef}
+                    aria-hidden='true'
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+                  />
                 </div>
-                <div
-                  ref={l2AnimRef}
-                  aria-hidden='true'
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                  }}
-                />
+              </h2>
+
+              <TextReveal delay={0.2}>
+                <Body className='max-w-xl'>
+                  Yeni Turistik Hisar Gazinosu, misafirlerinin gece boyunca
+                  kendini özgür ve güvende hissetmesi için endüstri
+                  standartlarının ötesinde bir güvenlik altyapısı işletmektedir.
+                  Kapıdan sahneye, sahneden çıkışa her adım denetim altındadır.
+                </Body>
+              </TextReveal>
+
+              <div
+                className='mt-10 h-px max-w-md'
+                style={{
+                  background:
+                    'linear-gradient(90deg, rgba(255,25,135,0.5) 0%, rgba(255,25,135,0.08) 60%, transparent 100%)',
+                  opacity: visible ? 1 : 0,
+                  transition: 'opacity 1s ease 0.5s',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════
+            DESKTOP: 2×2 grid — visible on lg+
+        ══════════════════════════════════════════ */}
+        <div
+          className='hidden lg:grid grid-cols-2 gap-4'
+          style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
+        >
+          {PILLARS.map((pillar, i) => (
+            <div key={pillar.label}>{renderCard(pillar, i)}</div>
+          ))}
+        </div>
+
+        {/* ══════════════════════════════════════════
+            MOBILE / TABLET: carousel — visible below lg
+        ══════════════════════════════════════════ */}
+        <div className='lg:hidden'>
+          <div
+            ref={trackRef}
+            className='scrollbar-hide'
+            style={
+              {
+                display: 'flex',
+                overflowX: 'auto',
+                alignItems: 'stretch',
+                gap: 16,
+                paddingLeft: TRACK_PADDING,
+                paddingRight: TRACK_PADDING,
+                paddingTop: 40,
+                paddingBottom: 32,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+              } as React.CSSProperties
+            }
+          >
+            {PILLARS.map((pillar, i) => (
+              <div
+                key={pillar.label}
+                ref={setCardRef(i)}
+                style={{
+                  flexShrink: 0,
+                  width: 'clamp(280px, 78vw, 405px)',
+                  display: 'flex',
+                }}
+              >
+                {renderCard(pillar, i)}
               </div>
-            </h2>
+            ))}
+            <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
+          </div>
 
-            <TextReveal delay={0.2}>
-              <Body className='max-w-xl'>
-                Yeni Turistik Hisar Gazinosu, misafirlerinin gece boyunca
-                kendini özgür ve güvende hissetmesi için endüstri
-                standartlarının ötesinde bir güvenlik altyapısı işletmektedir.
-                Kapıdan sahneye, sahneden çıkışa her adım denetim altındadır.
-              </Body>
-            </TextReveal>
-
-            <div
-              className='mt-10 h-px max-w-md'
-              style={{
-                background:
-                  'linear-gradient(90deg, rgba(255,25,135,0.5) 0%, rgba(255,25,135,0.08) 60%, transparent 100%)',
-                opacity: visible ? 1 : 0,
-                transition: 'opacity 1s ease 0.5s',
-              }}
+          {/* Nav buttons */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 12,
+              paddingRight: TRACK_PADDING,
+              paddingBottom: 40,
+              paddingTop: 8,
+            }}
+          >
+            <NavButton
+              dir='left'
+              disabled={!canScrollLeft}
+              onClick={() => scrollToCard(activeIndex - 1)}
+            />
+            <NavButton
+              dir='right'
+              disabled={!canScrollRight}
+              onClick={() => scrollToCard(activeIndex + 1)}
             />
           </div>
         </div>
 
-        {/* Four-pillar 2x2 grid */}
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5'>
-          {PILLARS.map((pillar, i) => (
-            <div
-              key={pillar.label}
-              className='rounded-2xl p-8 lg:p-10'
-              style={{
-                background: 'rgba(255,255,255,0.001)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                opacity: visible ? 1 : 0,
-                transform: visible ? 'none' : 'translateY(28px)',
-                transition: `opacity 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms, transform 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms`,
-              }}
-            >
-              <div
-                className='mb-6 inline-flex items-center justify-center rounded-xl'
-                style={{
-                  width: 56,
-                  height: 56,
-                  background: 'rgba(255,25,135,0.08)',
-                  border: '1px solid rgba(255,25,135,0.18)',
-                  color: 'rgba(255,100,160,0.9)',
-                }}
-              >
-                {pillar.icon}
-              </div>
-              <TextReveal>
-                <p
-                  className='text-white font-semibold mb-4'
-                  style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.375rem)' }}
-                >
-                  {pillar.label}
-                </p>
-                <Body
-                  style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)' }}
-                >
-                  {pillar.text}
-                </Body>
-              </TextReveal>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom statement bar */}
+        {/* ── Bottom statement bar ── */}
         <div
-          className='mt-20 rounded-2xl px-8 py-8 sm:px-12 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-12'
           style={{
-            background:
-              'linear-gradient(135deg, rgba(255,25,135,0.07) 0%, rgba(255,25,135,0.03) 50%, rgba(184,134,11,0.04) 100%)',
-            border: '1px solid rgba(255,25,135,0.12)',
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'none' : 'translateY(20px)',
-            transition: 'opacity 1s ease 0.85s, transform 1s ease 0.85s',
+            paddingLeft: TRACK_PADDING,
+            paddingRight: TRACK_PADDING,
+            paddingBottom: '6rem',
+            paddingTop: '2rem',
           }}
         >
-          <div className='shrink-0'>
-            <p
-              className='font-bold leading-none tracking-[-0.03em]'
-              style={{
-                fontSize: 'clamp(3.5rem, 5vw, 4.5rem)',
-                background:
-                  'linear-gradient(135deg,#b8860b 0%,#ffd700 30%,#ff8c00 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              60+
-            </p>
-            <p className='text-white/40 mt-1' style={{ fontSize: '0.875rem' }}>
-              Yıllık güven
-            </p>
-          </div>
-          <div className='hidden sm:block w-px self-stretch bg-white/10' />
-          <Body
-            className='max-w-2xl'
-            style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1rem)' }}
+          <div
+            className='rounded-2xl mt-5 px-8 py-8 sm:px-12 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-12 w-fit mx-auto'
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(255,25,135,0.07) 0%, rgba(255,25,135,0.03) 50%, rgba(184,134,11,0.04) 100%)',
+              border: '1px solid rgba(255,25,135,0.12)',
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'none' : 'translateY(20px)',
+              transition: 'opacity 1s ease 0.85s, transform 1s ease 0.85s',
+            }}
           >
-            Altmış yılı aşan deneyimimiz, yalnızca sahne kültürünü değil,
-            güvenlik kültürünü de şekillendirdi. Misafirlerimiz kapıdan içeri
-            adım attığı andan itibaren{' '}
-            <span className='text-white/85'>
-              profesyonel bir sistemin koruması altındadır.
-            </span>
-          </Body>
+            <div className='shrink-0'>
+              <p
+                className='font-bold leading-none tracking-[-0.03em]'
+                style={{
+                  fontSize: 'clamp(3.5rem, 5vw, 4.5rem)',
+                  background:
+                    'linear-gradient(135deg,#b8860b 0%,#ffd700 30%,#ff8c00 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                60+
+              </p>
+              <p
+                className='text-white/40 mt-1'
+                style={{ fontSize: '0.875rem' }}
+              >
+                Yıllık güven
+              </p>
+            </div>
+            <div className='hidden sm:block w-px self-stretch bg-white/10' />
+            <Body
+              className='max-w-2xl'
+              style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1rem)' }}
+            >
+              Altmış yılı aşan deneyimimiz, yalnızca sahne kültürünü değil,
+              güvenlik kültürünü de şekillendirdi. Misafirlerimiz kapıdan içeri
+              adım attığı andan itibaren{' '}
+              <span className='text-white/85'>
+                profesyonel bir sistemin koruması altındadır.
+              </span>
+            </Body>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
+/* ─────────────────────────────────────────────────────────────────
+   ROOT
+───────────────────────────────────────────────────────────────── */
 const AboutUs = ({ id }: Props) => (
   <section
     id={id}

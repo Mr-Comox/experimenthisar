@@ -237,8 +237,8 @@ export default function Reservation({ id }: Props) {
                   >
                     <CheckIcon />
                   </div>
-                  <div className='pt-2'>
-                    <TextReveal>
+                  <TextReveal>
+                    <div className='pt-2'>
                       <p
                         className='text-white/80 font-semibold mb-1'
                         style={{ fontSize: 'clamp(0.9rem, 1.3vw, 1.05rem)' }}
@@ -251,8 +251,8 @@ export default function Reservation({ id }: Props) {
                       >
                         {b.text}
                       </p>
-                    </TextReveal>
-                  </div>
+                    </div>
+                  </TextReveal>
                 </div>
               ))}
             </div>

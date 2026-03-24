@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import AnimatedText from '../../utilities/AnimatedText';
 
 const schedule = [
   { time: '23:00', label: 'Açılış' },
@@ -201,12 +200,12 @@ function CountdownCard() {
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
         exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
         transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-6xl mx-auto w-full'
+        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-7xl mx-auto w-full '
       >
-        <div className='relative px-5 sm:px-8 py-6 sm:py-8'>
+        <div className='relative px-5 sm:px-8 py-6 sm:py-8 bg-secondaryColor'>
           {/* Header — always one row, text shrinks to fit on small screens */}
           <div className='flex items-center justify-between gap-3 mb-7 sm:mb-8'>
-            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0'>
+            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full  border border-white/10 shrink-0'>
               <span className='relative flex w-2 h-2'>
                 <span className='absolute inset-0 rounded-full bg-white/30 opacity-70 animate-ping' />
                 <span className='relative w-2 h-2 rounded-full bg-white/40' />
@@ -296,7 +295,7 @@ export default function Timeline() {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
               exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
               transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-              className='relative mb-10 rounded-2xl overflow-hidden now-card-border max-w-6xl mx-auto w-full'
+              className='relative mb-10 rounded-2xl overflow-hidden now-card-border max-w-7xl mx-auto w-full'
             >
               <div className='relative px-5 sm:px-8 py-5 sm:py-7'>
                 <div className='flex items-center justify-between mb-5'>
@@ -336,10 +335,6 @@ export default function Timeline() {
           )
         )}
       </AnimatePresence>
-
-      <div className='flex items-end justify-between mt-20'>
-        <AnimatedText text='Sahne' />
-      </div>
 
       <div>
         {rows.map(({ time, label, idx, isPast, isActive, progress }) => (

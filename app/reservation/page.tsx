@@ -1,4 +1,4 @@
-import ReservationPage from './ReservationPage';
+import ReservationPage from './Reservation';
 
 const page = () => {
   return <ReservationPage />;

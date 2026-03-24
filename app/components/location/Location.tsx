@@ -128,7 +128,10 @@ export default function Location({ id }: Props) {
               touchZoomRotate={false}
             >
               <Marker {...MARKER} anchor='bottom'>
-                <motion.div
+                <motion.a
+                  href={MAPS_URL}
+                  target='_blank'
+                  rel='noopener noreferrer'
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{
@@ -140,7 +143,7 @@ export default function Location({ id }: Props) {
                   className='cursor-pointer'
                 >
                   <LocationIcon />
-                </motion.div>
+                </motion.a>
               </Marker>
             </Map>
           ) : (

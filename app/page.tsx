@@ -9,7 +9,6 @@ import { clearSmoother, setSmoother } from '@/app/lib/smoother';
 import Navbar from './shared/Navbar';
 import Hero from './components/hero/Hero';
 import AboutUs from './components/about/AboutUs';
-import Offer from './components/offer/Offer';
 import Menu from './components/menu/Menu';
 import Activities from './components/activities/Activities';
 import Gallery from './components/gallery/Gallery';
@@ -120,7 +119,6 @@ export default function Home() {
     <main ref={mainRef} className='relative'>
       <Navbar />
       <Hero />
-      <ArtistWall />
       {/*
        * overflow-x-hidden creates a new scroll container in all browsers.
        * Components using GSAP pin:true or position:sticky MUST live
@@ -129,7 +127,7 @@ export default function Home() {
        */}
       <div className='overflow-x-hidden'>
         <AboutUs id='about' />
-        <Offer id='offer' />
+        <ArtistWall />
       </div>
 
       {/* Gallery uses GSAP pin:true — must be outside overflow-x-hidden */}

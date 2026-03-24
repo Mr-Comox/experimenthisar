@@ -21,14 +21,35 @@ const DRIFT = [
   { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
 ];
 
+// Preload all images at module level (runs once, not per render)
 if (typeof window !== 'undefined') {
   SLIDES.forEach(({ src }) => {
     const img = new window.Image();
+    img.fetchPriority = 'high';
+    img.decoding = 'async';
     img.src = src;
   });
 }
 
 const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+
+// Hoist static styles outside component to avoid object recreation on every render
+const GRAIN_STYLE = {
+  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+  backgroundSize: '200px 200px',
+} as const;
+
+const GRADIENT_STYLE = {
+  background: `
+    linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
+    linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
+    linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
+  `,
+  opacity: 0.85,
+} as const;
+
+// Shared will-change style for promoted GPU layers
+const GPU_LAYER_FULL = { willChange: 'transform, opacity' } as const;
 
 // ─── ProgressBar ─────────────────────────────────────────────────────────────
 function ProgressBar({
@@ -43,18 +64,39 @@ function ProgressBar({
   onClick: () => void;
 }) {
   return (
+    // Tall hit area for easy mobile tap, visual bar centred inside via flex
     <button
       onClick={onClick}
       aria-label='Slayta git'
-      className='h-0.5 flex-1 relative overflow-hidden cursor-pointer bg-white/15'
+      className='flex-1 flex items-center py-3 cursor-pointer'
     >
-      {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
-      {active && (
-        <span
-          key={animKey}
-          className='absolute inset-0 animate-progress bg-linear-to-r from-[#FF1987] to-[#c800cc]'
-        />
-      )}
+      <div className='relative h-[3px] w-full overflow-hidden rounded-full bg-white/15'>
+        {/* Filled state for past slides */}
+        {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
+
+        {/* Pure CSS keyframe animation — runs entirely on the compositor
+            thread, zero JS involvement, perfectly smooth regardless of
+            main-thread load. Inline <style> avoids needing global CSS. */}
+        {active && (
+          <>
+            <style>{`
+              @keyframes bar-fill {
+                from { transform: scaleX(0); }
+                to   { transform: scaleX(1); }
+              }
+              .bar-fill {
+                animation: bar-fill ${SLIDE_MS}ms linear forwards;
+                transform-origin: left;
+                will-change: transform;
+              }
+            `}</style>
+            <span
+              key={animKey}
+              className='bar-fill absolute inset-0 bg-gradient-to-r from-[#FF1987] to-[#c800cc]'
+            />
+          </>
+        )}
+      </div>
     </button>
   );
 }
@@ -109,12 +151,19 @@ export default function Hero() {
     img.src = SLIDES[0].src;
 
     const onReady = () => {
-      setReady(true);
-      startTimer();
+      // Double RAF: first frame commits layout, second frame begins paint.
+      // This prevents animations from firing before the browser has had a
+      // chance to composite the initial layer — the main cause of first-mount jank.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setReady(true);
+          startTimer();
+        });
+      });
     };
 
     if (img.complete) {
-      requestAnimationFrame(onReady);
+      onReady();
     } else {
       img.onload = onReady;
     }
@@ -141,10 +190,7 @@ export default function Hero() {
       {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
       <div
         className='absolute inset-0 z-[15] pointer-events-none opacity-[0.032] mix-blend-overlay'
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          backgroundSize: '200px 200px',
-        }}
+        style={GRAIN_STYLE}
       />
 
       {/* ── SLIDESHOW ─────────────────────────────────────────────────────── */}
@@ -162,6 +208,7 @@ export default function Hero() {
             alt={SLIDES[index].alt}
             draggable={false}
             fetchPriority={index === 0 ? 'high' : 'auto'}
+            decoding={index === 0 ? 'sync' : 'async'}
             onContextMenu={(e) => e.preventDefault()}
             className='absolute inset-0 w-full h-full object-cover object-center select-none'
             style={{
@@ -172,7 +219,14 @@ export default function Hero() {
               pointerEvents: 'none',
             }}
             initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
-            animate={{ x: DRIFT[index].x[1], y: DRIFT[index].y[1] }}
+            // Keep animate == initial until ready so Framer Motion has
+            // nothing to interpolate — image stays locked at x[0].
+            // Once ready flips true, animate changes and the drift
+            // starts from the correct origin with no instant snap.
+            animate={{
+              x: ready ? DRIFT[index].x[1] : DRIFT[index].x[0],
+              y: ready ? DRIFT[index].y[1] : DRIFT[index].y[0],
+            }}
             transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
           />
         </motion.div>
@@ -181,14 +235,7 @@ export default function Hero() {
       {/* ── GRADIENT OVERLAY ──────────────────────────────────────────────── */}
       <div
         className='absolute inset-0 z-[10] pointer-events-none'
-        style={{
-          background: `
-            linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
-            linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
-            linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
-          `,
-          opacity: 0.85,
-        }}
+        style={GRADIENT_STYLE}
       />
 
       {/* ── CENTERED TITLE ────────────────────────────────────────────────── */}
@@ -212,6 +259,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 8 }}
           animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
           transition={{ duration: 0.8, delay: 0.4, ease: EASE_OUT_EXPO }}
+          style={{ willChange: 'transform' }}
         >
           International Night Club
         </motion.p>
@@ -224,7 +272,7 @@ export default function Hero() {
         initial={{ opacity: 0, y: 10 }}
         animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
         transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
-        style={{ willChange: 'transform, opacity' }}
+        style={GPU_LAYER_FULL}
       >
         <div className='flex items-center gap-2 flex-1 max-w-40'>
           {SLIDES.map((_, i) => (
