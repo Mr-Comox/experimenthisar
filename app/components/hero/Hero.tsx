@@ -4,24 +4,27 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { scrollTo } from '@/app/lib/scrollTo';
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+/* ================================================================
+   CONFIG
+   ================================================================ */
 const SLIDES = [
   { src: '/photo1.jpeg', alt: 'Yeni Hisar' },
   { src: '/photo2.jpeg', alt: 'Yeni Hisar Sahne' },
   { src: '/photo3.jpeg', alt: 'Yeni Hisar Atmosfer' },
-  { src: '/photo4.jpeg', alt: 'Yeni Hisar Atmosfer' },
+  { src: '/photo4.jpeg', alt: 'Yeni Hisar Gece' },
 ];
 
 const SLIDE_MS = 6000;
 
-const DRIFT = [
-  { x: ['0%', '-1.8%'], y: ['0%', '-0.6%'] },
-  { x: ['-1.5%', '0%'], y: ['0%', '0.6%'] },
-  { x: ['0%', '1.5%'], y: ['-0.4%', '0.4%'] },
-  { x: ['1.2%', '-0.6%'], y: ['0%', '-0.5%'] },
+/* Ken Burns — each slide gets drift + scale direction */
+const KENBURNS = [
+  { x: ['0%', '-2%'], y: ['0%', '-0.8%'], scale: [1.08, 1.0] },
+  { x: ['-1.5%', '0.5%'], y: ['0.5%', '-0.5%'], scale: [1.0, 1.06] },
+  { x: ['0%', '1.5%'], y: ['-0.5%', '0.5%'], scale: [1.06, 1.0] },
+  { x: ['1%', '-1%'], y: ['0%', '-0.6%'], scale: [1.0, 1.08] },
 ];
 
-// Preload all images at module level (runs once, not per render)
+/* Preload images at module level */
 if (typeof window !== 'undefined') {
   SLIDES.forEach(({ src }) => {
     const img = new window.Image();
@@ -31,27 +34,16 @@ if (typeof window !== 'undefined') {
   });
 }
 
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+const EXPO_OUT = [0.16, 1, 0.3, 1] as const;
 
-// Hoist static styles outside component to avoid object recreation on every render
 const GRAIN_STYLE = {
   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
   backgroundSize: '200px 200px',
 } as const;
 
-const GRADIENT_STYLE = {
-  background: `
-    linear-gradient(to bottom,  var(--color-secondaryColor, #000) 0%, transparent 40%, var(--color-secondaryColor, #000) 100%),
-    linear-gradient(to right,   var(--color-secondaryColor, #000) 0%, transparent 60%),
-    linear-gradient(to left,    var(--color-secondaryColor, #000) 0%, transparent 55%)
-  `,
-  opacity: 0.85,
-} as const;
-
-// Shared will-change style for promoted GPU layers
-const GPU_LAYER_FULL = { willChange: 'transform, opacity' } as const;
-
-// ─── ProgressBar ─────────────────────────────────────────────────────────────
+/* ================================================================
+   PROGRESS BAR
+   ================================================================ */
 function ProgressBar({
   active,
   done,
@@ -64,44 +56,43 @@ function ProgressBar({
   onClick: () => void;
 }) {
   return (
-    // Tall hit area for easy mobile tap, visual bar centred inside via flex
     <button
       onClick={onClick}
       aria-label='Slayta git'
       className='flex-1 flex items-center py-3 cursor-pointer'
     >
-      <div className='relative h-[3px] w-full overflow-hidden rounded-full bg-white/15'>
-        {/* Filled state for past slides */}
-        {done && <span className='absolute inset-0 bg-[#FF1987]/55' />}
-
-        {/* Pure CSS keyframe animation — runs entirely on the compositor
-            thread, zero JS involvement, perfectly smooth regardless of
-            main-thread load. Inline <style> avoids needing global CSS. */}
+      <div
+        className='relative h-0.75 w-full overflow-hidden rounded-full'
+        style={{ background: 'rgba(255,255,255,0.12)' }}
+      >
+        {done && (
+          <span
+            className='absolute inset-0'
+            style={{ background: 'var(--color-brand)', opacity: 0.45 }}
+          />
+        )}
         {active && (
-          <>
-            <style>{`
-              @keyframes bar-fill {
-                from { transform: scaleX(0); }
-                to   { transform: scaleX(1); }
-              }
-              .bar-fill {
-                animation: bar-fill ${SLIDE_MS}ms linear forwards;
-                transform-origin: left;
-                will-change: transform;
-              }
-            `}</style>
-            <span
-              key={animKey}
-              className='bar-fill absolute inset-0 bg-gradient-to-r from-[#FF1987] to-[#c800cc]'
-            />
-          </>
+          <motion.span
+            key={animKey}
+            className='absolute inset-0'
+            style={{
+              background:
+                'linear-gradient(to right, var(--color-brand), var(--color-accent))',
+              transformOrigin: 'left',
+            }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: SLIDE_MS / 1000, ease: 'linear' }}
+          />
         )}
       </div>
     </button>
   );
 }
 
-// ─── MaskedLine ───────────────────────────────────────────────────────────────
+/* ================================================================
+   MASKED LINE — cinematic text reveal
+   ================================================================ */
 function MaskedLine({
   children,
   delay = 0,
@@ -119,9 +110,9 @@ function MaskedLine({
       style={{ paddingBottom: '0.08em', marginBottom: '-0.08em' }}
     >
       <motion.div
-        initial={{ y: '105%' }}
-        animate={ready ? { y: '0%' } : { y: '105%' }}
-        transition={{ duration: 1.05, delay, ease: EASE_OUT_EXPO }}
+        initial={{ y: '115%' }}
+        animate={ready ? { y: '0%' } : { y: '115%' }}
+        transition={{ duration: 1.3, delay, ease: EXPO_OUT }}
         style={{ willChange: 'transform' }}
       >
         <span className={className}>{children}</span>
@@ -130,11 +121,16 @@ function MaskedLine({
   );
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────────
+/* ================================================================
+   HERO
+   ================================================================ */
 export default function Hero() {
   const [index, setIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [ready, setReady] = useState(false);
+
+  /* Cinematic intro: black curtain lifts after image loads */
+  const [curtainOpen, setCurtainOpen] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -151,22 +147,21 @@ export default function Hero() {
     img.src = SLIDES[0].src;
 
     const onReady = () => {
-      // Double RAF: first frame commits layout, second frame begins paint.
-      // This prevents animations from firing before the browser has had a
-      // chance to composite the initial layer — the main cause of first-mount jank.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          setReady(true);
-          startTimer();
+          // Phase 1: open curtain (image fades in)
+          setCurtainOpen(true);
+          // Phase 2: reveal text content after curtain is partially open
+          setTimeout(() => {
+            setReady(true);
+            startTimer();
+          }, 600);
         });
       });
     };
 
-    if (img.complete) {
-      onReady();
-    } else {
-      img.onload = onReady;
-    }
+    if (img.complete) onReady();
+    else img.onload = onReady;
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -180,28 +175,39 @@ export default function Hero() {
     startTimer();
   };
 
-  const sharedTextClass =
-    'font-black tracking-tight leading-[0.88] ' +
-    'text-[5rem] xs:text-[6rem] sm:text-[8rem] md:text-[10rem] lg:text-[10.5rem] xl:text-[12rem] ' +
-    'landscape:max-lg:text-[clamp(2rem,6.5vw,3.8rem)]';
+  const titleClass =
+    'font-black tracking-tight leading-[0.88]' +
+    ' text-[clamp(3.5rem,13vw,11rem)]';
 
   return (
-    <section className='relative w-full overflow-hidden bg-secondaryColor h-screen'>
-      {/* ── GRAIN ─────────────────────────────────────────────────────────── */}
+    <section
+      className='relative w-full overflow-hidden h-dvh'
+      style={{ background: 'var(--color-surface-0)' }}
+    >
+      {/* ── BLACK CURTAIN — cinematic intro ── */}
+      <motion.div
+        className='absolute inset-0 z-30 pointer-events-none'
+        style={{ background: 'var(--color-surface-0)' }}
+        initial={{ opacity: 1 }}
+        animate={{ opacity: curtainOpen ? 0 : 1 }}
+        transition={{ duration: 1.8, ease: [0.25, 0.1, 0.25, 1] }}
+      />
+
+      {/* ── GRAIN ── */}
       <div
-        className='absolute inset-0 z-[15] pointer-events-none opacity-[0.032] mix-blend-overlay'
+        className='absolute inset-0 z-15 pointer-events-none opacity-[0.035] mix-blend-overlay'
         style={GRAIN_STYLE}
       />
 
-      {/* ── SLIDESHOW ─────────────────────────────────────────────────────── */}
+      {/* ── SLIDESHOW with Ken Burns ── */}
       <AnimatePresence mode='sync'>
         <motion.div
           key={index}
-          className='absolute inset-0 z-[2]'
+          className='absolute inset-0 z-2'
           initial={{ opacity: ready ? 0 : 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
+          transition={{ duration: 1.4, ease: 'easeInOut' }}
         >
           <motion.img
             src={SLIDES[index].src}
@@ -210,70 +216,105 @@ export default function Hero() {
             fetchPriority={index === 0 ? 'high' : 'auto'}
             decoding={index === 0 ? 'sync' : 'async'}
             onContextMenu={(e) => e.preventDefault()}
-            className='absolute inset-0 w-full h-full object-cover object-center select-none'
+            className='absolute inset-0 w-full h-full object-cover object-center select-none pointer-events-none'
             style={{
               willChange: 'transform',
               WebkitUserSelect: 'none',
               WebkitTouchCallout: 'none',
-              userSelect: 'none',
-              pointerEvents: 'none',
             }}
-            initial={{ x: DRIFT[index].x[0], y: DRIFT[index].y[0] }}
-            // Keep animate == initial until ready so Framer Motion has
-            // nothing to interpolate — image stays locked at x[0].
-            // Once ready flips true, animate changes and the drift
-            // starts from the correct origin with no instant snap.
+            initial={{
+              x: KENBURNS[index].x[0],
+              y: KENBURNS[index].y[0],
+              scale: KENBURNS[index].scale[0],
+            }}
             animate={{
-              x: ready ? DRIFT[index].x[1] : DRIFT[index].x[0],
-              y: ready ? DRIFT[index].y[1] : DRIFT[index].y[0],
+              x: ready ? KENBURNS[index].x[1] : KENBURNS[index].x[0],
+              y: ready ? KENBURNS[index].y[1] : KENBURNS[index].y[0],
+              scale: ready
+                ? KENBURNS[index].scale[1]
+                : KENBURNS[index].scale[0],
             }}
-            transition={{ duration: SLIDE_MS / 1000 + 1.5, ease: 'linear' }}
+            transition={{ duration: SLIDE_MS / 1000 + 2, ease: 'linear' }}
           />
         </motion.div>
       </AnimatePresence>
 
-      {/* ── GRADIENT OVERLAY ──────────────────────────────────────────────── */}
+      {/* ── GRADIENT OVERLAYS — cinematic color grading ── */}
       <div
-        className='absolute inset-0 z-[10] pointer-events-none'
-        style={GRADIENT_STYLE}
+        className='absolute inset-0 z-10 pointer-events-none'
+        style={{
+          background: `
+            linear-gradient(to bottom, var(--color-surface-0) 0%, transparent 30%, transparent 60%, var(--color-surface-0) 100%),
+            linear-gradient(to right, var(--color-surface-0) 0%, transparent 50%),
+            linear-gradient(to left, var(--color-surface-0) 0%, transparent 45%)
+          `,
+          opacity: 0.88,
+        }}
       />
 
-      {/* ── CENTERED TITLE ────────────────────────────────────────────────── */}
-      <div className='absolute inset-0 z-[20] flex flex-col items-center justify-center text-center pointer-events-none'>
-        <MaskedLine
-          delay={0}
-          ready={ready}
-          className={`text-[#FBFBFB] ${sharedTextClass}`}
-        >
-          YENI
+      {/* ── VIGNETTE ── */}
+      <div
+        className='absolute inset-0 z-11 pointer-events-none'
+        style={{
+          background:
+            'radial-gradient(ellipse at center, transparent 30%, var(--color-surface-0) 100%)',
+          opacity: 0.55,
+        }}
+      />
+
+      {/* ── AMBIENT BRAND GLOW — subtle atmosphere ── */}
+      <motion.div
+        className='absolute inset-0 z-12 pointer-events-none'
+        initial={{ opacity: 0 }}
+        animate={ready ? { opacity: 1 } : { opacity: 0 }}
+        transition={{ duration: 2, delay: 0.5 }}
+        style={{
+          background: `
+            radial-gradient(ellipse 60% 50% at 50% 55%, rgba(255,25,135,0.06) 0%, transparent 70%),
+            radial-gradient(ellipse 40% 40% at 30% 60%, rgba(157,0,255,0.04) 0%, transparent 60%)
+          `,
+        }}
+      />
+
+      {/* ── TITLE ── */}
+      <div className='absolute inset-0 z-20 flex flex-col items-center justify-center text-center pointer-events-none'>
+        <MaskedLine delay={0} ready={ready} className={titleClass}>
+          <span style={{ color: 'var(--color-text-primary)' }}>YENI</span>
         </MaskedLine>
         <MaskedLine
-          delay={0.18}
+          delay={0.2}
           ready={ready}
-          className={`text-stroke-white ${sharedTextClass}`}
+          className={`text-stroke ${titleClass}`}
         >
           HISAR
         </MaskedLine>
+
+        {/* Subtitle */}
         <motion.p
-          className='text-[#FBFBFB]/60 text-sm sm:text-base landscape:max-lg:text-[0.6rem] tracking-[0.3em] landscape:max-lg:tracking-[0.2em] uppercase mt-3 landscape:max-lg:mt-1'
-          initial={{ opacity: 0, y: 8 }}
-          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: EASE_OUT_EXPO }}
-          style={{ willChange: 'transform' }}
+          className='uppercase font-medium mt-4'
+          style={{
+            color: 'var(--color-text-secondary)',
+            fontSize: 'clamp(0.55rem, 1.1vw, 0.85rem)',
+            letterSpacing: '0.35em',
+          }}
+          initial={{ opacity: 0 }}
+          animate={ready ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 1.2, delay: 0.55, ease: EXPO_OUT }}
         >
           International Night Club
         </motion.p>
       </div>
 
-      {/* ── PROGRESS BARS + CTA ───────────────────────────────────────────── */}
+      {/* ── BOTTOM BAR — progress + CTA ── */}
       <motion.div
-        className='absolute bottom-0 left-0 z-[20] pb-8 sm:pb-10 landscape:max-lg:pb-4 px-6 sm:px-10 lg:px-14 w-full
-                   flex items-center justify-between gap-6'
-        initial={{ opacity: 0, y: 10 }}
-        animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-        transition={{ duration: 0.8, delay: 0.55, ease: EASE_OUT_EXPO }}
-        style={GPU_LAYER_FULL}
+        className='absolute bottom-0 left-0 z-20 w-full flex items-center justify-between gap-6
+                   px-6 sm:px-10 lg:px-14 pb-10 sm:pb-12'
+        initial={{ opacity: 0, y: 14 }}
+        animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+        transition={{ duration: 0.9, delay: 0.9, ease: EXPO_OUT }}
+        style={{ willChange: 'transform, opacity' }}
       >
+        {/* Progress bars */}
         <div className='flex items-center gap-2 flex-1 max-w-40'>
           {SLIDES.map((_, i) => (
             <ProgressBar
@@ -286,16 +327,27 @@ export default function Hero() {
           ))}
         </div>
 
+        {/* CTA */}
         <motion.button
           onClick={() => scrollTo('reservation')}
-          className='cursor-pointer group flex items-center gap-3 border rounded-3xl
-                     border-[#FBFBFB]/20 px-4 py-3 lg:px-8 lg:py-4 landscape:max-lg:px-3 landscape:max-lg:py-2
-                     hover:border-[#FF1987]/60 transition-colors duration-300'
+          className='cursor-pointer group flex items-center gap-3 rounded-full
+                     px-5 py-3 lg:px-7 lg:py-3.5 transition-all duration-300'
+          style={{
+            border: '1px solid rgba(255,255,255,0.12)',
+          }}
+          whileHover={{
+            borderColor: 'rgba(255,25,135,0.5)',
+            boxShadow: '0 0 28px rgba(255,25,135,0.18)',
+          }}
           whileTap={{ scale: 0.97 }}
+          transition={{ duration: 0.25 }}
         >
           <span
-            className='text-[#FBFBFB]/75 group-hover:text-[#FBFBFB] uppercase font-bold
-                           tracking-[0.25em] transition-colors duration-300 text-[0.62rem]'
+            className='uppercase font-bold tracking-[0.25em] transition-colors duration-300'
+            style={{
+              fontSize: '0.6rem',
+              color: 'var(--color-text-secondary)',
+            }}
           >
             Rezervasyon
           </span>
@@ -304,7 +356,8 @@ export default function Hero() {
             height='14'
             viewBox='0 0 16 16'
             fill='none'
-            className='text-[#FF1987] translate-x-0 group-hover:translate-x-1 transition-transform duration-300'
+            className='translate-x-0 group-hover:translate-x-1 transition-transform duration-300'
+            style={{ color: 'var(--color-brand)' }}
           >
             <path
               d='M1 8h14M9 2l6 6-6 6'

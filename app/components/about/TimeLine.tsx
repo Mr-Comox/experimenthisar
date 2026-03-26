@@ -3,6 +3,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
+/* ================================================================
+   SCHEDULE DATA
+   ================================================================ */
 const schedule = [
   { time: '23:00', label: 'Açılış' },
   { time: '23:30', label: 'Solist Aşkın' },
@@ -13,6 +16,9 @@ const schedule = [
   { time: '06:30', label: 'Kapanış' },
 ];
 
+/* ================================================================
+   TIME HELPERS
+   ================================================================ */
 function timeToSeconds(t: string): number {
   const [h, m] = t.split(':').map(Number);
   return (h < 12 ? h + 24 : h) * 3600 + m * 60;
@@ -47,6 +53,9 @@ function decompose(totalSecs: number) {
   return { hours, minutes, seconds };
 }
 
+/* ================================================================
+   COUNTDOWN DIGIT
+   ================================================================ */
 function SingleDigit({ digit }: { digit: string }) {
   return (
     <div
@@ -63,10 +72,12 @@ function SingleDigit({ digit }: { digit: string }) {
           animate={{ y: '0%', opacity: 1, filter: 'blur(0px)', scale: 1 }}
           exit={{ y: '65%', opacity: 0, filter: 'blur(6px)', scale: 0.92 }}
           transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-          className='absolute inset-0 flex items-center justify-center
-                     font-black tabular-nums leading-none select-none
-                     text-white/85 tracking-[-0.05em]'
-          style={{ fontSize: 'clamp(3.2rem, 13vw, 8rem)' }}
+          className='absolute inset-0 flex items-center justify-center font-black tabular-nums leading-none select-none tracking-[-0.05em]'
+          style={{
+            fontSize: 'clamp(3.2rem, 13vw, 8rem)',
+            color: 'var(--color-text-primary)',
+            opacity: 0.85,
+          }}
         >
           {digit}
         </motion.span>
@@ -112,7 +123,13 @@ function CountdownUnit({
           </>
         )}
       </div>
-      <span className='uppercase tracking-[0.08em] text-[0.55rem] sm:text-[0.58rem] font-medium text-[#999] select-none'>
+      <span
+        className='uppercase tracking-[0.08em] font-medium select-none'
+        style={{
+          fontSize: 'clamp(0.5rem, 1.2vw, 0.58rem)',
+          color: 'var(--color-text-tertiary)',
+        }}
+      >
         {label}
       </span>
     </div>
@@ -122,11 +139,12 @@ function CountdownUnit({
 function Colon() {
   return (
     <motion.span
-      animate={{ opacity: [0.6, 0.12, 0.6] }}
+      animate={{ opacity: [0.5, 0.1, 0.5] }}
       transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-      className='font-black text-white/20 leading-none select-none'
+      className='font-black leading-none select-none'
       style={{
         fontSize: 'clamp(2rem, 8vw, 5.5rem)',
+        color: 'var(--color-text-muted)',
         paddingBottom: 'clamp(1.2rem, 4.5vw, 3rem)',
       }}
     >
@@ -135,7 +153,10 @@ function Colon() {
   );
 }
 
-const sharedStyles = `
+/* ================================================================
+   ANIMATED BORDER STYLES
+   ================================================================ */
+const borderStyles = `
   @property --border-angle {
     syntax: '<angle>';
     initial-value: 0deg;
@@ -146,36 +167,35 @@ const sharedStyles = `
   }
   .countdown-border {
     background:
-      linear-gradient(rgb(10 10 10 / 10), rgb(10 10 10 / 1)) padding-box,
+      linear-gradient(var(--color-surface-1), var(--color-surface-0)) padding-box,
       conic-gradient(
         from var(--border-angle),
-        transparent 0%,
-        transparent 30%,
-        rgba(255, 25, 135, 0.9) 45%,
-        rgba(157, 0, 255, 0.8) 55%,
-        transparent 70%,
-        transparent 100%
+        transparent 0%, transparent 30%,
+        rgba(255,25,135,0.8) 45%,
+        rgba(157,0,255,0.7) 55%,
+        transparent 70%, transparent 100%
       ) border-box;
     border: 1px solid transparent;
     animation: border-spin 4s linear infinite;
   }
   .now-card-border {
     background:
-      linear-gradient(rgb(10 10 10 / 10), rgb(10 10 10 / 1)) padding-box,
+      linear-gradient(var(--color-surface-1), var(--color-surface-0)) padding-box,
       conic-gradient(
         from var(--border-angle),
-        transparent 0%,
-        transparent 30%,
-        rgba(255, 110, 199, 0.9) 45%,
-        rgba(157, 0, 255, 0.8) 55%,
-        transparent 70%,
-        transparent 100%
+        transparent 0%, transparent 30%,
+        rgba(255,110,199,0.8) 45%,
+        rgba(157,0,255,0.7) 55%,
+        transparent 70%, transparent 100%
       ) border-box;
     border: 1px solid transparent;
     animation: border-spin 4s linear infinite;
   }
 `;
 
+/* ================================================================
+   COUNTDOWN CARD
+   ================================================================ */
 function CountdownCard() {
   const [secs, setSecs] = useState<number | null>(null);
 
@@ -193,55 +213,85 @@ function CountdownCard() {
   const { hours, minutes, seconds } = decompose(secs ?? 0);
 
   return (
-    <>
-      <motion.div
-        key='countdown-card'
-        initial={{ opacity: 0, y: 20, filter: 'blur(12px)', scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
-        exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
-        transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-        className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-7xl mx-auto w-full '
+    <motion.div
+      key='countdown-card'
+      initial={{ opacity: 0, y: 20, filter: 'blur(12px)', scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)', scale: 1 }}
+      exit={{ opacity: 0, y: -20, filter: 'blur(12px)', scale: 0.97 }}
+      transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+      className='relative mb-10 rounded-2xl overflow-hidden countdown-border max-w-7xl mx-auto w-full'
+    >
+      <div
+        className='relative px-5 sm:px-8 py-6 sm:py-8'
+        style={{ background: 'var(--color-surface-0)' }}
       >
-        <div className='relative px-5 sm:px-8 py-6 sm:py-8 bg-secondaryColor'>
-          {/* Header — always one row, text shrinks to fit on small screens */}
-          <div className='flex items-center justify-between gap-3 mb-7 sm:mb-8'>
-            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full  border border-white/10 shrink-0'>
-              <span className='relative flex w-2 h-2'>
-                <span className='absolute inset-0 rounded-full bg-white/30 opacity-70 animate-ping' />
-                <span className='relative w-2 h-2 rounded-full bg-white/40' />
-              </span>
-              <span className='text-[0.7rem] tracking-widest uppercase font-semibold text-white/35'>
-                Kapalı
-              </span>
-            </div>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className='text-right text-[#999] tracking-wide'
-              style={{ fontSize: 'clamp(0.6rem, 2vw, 0.78rem)' }}
+        {/* Header */}
+        <div className='flex items-center justify-between gap-3 mb-7 sm:mb-8'>
+          <div
+            className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full shrink-0'
+            style={{ border: '1px solid var(--color-border-default)' }}
+          >
+            <span className='relative flex w-2 h-2'>
+              <span
+                className='absolute inset-0 rounded-full animate-ping'
+                style={{
+                  background: 'var(--color-text-tertiary)',
+                  opacity: 0.5,
+                }}
+              />
+              <span
+                className='relative w-2 h-2 rounded-full'
+                style={{ background: 'var(--color-text-tertiary)' }}
+              />
+            </span>
+            <span
+              className='tracking-widest uppercase font-semibold'
+              style={{
+                fontSize: '0.7rem',
+                color: 'var(--color-text-tertiary)',
+              }}
             >
-              Kapılar <span className='text-white/80 font-semibold'>23:00</span>
-              &apos;de açılıyor
-            </motion.p>
+              Kapalı
+            </span>
           </div>
-
-          {/* Digits */}
-          <div className='flex items-center justify-center gap-2 sm:gap-4 lg:gap-8'>
-            <CountdownUnit value={hours} label='Saat' mounted={mounted} />
-            <Colon />
-            <CountdownUnit value={minutes} label='Dakika' mounted={mounted} />
-            <Colon />
-            <CountdownUnit value={seconds} label='Saniye' mounted={mounted} />
-          </div>
-
-          <div className='mt-8 sm:mt-10' />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className='text-right tracking-wide'
+            style={{
+              fontSize: 'clamp(0.6rem, 2vw, 0.78rem)',
+              color: 'var(--color-text-tertiary)',
+            }}
+          >
+            Kapılar{' '}
+            <span
+              style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}
+            >
+              23:00
+            </span>
+            &apos;de açılıyor
+          </motion.p>
         </div>
-      </motion.div>
-    </>
+
+        {/* Digits */}
+        <div className='flex items-center justify-center gap-2 sm:gap-4 lg:gap-8'>
+          <CountdownUnit value={hours} label='Saat' mounted={mounted} />
+          <Colon />
+          <CountdownUnit value={minutes} label='Dakika' mounted={mounted} />
+          <Colon />
+          <CountdownUnit value={seconds} label='Saniye' mounted={mounted} />
+        </div>
+
+        <div className='mt-8 sm:mt-10' />
+      </div>
+    </motion.div>
   );
 }
 
+/* ================================================================
+   MAIN TIMELINE
+   ================================================================ */
 const eventTimes = schedule.map((e) => timeToSeconds(e.time));
 const openTime = eventTimes[0];
 const lastEnd = eventTimes[eventTimes.length - 1] + 2;
@@ -282,8 +332,9 @@ export default function Timeline() {
   const active = rows.find((r) => r.isActive) ?? null;
 
   return (
-    <div className='w-full '>
-      <style>{sharedStyles}</style>
+    <div className='w-full'>
+      <style>{borderStyles}</style>
+
       <AnimatePresence mode='sync'>
         {isClosed ? (
           <CountdownCard key='countdown' />
@@ -299,17 +350,44 @@ export default function Timeline() {
             >
               <div className='relative px-5 sm:px-8 py-5 sm:py-7'>
                 <div className='flex items-center justify-between mb-5'>
-                  <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-mainColor/15 border border-mainColor/30'>
+                  <div
+                    className='inline-flex items-center gap-2 px-3 py-1.5 rounded-full'
+                    style={{
+                      background: 'rgba(255,25,135,0.1)',
+                      border: '1px solid rgba(255,25,135,0.25)',
+                    }}
+                  >
                     <span className='relative flex w-2 h-2'>
-                      <span className='absolute inset-0 rounded-full bg-mainColor opacity-70 animate-ping' />
-                      <span className='relative w-2 h-2 rounded-full bg-mainColor' />
+                      <span
+                        className='absolute inset-0 rounded-full animate-ping'
+                        style={{
+                          background: 'var(--color-brand)',
+                          opacity: 0.7,
+                        }}
+                      />
+                      <span
+                        className='relative w-2 h-2 rounded-full'
+                        style={{ background: 'var(--color-brand)' }}
+                      />
                     </span>
-                    <span className='text-[0.7rem] tracking-widest uppercase font-semibold text-mainColor'>
+                    <span
+                      className='tracking-widest uppercase font-semibold'
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--color-brand)',
+                      }}
+                    >
                       Canlı
                     </span>
                   </div>
                   {active.secsLeft > 0 && (
-                    <span className='text-[0.72rem] text-white/40 tracking-wide'>
+                    <span
+                      className='tracking-wide'
+                      style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--color-text-tertiary)',
+                      }}
+                    >
                       {minsLeft(active.secsLeft)}
                     </span>
                   )}
@@ -319,12 +397,21 @@ export default function Timeline() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className='font-black tracking-[-0.03em] text-white leading-none pt-3'
-                  style={{ fontSize: 'clamp(2rem, 5vw, 3.8rem)' }}
+                  className='font-black tracking-[-0.03em] leading-none pt-3'
+                  style={{
+                    fontSize: 'clamp(2rem, 5vw, 3.8rem)',
+                    color: 'var(--color-text-primary)',
+                  }}
                 >
                   {active.label}
                 </motion.p>
-                <p className='text-[0.88rem] font-medium text-white/60 tracking-wide pt-10'>
+                <p
+                  className='font-medium tracking-wide pt-10'
+                  style={{
+                    fontSize: '0.88rem',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
                   {active.time}
                   {active.idx < schedule.length - 1
                     ? ` — ${schedule[active.idx + 1].time}`
@@ -336,6 +423,7 @@ export default function Timeline() {
         )}
       </AnimatePresence>
 
+      {/* Schedule rows */}
       <div>
         {rows.map(({ time, label, idx, isPast, isActive, progress }) => (
           <motion.div
@@ -347,73 +435,91 @@ export default function Timeline() {
           >
             <div
               className={`relative transition-all duration-500 ${
-                isActive
-                  ? 'my-2 rounded-xl bg-white/5 border border-white/10'
-                  : ''
+                isActive ? 'my-2 rounded-xl border' : ''
               }`}
+              style={{
+                background: isActive ? 'var(--color-surface-1)' : undefined,
+                borderColor: isActive
+                  ? 'var(--color-border-default)'
+                  : undefined,
+              }}
             >
               {isActive && (
                 <div
                   className='absolute left-0 top-[15%] bottom-[15%] w-0.5 rounded-full'
                   style={{
                     background:
-                      'linear-gradient(to bottom, var(--color-mainColor), var(--color-quaternaryColor))',
-                    boxShadow: '0 0 10px rgba(255,25,135,0.8)',
+                      'linear-gradient(to bottom, var(--color-brand), var(--color-accent))',
+                    boxShadow: '0 0 10px rgba(255,25,135,0.6)',
                   }}
                 />
               )}
               <div
                 className={`flex items-center gap-6 transition-opacity duration-500 ${
                   isActive ? 'px-6 py-5' : 'px-1 py-4'
-                } ${isActive ? 'opacity-100' : isPast ? 'opacity-45' : 'opacity-60'}`}
+                }`}
+                style={{
+                  opacity: isActive ? 1 : isPast ? 0.4 : 0.55,
+                }}
               >
                 <span
-                  className={`font-bold tracking-[-0.04em] tabular-nums min-w-[4.4ch] flex-1 lg:flex-none ${
-                    isActive
-                      ? 'text-white'
+                  className='font-bold tracking-[-0.04em] tabular-nums min-w-[4.4ch] flex-1 lg:flex-none'
+                  style={{
+                    fontSize: 'clamp(1.5rem, 3.8vw, 2.6rem)',
+                    color: isActive
+                      ? 'var(--color-text-primary)'
                       : isPast
-                        ? 'text-white/60'
-                        : 'text-white/25'
-                  }`}
-                  style={{ fontSize: 'clamp(1.5rem, 3.8vw, 2.6rem)' }}
+                        ? 'var(--color-text-secondary)'
+                        : 'var(--color-text-muted)',
+                  }}
                 >
                   {time}
                 </span>
+
+                {/* Progress line — desktop */}
                 <div className='hidden lg:flex relative flex-1 h-px'>
-                  <div className='absolute inset-0 bg-white/10 rounded-full' />
+                  <div
+                    className='absolute inset-0 rounded-full'
+                    style={{ background: 'var(--color-border-subtle)' }}
+                  />
                   <div
                     className='absolute top-0 bottom-0 left-0 rounded-full transition-all duration-1000'
                     style={{
                       width: `${progress}%`,
                       background: isPast
-                        ? 'rgba(255,255,255,0.25)'
-                        : 'linear-gradient(to right, var(--color-mainColor), #c200d8, var(--color-quaternaryColor))',
+                        ? 'var(--color-border-default)'
+                        : 'linear-gradient(to right, var(--color-brand), var(--color-accent))',
                     }}
                   />
                 </div>
+
                 <div className='flex justify-end min-w-32'>
                   <span
-                    className={`uppercase tracking-[0.12em] text-[0.72rem] ${
-                      isActive
-                        ? 'text-white font-semibold'
+                    className='uppercase tracking-[0.12em]'
+                    style={{
+                      fontSize: '0.72rem',
+                      color: isActive
+                        ? 'var(--color-text-primary)'
                         : isPast
-                          ? 'text-white/60'
-                          : 'text-white/40'
-                    }`}
+                          ? 'var(--color-text-secondary)'
+                          : 'var(--color-text-tertiary)',
+                      fontWeight: isActive ? 600 : 400,
+                    }}
                   >
                     {label}
                   </span>
                 </div>
               </div>
             </div>
-            {!isActive && <div className='h-px bg-white/5 mx-1' />}
+            {!isActive && (
+              <div
+                className='h-px mx-1'
+                style={{ background: 'var(--color-border-subtle)' }}
+              />
+            )}
           </motion.div>
         ))}
       </div>
-
-      <p className='mt-10 text-right text-[0.58rem] tracking-[0.22em] uppercase text-white/20 select-none'>
-        * Saat bilgileri sistem saatine göre güncellenmektedir.
-      </p>
     </div>
   );
 }

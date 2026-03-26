@@ -48,26 +48,27 @@ function resolveDisplayDate(dateStr: string, timeStr: string) {
     year: 'numeric',
   });
 }
+
 function statusCfg(s: string) {
   if (s === 'confirmed')
     return {
       label: 'Onaylandı',
       color: '#22c55e',
       bg: 'rgba(34,197,94,0.1)',
-      border: 'rgba(34,197,94,0.25)',
+      border: 'rgba(34,197,94,0.2)',
     };
   if (s === 'cancelled')
     return {
       label: 'Reddedildi',
       color: '#ef4444',
       bg: 'rgba(239,68,68,0.1)',
-      border: 'rgba(239,68,68,0.25)',
+      border: 'rgba(239,68,68,0.2)',
     };
   return {
     label: 'Onay Bekleniyor',
     color: '#f97316',
-    bg: 'rgba(249,115,22,0.1)',
-    border: 'rgba(249,115,22,0.25)',
+    bg: 'rgba(249,115,22,0.08)',
+    border: 'rgba(249,115,22,0.2)',
   };
 }
 
@@ -118,11 +119,11 @@ const LABEL_STYLE: React.CSSProperties = {
   letterSpacing: '0.2em',
   textTransform: 'uppercase',
   fontWeight: 500,
-  marginBottom: '8px',
+  marginBottom: '6px',
   display: 'block',
 };
 const VALUE_STYLE: React.CSSProperties = {
-  fontSize: 'clamp(0.9rem,1.4vw,1rem)',
+  fontSize: 'clamp(0.85rem,1.4vw,1rem)',
   color: 'rgba(255,255,255,0.78)',
   fontWeight: 600,
   letterSpacing: '-0.01em',
@@ -132,7 +133,7 @@ const VALUE_STYLE: React.CSSProperties = {
   display: 'block',
 };
 
-// ─── Inner Component (receives id as prop) ────────────────────────────────────
+// ─── Inner Component ──────────────────────────────────────────────────────────
 function ThankYouInner({ id }: { id: string | null }) {
   const router = useRouter();
 
@@ -163,12 +164,10 @@ function ThankYouInner({ id }: { id: string | null }) {
 
         const startX = vw / 2 - START_PX / 2 - r.left;
         const startY = vh / 2 - START_PX / 2 - r.top;
-
         const shrunkX = vw / 2 - FINAL_PX / 2 - r.left;
         const shrunkY = vh / 2 - FINAL_PX / 2 - r.top;
 
         const tl = gsap.timeline();
-
         tl.set(ball, {
           width: START_PX,
           height: START_PX,
@@ -177,9 +176,7 @@ function ThankYouInner({ id }: { id: string | null }) {
           opacity: 0,
           borderRadius: '50%',
         });
-
         tl.to(ball, { opacity: 1, duration: 0.28, ease: 'power2.out' });
-
         tl.to(ball, {
           width: FINAL_PX,
           height: FINAL_PX,
@@ -187,28 +184,19 @@ function ThankYouInner({ id }: { id: string | null }) {
           y: shrunkY,
           duration: 0.5,
           ease: 'power3.inOut',
-          onStart: () => {
-            setAnimPhase('drawing');
-          },
+          onStart: () => setAnimPhase('drawing'),
         });
-
         tl.to(ball, {
           x: 0,
           y: 0,
           duration: 0.55,
           ease: 'power3.inOut',
-          onComplete: () => {
-            void gsap.delayedCall(0.1, () => {
-              setAnimPhase('reveal');
-            });
-          },
+          onComplete: () =>
+            void gsap.delayedCall(0.1, () => setAnimPhase('reveal')),
         });
       }),
     );
-
-    return () => {
-      cancelAnimationFrame(raf);
-    };
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -250,6 +238,7 @@ function ThankYouInner({ id }: { id: string | null }) {
         @keyframes pdot{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.5)}}
       `}</style>
 
+      {/* Backgrounds */}
       <div
         className='fixed inset-0 pointer-events-none'
         style={{
@@ -352,16 +341,17 @@ function ThankYouInner({ id }: { id: string | null }) {
           variants={stagger}
           initial='hidden'
           animate='show'
-          className='relative z-10 flex-1 flex flex-col items-center justify-center px-5 sm:px-8'
+          className='relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-8'
           style={{
             paddingTop: 'clamp(5rem,10vw,7rem)',
             paddingBottom: 'clamp(4rem,8vw,6rem)',
           }}
         >
-          <div className='w-full max-w-[600px] lg:max-w-[700px] xl:max-w-[780px] flex flex-col items-center'>
+          <div className='w-full max-w-[560px] lg:max-w-[660px] xl:max-w-[720px] flex flex-col items-center'>
+            {/* ── Check icon ball ── */}
             <div
               ref={slotRef}
-              className='relative mb-12'
+              className='relative mb-10'
               style={{
                 width: FINAL_PX,
                 height: FINAL_PX,
@@ -416,7 +406,7 @@ function ThankYouInner({ id }: { id: string | null }) {
             >
               <motion.p
                 variants={fade}
-                className='text-mainColor/40 uppercase font-semibold tracking-[0.5em] mb-6 text-center'
+                className='text-mainColor/40 uppercase font-semibold tracking-[0.5em] mb-5 text-center'
                 style={{ fontSize: 'clamp(0.5rem,0.85vw,0.58rem)' }}
               >
                 rezervasyon alındı
@@ -424,8 +414,8 @@ function ThankYouInner({ id }: { id: string | null }) {
 
               <motion.h1
                 variants={rise}
-                className='text-center font-black tracking-[-0.04em] leading-[1.0] mb-6'
-                style={{ fontSize: 'clamp(4.5rem,14vw,8.5rem)' }}
+                className='text-center font-black tracking-[-0.04em] leading-[1.0] mb-5'
+                style={{ fontSize: 'clamp(4rem,13vw,8rem)' }}
               >
                 <span className='text-white'>Görüşmek</span>
                 <br />
@@ -434,7 +424,7 @@ function ThankYouInner({ id }: { id: string | null }) {
 
               <motion.p
                 variants={rise}
-                className='text-white/32 text-center leading-[1.8] mb-14'
+                className='text-white/32 text-center leading-[1.8] mb-10'
                 style={{
                   fontSize: 'clamp(0.875rem,1.35vw,0.9375rem)',
                   maxWidth: '30ch',
@@ -443,6 +433,7 @@ function ThankYouInner({ id }: { id: string | null }) {
                 Rezervasyonunuz alındı ve onay sürecine girdi.
               </motion.p>
 
+              {/* ── Reservation card ── */}
               <motion.div
                 variants={{
                   hidden: { opacity: 0, y: 38, scale: 0.96 },
@@ -453,10 +444,10 @@ function ThankYouInner({ id }: { id: string | null }) {
                     transition: { duration: 0.82, ease: EASE_STD },
                   },
                 }}
-                className='w-full mb-7'
+                className='w-full mb-5'
               >
                 <div
-                  className='relative rounded-[22px] overflow-hidden'
+                  className='relative rounded-[20px] overflow-hidden'
                   style={{
                     background:
                       'linear-gradient(165deg,rgba(255,255,255,0.065) 0%,rgba(255,255,255,0.022) 50%,rgba(157,0,255,0.028) 100%)',
@@ -465,6 +456,7 @@ function ThankYouInner({ id }: { id: string | null }) {
                       '0 2px 0 rgba(255,255,255,0.05) inset,0 40px 90px rgba(0,0,0,0.6),0 0 0 1px rgba(255,25,135,0.07)',
                   }}
                 >
+                  {/* Shimmer top bar */}
                   <div
                     style={{
                       height: '2px',
@@ -475,41 +467,44 @@ function ThankYouInner({ id }: { id: string | null }) {
                     }}
                   />
 
+                  {/* ── Header: name + status ── */}
                   <div
-                    className='px-8 sm:px-11 pt-8 pb-7'
+                    className='px-5 sm:px-7 pt-6 pb-5'
                     style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
                   >
-                    <div className='flex items-center justify-between gap-4'>
+                    <div className='flex items-center justify-between gap-3'>
                       {loading ? (
-                        <Skel w='w-48' h='h-11' />
+                        <Skel w='w-40' h='h-9' />
                       ) : (
                         <p
                           className='text-white font-black tracking-[-0.025em] leading-none flex-1 min-w-0 truncate'
-                          style={{ fontSize: 'clamp(1.7rem,4.5vw,2.4rem)' }}
+                          style={{ fontSize: 'clamp(1.5rem,4vw,2.2rem)' }}
                         >
                           {res?.name} {res?.surname}
                         </p>
                       )}
+
+                      {/* ── FIX 1: compact status badge ── */}
                       {loading ? (
-                        <Skel w='w-32' h='h-7' />
+                        <Skel w='w-24' h='h-6' />
                       ) : (
                         <div
-                          className='inline-flex items-center gap-2 rounded-full px-3.5 py-2 shrink-0'
+                          className='inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 shrink-0'
                           style={{
                             background: st.bg,
                             border: `1px solid ${st.border}`,
                           }}
                         >
                           <span
-                            className='w-[7px] h-[7px] rounded-full shrink-0'
+                            className='w-[5px] h-[5px] rounded-full shrink-0'
                             style={{
                               background: st.color,
                               animation: 'pdot 2s ease-in-out infinite',
                             }}
                           />
                           <span
-                            className='font-semibold uppercase tracking-[0.1em]'
-                            style={{ fontSize: '0.56rem', color: st.color }}
+                            className='font-semibold uppercase tracking-[0.08em] whitespace-nowrap'
+                            style={{ fontSize: '0.54rem', color: st.color }}
                           >
                             {st.label}
                           </span>
@@ -518,9 +513,10 @@ function ThankYouInner({ id }: { id: string | null }) {
                     </div>
                   </div>
 
+                  {/* Ticket tear divider */}
                   <div className='relative flex items-center'>
                     <div
-                      className='absolute -left-3.5 w-7 h-7 rounded-full z-10'
+                      className='absolute -left-3 w-6 h-6 rounded-full z-10'
                       style={{ background: 'var(--color-secondaryColor)' }}
                     />
                     <div
@@ -531,12 +527,14 @@ function ThankYouInner({ id }: { id: string | null }) {
                       }}
                     />
                     <div
-                      className='absolute -right-3.5 w-7 h-7 rounded-full z-10'
+                      className='absolute -right-3 w-6 h-6 rounded-full z-10'
                       style={{ background: 'var(--color-secondaryColor)' }}
                     />
                   </div>
 
-                  <div className='px-8 sm:px-11'>
+                  {/* ── FIX 3: tighter inner padding ── */}
+                  <div className='px-5 sm:px-7'>
+                    {/* Row 1 */}
                     <div
                       className='grid grid-cols-2'
                       style={{
@@ -544,24 +542,24 @@ function ThankYouInner({ id }: { id: string | null }) {
                       }}
                     >
                       <div
-                        className='py-5 pr-7'
+                        className='py-4 pr-4 sm:pr-6'
                         style={{
                           borderRight: '1px solid rgba(255,255,255,0.055)',
                         }}
                       >
                         <span style={LABEL_STYLE}>Kişi</span>
                         {loading ? (
-                          <Skel w='w-16' />
+                          <Skel w='w-14' />
                         ) : (
                           <span style={VALUE_STYLE}>
                             {res ? `${res.guests} kişi` : '—'}
                           </span>
                         )}
                       </div>
-                      <div className='py-5 pl-7'>
+                      <div className='py-4 pl-4 sm:pl-6'>
                         <span style={LABEL_STYLE}>Oturma</span>
                         {loading ? (
-                          <Skel w='w-20' />
+                          <Skel w='w-18' />
                         ) : (
                           <span style={VALUE_STYLE}>
                             {res ? seatingLabel(res.seating_type) : '—'}
@@ -569,6 +567,7 @@ function ThankYouInner({ id }: { id: string | null }) {
                         )}
                       </div>
                     </div>
+                    {/* Row 2 */}
                     <div
                       className='grid grid-cols-2'
                       style={{
@@ -576,24 +575,24 @@ function ThankYouInner({ id }: { id: string | null }) {
                       }}
                     >
                       <div
-                        className='py-5 pr-7'
+                        className='py-4 pr-4 sm:pr-6'
                         style={{
                           borderRight: '1px solid rgba(255,255,255,0.055)',
                         }}
                       >
                         <span style={LABEL_STYLE}>Tarih</span>
                         {loading ? (
-                          <Skel w='w-28' />
+                          <Skel w='w-24' />
                         ) : (
                           <span style={VALUE_STYLE}>
                             {res ? resolveDisplayDate(res.date, res.time) : '—'}
                           </span>
                         )}
                       </div>
-                      <div className='py-5 pl-7'>
+                      <div className='py-4 pl-4 sm:pl-6'>
                         <span style={LABEL_STYLE}>Saat</span>
                         {loading ? (
-                          <Skel w='w-14' />
+                          <Skel w='w-12' />
                         ) : (
                           <span
                             style={{
@@ -606,37 +605,50 @@ function ThankYouInner({ id }: { id: string | null }) {
                         )}
                       </div>
                     </div>
+                    {/* Row 3 */}
                     <div className='grid grid-cols-2'>
                       <div
-                        className='py-5 pr-7'
+                        className='py-4 pr-4 sm:pr-6'
                         style={{
                           borderRight: '1px solid rgba(255,255,255,0.055)',
                         }}
                       >
                         <span style={LABEL_STYLE}>Telefon</span>
                         {loading ? (
-                          <Skel w='w-24' />
+                          <Skel w='w-20' />
                         ) : (
                           <span
-                            style={{ ...VALUE_STYLE, letterSpacing: '0.02em' }}
+                            style={{
+                              ...VALUE_STYLE,
+                              letterSpacing: '0.01em',
+                              fontSize: 'clamp(0.78rem,1.2vw,0.9rem)',
+                            }}
                           >
                             {res?.phone ?? '—'}
                           </span>
                         )}
                       </div>
-                      <div className='py-5 pl-7'>
+                      <div className='py-4 pl-4 sm:pl-6'>
                         <span style={LABEL_STYLE}>E-posta</span>
                         {loading ? (
-                          <Skel w='w-28' />
+                          <Skel w='w-24' />
                         ) : (
-                          <span style={VALUE_STYLE}>{res?.email ?? '—'}</span>
+                          <span
+                            style={{
+                              ...VALUE_STYLE,
+                              fontSize: 'clamp(0.78rem,1.2vw,0.9rem)',
+                            }}
+                          >
+                            {res?.email ?? '—'}
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
 
+                  {/* Card footer */}
                   <div
-                    className='px-8 sm:px-11 py-4 flex items-center justify-end'
+                    className='px-5 sm:px-7 py-3.5 flex items-center justify-end'
                     style={{
                       borderTop: '1px solid rgba(255,255,255,0.055)',
                       background: 'rgba(255,255,255,0.012)',
@@ -645,7 +657,7 @@ function ThankYouInner({ id }: { id: string | null }) {
                     <p
                       style={{
                         fontSize: 'clamp(0.54rem,0.82vw,0.62rem)',
-                        color: 'rgba(255,255,255,0.42)',
+                        color: 'rgba(255,255,255,0.3)',
                         fontWeight: 500,
                       }}
                     >
@@ -655,19 +667,20 @@ function ThankYouInner({ id }: { id: string | null }) {
                 </div>
               </motion.div>
 
+              {/* Info box */}
               <motion.div
                 variants={rise}
-                className='w-full rounded-2xl px-7 py-5 flex items-start gap-4 mb-8'
+                className='w-full rounded-2xl px-5 py-4 flex items-start gap-3.5 mb-7'
                 style={{
-                  background: 'rgba(255,255,255,0.028)',
+                  background: 'rgba(255,255,255,0.025)',
                   border: '1px solid rgba(255,255,255,0.07)',
                 }}
               >
                 <svg
                   viewBox='0 0 24 24'
                   fill='none'
-                  className='w-4 h-4 shrink-0 mt-px'
-                  style={{ color: 'rgba(255,25,135,0.42)' }}
+                  className='w-3.5 h-3.5 shrink-0 mt-0.5'
+                  style={{ color: 'rgba(255,25,135,0.4)' }}
                 >
                   <path
                     d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
@@ -678,8 +691,8 @@ function ThankYouInner({ id }: { id: string | null }) {
                   />
                 </svg>
                 <p
-                  className='text-white/38 leading-[1.75]'
-                  style={{ fontSize: 'clamp(0.8rem,1.2vw,0.9rem)' }}
+                  className='text-white/35 leading-[1.7]'
+                  style={{ fontSize: 'clamp(0.78rem,1.15vw,0.875rem)' }}
                 >
                   Onay bilgisi kayıtlı telefon ve e-posta adresinize
                   iletilecektir. Sorularınız için bizimle iletişime
@@ -687,56 +700,86 @@ function ThankYouInner({ id }: { id: string | null }) {
                 </p>
               </motion.div>
 
+              {/* ── FIX 2: better buttons ── */}
               <motion.div
                 variants={rise}
-                className='flex flex-col sm:flex-row gap-3 w-full mb-14'
+                className='flex flex-col sm:flex-row gap-2.5 w-full mb-12'
               >
                 <button
                   onClick={() => router.push('/')}
-                  className='flex-1 h-[52px] rounded-[14px] font-semibold uppercase tracking-[0.15em] transition-all duration-200'
+                  className='flex-1 h-[46px] rounded-[12px] font-semibold uppercase tracking-[0.14em] transition-all duration-200 flex items-center justify-center gap-2'
                   style={{
-                    fontSize: 'clamp(0.62rem,1vw,0.7rem)',
-                    color: 'rgba(255,255,255,0.36)',
+                    fontSize: 'clamp(0.6rem,1vw,0.68rem)',
+                    color: 'rgba(255,255,255,0.4)',
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.09)',
                   }}
                   onMouseEnter={(e) => {
                     const b = e.currentTarget;
-                    b.style.color = 'rgba(255,255,255,0.68)';
-                    b.style.background = 'rgba(255,255,255,0.07)';
+                    b.style.color = 'rgba(255,255,255,0.72)';
+                    b.style.background = 'rgba(255,255,255,0.08)';
+                    b.style.borderColor = 'rgba(255,255,255,0.16)';
                   }}
                   onMouseLeave={(e) => {
                     const b = e.currentTarget;
-                    b.style.color = 'rgba(255,255,255,0.36)';
+                    b.style.color = 'rgba(255,255,255,0.4)';
                     b.style.background = 'rgba(255,255,255,0.04)';
+                    b.style.borderColor = 'rgba(255,255,255,0.09)';
                   }}
                 >
-                  Ana Sayfaya Dön
+                  <svg
+                    className='w-3 h-3 shrink-0'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={2}
+                      d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'
+                    />
+                  </svg>
+                  Ana Sayfa
                 </button>
                 <button
                   onClick={() => router.push('/rezervasyon')}
-                  className='flex-1 h-[52px] rounded-[14px] font-semibold uppercase tracking-[0.15em] text-white transition-all duration-200'
+                  className='flex-1 h-[46px] rounded-[12px] font-semibold uppercase tracking-[0.14em] text-white transition-all duration-200 flex items-center justify-center gap-2'
                   style={{
-                    fontSize: 'clamp(0.62rem,1vw,0.7rem)',
+                    fontSize: 'clamp(0.6rem,1vw,0.68rem)',
                     background:
                       'linear-gradient(135deg,rgba(255,25,135,0.95) 0%,rgba(210,0,105,0.95) 100%)',
                     boxShadow:
-                      '0 1px 0 rgba(255,255,255,0.12) inset,0 12px 32px rgba(255,25,135,0.26)',
+                      '0 1px 0 rgba(255,255,255,0.12) inset,0 8px 24px rgba(255,25,135,0.22)',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '0.85';
+                    e.currentTarget.style.opacity = '0.82';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.opacity = '1';
                   }}
                 >
+                  <svg
+                    className='w-3 h-3 shrink-0'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={2}
+                      d='M12 4v16m8-8H4'
+                    />
+                  </svg>
                   Yeni Rezervasyon
                 </button>
               </motion.div>
 
+              {/* Footer label */}
               <motion.div
                 variants={fade}
-                className='flex items-center gap-5 w-full'
+                className='flex items-center gap-4 w-full'
               >
                 <div
                   className='flex-1 h-px'
@@ -766,12 +809,13 @@ function ThankYouInner({ id }: { id: string | null }) {
     </main>
   );
 }
+
 function ThankYouWithParams() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   return <ThankYouInner id={id} />;
 }
-// ─── Outer Component (owns useSearchParams) ───────────────────────────────────
+
 export default function ThankYouPage() {
   return (
     <Suspense fallback={null}>

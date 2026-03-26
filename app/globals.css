@@ -1,82 +1,434 @@
 @import 'tailwindcss';
-/* ================================================= */
-/* THEME TOKENS (Tailwind v4)                       */
-/* ================================================= */
-html,
-body {
-  background-color: #070707;
-}
-@theme inline {
-  /* Brand Colors */
+@plugin "@tailwindcss/typography";
+
+/* ================================================================
+   DESIGN SYSTEM — Yeni Hisar International Night Club
+   ================================================================
+   Color roles:
+     brand  (magenta)  → CTAs, energy, action, primary accents
+     accent (purple)   → atmosphere, depth, mystery, secondary accents
+     gold   (warm)     → prestige, stats, luxury highlights
+   ================================================================ */
+
+@theme {
+  /* ---- Brand ---- */
+  --color-brand: #ff1987;
+  --color-brand-light: #ff4da6;
+  --color-brand-dark: #d41470;
+
+  /* ---- Accent ---- */
+  --color-accent: #9d00ff;
+  --color-accent-light: #b84dff;
+  --color-accent-dark: #7a00cc;
+
+  /* ---- Gold ---- */
+  --color-gold: #d4a853;
+  --color-gold-light: #e8c97a;
+  --color-gold-dark: #b8893d;
+
+  /* ---- Surfaces (layered dark palette) ---- */
+  --color-surface-0: #050505;
+  --color-surface-1: #0a0a0a;
+  --color-surface-2: #111111;
+  --color-surface-3: #1a1a1a;
+  --color-surface-4: #242424;
+  --color-surface-5: #2e2e2e;
+
+  /* ---- Text ---- */
+  --color-text-primary: #fbfbfb;
+  --color-text-secondary: #a0a0a0;
+  --color-text-tertiary: #6b6b6b;
+  --color-text-muted: #3d3d3d;
+
+  /* ---- Borders ---- */
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-default: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(255, 255, 255, 0.2);
+
+  /* ---- Legacy aliases (remove as components migrate) ---- */
   --color-mainColor: #ff1987;
   --color-secondaryColor: #070707;
   --color-tertiaryColor: #141414;
   --color-quaternaryColor: #9d00ff;
-
   --color-softWhite: #fbfbfb;
   --color-softGray: #e2e2e2;
   --color-subtleGray: #c0c0c0;
   --color-mediumGray: #ededed;
-  --breakpoint-xs: 420px;
 
+  /* ================================================================
+     TYPOGRAPHY
+     ================================================================ */
   --font-display: var(--font-graphik);
   --font-sans: var(--font-graphik);
-  --font-super: 950;
+
+  /* Fluid type scale — each step includes size, line-height, tracking */
+  --text-display: clamp(3rem, 7vw + 1rem, 7rem);
+  --text-display--line-height: 0.9;
+  --text-display--letter-spacing: -0.03em;
+
+  --text-h1: clamp(2.25rem, 5vw + 0.5rem, 4.5rem);
+  --text-h1--line-height: 0.95;
+  --text-h1--letter-spacing: -0.025em;
+
+  --text-h2: clamp(1.75rem, 3vw + 0.5rem, 3rem);
+  --text-h2--line-height: 1.1;
+  --text-h2--letter-spacing: -0.02em;
+
+  --text-h3: clamp(1.25rem, 1.5vw + 0.5rem, 1.75rem);
+  --text-h3--line-height: 1.2;
+  --text-h3--letter-spacing: -0.01em;
+
+  --text-h4: clamp(1.05rem, 1vw + 0.25rem, 1.35rem);
+  --text-h4--line-height: 1.3;
+  --text-h4--letter-spacing: -0.005em;
+
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.65;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.65;
+
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.4;
+
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.08em;
+
+  /* ================================================================
+     SPACING
+     ================================================================ */
+  --spacing-section-sm: clamp(3rem, 8vw, 5rem);
+  --spacing-section: clamp(5rem, 12vw, 8rem);
+  --spacing-section-lg: clamp(6rem, 15vw, 10rem);
+
+  /* ================================================================
+     LAYOUT
+     ================================================================ */
+  --max-width-container: 1320px;
+  --max-width-narrow: 960px;
+  --max-width-wide: 1536px;
+
+  /* ================================================================
+     BORDER RADIUS
+     ================================================================ */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  /* ================================================================
+     SHADOWS
+     ================================================================ */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-card-hover:
+    0 8px 32px rgba(0, 0, 0, 0.5), 0 16px 48px rgba(0, 0, 0, 0.25);
+  --shadow-glow-brand:
+    0 0 30px rgba(255, 25, 135, 0.25), 0 0 60px rgba(255, 25, 135, 0.1);
+  --shadow-glow-accent:
+    0 0 30px rgba(157, 0, 255, 0.25), 0 0 60px rgba(157, 0, 255, 0.1);
+  --shadow-glow-gold:
+    0 0 30px rgba(212, 168, 83, 0.25), 0 0 60px rgba(212, 168, 83, 0.1);
+
+  /* ================================================================
+     EASINGS
+     ================================================================ */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ================================================================
+     ANIMATIONS
+     ================================================================ */
+  --animate-fade-in: fade-in 0.6s var(--ease-out-expo) forwards;
+  --animate-fade-up: fade-up 0.7s var(--ease-out-expo) forwards;
+  --animate-scale-in: scale-in 0.5s var(--ease-out-expo) forwards;
+  --animate-shimmer: shimmer 2.5s linear infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+
+  /* ================================================================
+     BREAKPOINTS
+     ================================================================ */
+  --breakpoint-xs: 420px;
 }
 
-/* Dark Mode */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ================================================================
+   KEYFRAMES
+   ================================================================ */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-}
-.text-stroke-white {
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(251, 251, 251, 0.82);
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ================================================= */
-/* SCROLLBARS                                       */
-/* ================================================= */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 25, 135, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 25, 135, 0.35);
+  }
+}
+
+/* ================================================================
+   BASE
+   ================================================================ */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-surface-0);
+    color: var(--color-text-primary);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: rgba(255, 25, 135, 0.3);
+    color: var(--color-text-primary);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* ================================================================
+   CUSTOM UTILITIES
+   ================================================================ */
+
+/* ---- Text Gradients ---- */
+
+@utility text-gradient-brand {
+  background: linear-gradient(
+    135deg,
+    var(--color-brand),
+    var(--color-brand-light)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility text-gradient-accent {
+  background: linear-gradient(
+    135deg,
+    var(--color-accent),
+    var(--color-accent-light)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility text-gradient-gold {
+  background: linear-gradient(
+    135deg,
+    var(--color-gold-dark),
+    var(--color-gold),
+    var(--color-gold-light)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@utility text-gradient-hero {
+  background: linear-gradient(135deg, var(--color-brand), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- Text Effects ---- */
+
+@utility text-stroke {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(251, 251, 251, 0.7);
+}
+
+@utility text-stroke-thin {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(251, 251, 251, 0.4);
+}
+
+@utility text-shadow-brand {
+  text-shadow:
+    0 0 30px rgba(255, 25, 135, 0.4),
+    0 0 60px rgba(255, 25, 135, 0.15);
+}
+
+@utility text-shadow-accent {
+  text-shadow:
+    0 0 30px rgba(157, 0, 255, 0.4),
+    0 0 60px rgba(157, 0, 255, 0.15);
+}
+
+@utility text-shadow-gold {
+  text-shadow:
+    0 0 30px rgba(212, 168, 83, 0.4),
+    0 0 60px rgba(212, 168, 83, 0.15);
+}
+
+/* ---- Glass / Blur ---- */
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-subtle);
+}
+
+@utility glass-strong {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border-default);
+}
+
+/* ---- Section Spacing ---- */
+
+@utility section-py {
+  padding-top: var(--spacing-section);
+  padding-bottom: var(--spacing-section);
+}
+
+@utility section-py-sm {
+  padding-top: var(--spacing-section-sm);
+  padding-bottom: var(--spacing-section-sm);
+}
+
+@utility section-py-lg {
+  padding-top: var(--spacing-section-lg);
+  padding-bottom: var(--spacing-section-lg);
+}
+
+/* ---- GSAP Reveal Targets ---- */
+/* Apply these to elements that GSAP will animate in. */
+/* They start hidden; GSAP handles the transition.   */
+
+@utility reveal {
+  opacity: 0;
+  transform: translateY(1.5rem);
+  will-change: opacity, transform;
+}
+
+@utility reveal-scale {
+  opacity: 0;
+  transform: scale(0.95);
+  will-change: opacity, transform;
+}
+
+@utility reveal-fade {
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* ---- Background Helpers ---- */
+
+@utility bg-gradient-dark {
+  background: linear-gradient(
+    to bottom,
+    var(--color-surface-0),
+    var(--color-surface-2)
+  );
+}
+
+@utility bg-gradient-card {
+  background: linear-gradient(
+    145deg,
+    var(--color-surface-4),
+    var(--color-surface-1)
+  );
+}
+
+/* Legacy gradient alias */
+@utility bg-custom-gradient {
+  background: linear-gradient(
+    to bottom,
+    rgba(7, 7, 7, 0.6),
+    rgba(7, 7, 7, 0.13) 19.79%,
+    rgba(7, 7, 7, 0.33) 35.86%,
+    rgba(7, 7, 7, 0.92) 78.02%,
+    #070707
+  );
+}
+
+/* ================================================================
+   SCROLLBAR
+   ================================================================ */
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  transition: background 0.25s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.04);
-}
-
-/* ================================================= */
-/* MAPBOX FIX                                       */
-/* ================================================= */
-
-.mapboxgl-popup-close-button {
-  right: 4px !important;
-  top: 1px !important;
-  width: 20px !important;
-  height: 20px !important;
-  font-size: 18px !important;
-  line-height: 28px !important;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }

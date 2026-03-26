@@ -1,125 +1,49 @@
 'use client';
 
-import React, { useRef, useEffect, useCallback, useState } from 'react';
-
-import { useReveal } from '@/app/utilities/useReveal';
+import React, { useRef, useState } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { SplitText } from 'gsap/SplitText';
+import { useGSAP } from '@gsap/react';
 import AnimatedCounter from '@/app/utilities/AnimatedCounter';
 import Timeline from './TimeLine';
 import TextReveal from '@/app/utilities/TextReveal';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import {
-  GoldToAmberFont,
-  MainColorToQuatFont,
-  QuatToLightFont,
-} from '@/app/utilities/LinearFontColors';
 import { Headline } from '@/app/utilities/Headline';
+import { useReveal } from '@/app/utilities/useReveal';
 import NavButton from '@/app/utilities/NavButton';
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
-/* ─────────────────────────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────────────────────────── */
+/* ================================================================
+   TYPES & SHARED
+   ================================================================ */
 type Props = { id: string };
+const SECTION_PX = 'px-6 sm:px-10 lg:px-20 xl:px-28';
 
-const PILLARS = [
-  {
-    icon: (
-      <svg viewBox='0 0 32 32' fill='none' width='28' height='28'>
-        <path
-          d='M16 3L4 8v8c0 7.18 5.16 13.9 12 15.5C22.84 29.9 28 23.18 28 16V8L16 3z'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinejoin='round'
-        />
-        <path
-          d='M11 16l3.5 3.5L21 12'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    ),
-    label: 'Profesyonel Güvenlik Ekibi',
-    text: 'Uzman ve deneyimli güvenlik personelimiz, kapıdan sahneye kadar mekânın tamamını kesintisiz olarak denetler. Her ekip üyesi kriz yönetimi ve kalabalık kontrolü konusunda özel eğitim almıştır.',
-  },
-  {
-    icon: (
-      <svg viewBox='0 0 32 32' fill='none' width='28' height='28'>
-        <circle cx='16' cy='16' r='5' stroke='currentColor' strokeWidth='1.6' />
-        <circle
-          cx='16'
-          cy='16'
-          r='12'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeDasharray='3 2'
-        />
-        <path
-          d='M16 4v4M16 24v4M4 16h4M24 16h4'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-        />
-      </svg>
-    ),
-    label: 'Kamera & Gözetim Sistemi',
-    text: '360° kapsama alanına sahip yüksek çözünürlüklü kamera altyapımız, mekânın her noktasını anlık olarak izler. Kayıtlar güvenli sunucularda saklanır; yalnızca yetkili personel erişebilir.',
-  },
-  {
-    icon: (
-      <svg viewBox='0 0 32 32' fill='none' width='28' height='28'>
-        <path
-          d='M8 12h16M8 16h10'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-        />
-        <rect
-          x='4'
-          y='6'
-          width='24'
-          height='20'
-          rx='3'
-          stroke='currentColor'
-          strokeWidth='1.6'
-        />
-        <path
-          d='M20 20l4 4'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-        />
-      </svg>
-    ),
-    label: 'Metal Dedektörü & Arama',
-    text: 'Tüm misafirler sistematik arama prosedüründen geçer. El dedektörleri ve kapı tipi sistemlerimiz, yasaklı madde ya da nesne girişini engeller. Güvenlik, konforla birlikte sağlanır.',
-  },
-  {
-    icon: (
-      <svg viewBox='0 0 32 32' fill='none' width='28' height='28'>
-        <path
-          d='M16 4v6M16 22v6M4 16h6M22 16h6'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-        />
-        <circle cx='16' cy='16' r='6' stroke='currentColor' strokeWidth='1.6' />
-        <path
-          d='M16 13v4l2.5 2.5'
-          stroke='currentColor'
-          strokeWidth='1.6'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    ),
-    label: 'Acil Durum Prosedürleri',
-    text: 'Tahliye planları, ilk yardım ekibi ve doğrudan bağlantılı acil servis koordinasyonu; olası her senaryoya karşı her zaman tam teşekküllü hazırlıklı olmamızı sağlar.',
-  },
-];
+const GradientText = ({
+  children,
+  variant = 'brand',
+}: {
+  children: React.ReactNode;
+  variant?: 'brand' | 'gold';
+}) => {
+  const bg =
+    variant === 'gold'
+      ? 'linear-gradient(135deg, var(--color-gold-dark), var(--color-gold), var(--color-gold-light))'
+      : 'linear-gradient(135deg, var(--color-brand), var(--color-accent-light))';
+  return (
+    <span
+      style={{
+        background: bg,
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+      }}
+    >
+      {children}
+    </span>
+  );
+};
 
 const Body = ({
   children,
@@ -133,823 +57,997 @@ const Body = ({
   style?: React.CSSProperties;
 }) => (
   <p
-    className={`text-white/55 leading-[1.72] ${center ? 'text-center mx-auto' : ''} ${className}`}
-    style={{ fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)', ...style }}
+    className={`leading-relaxed ${center ? 'text-center mx-auto' : ''} ${className}`}
+    style={{
+      color: 'var(--color-text-secondary)',
+      fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)',
+      lineHeight: 1.72,
+      ...style,
+    }}
   >
     {children}
   </p>
 );
 
-/* ─────────────────────────────────────────────────────────────────
-   ATMOSPHERE SECTION
-───────────────────────────────────────────────────────────────── */
-const AtmosphereSection = () => {
-  const { ref, visible } = useReveal(0.1);
-  return (
-    <div
-      ref={ref}
-      className='px-6 sm:px-12 lg:px-24 xl:px-32 py-24 lg:py-36'
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'none' : 'translateY(40px)',
-        transition:
-          'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-      }}
-    >
-      <div className='max-w-7xl mb-20'>
-        <TextReveal animateOnScroll>
-          <Headline className='mb-8 max-w-3xl'>
-            Zamanla büyüyen <br />
-            <QuatToLightFont>köklü bir yolculuk</QuatToLightFont>
-          </Headline>
-        </TextReveal>
+/* ================================================================
+   1 · MANIFESTO — Sticky, scroll-scrubbed text reveal + fade-out
+   ================================================================
+   CSS position:sticky eliminates pin-spacer issues.
+   Phase 1: words reveal left → right.
+   Phase 2: words fade out right → left (last word first).
+   Progress line draws then retracts. Year watermark drifts.
+   ================================================================ */
+const ManifestoSection = () => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const yearRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
 
-        <TextReveal animateOnScroll>
-          <Body className='max-w-2xl'>
+  useGSAP(
+    () => {
+      const wrapper = wrapperRef.current;
+      const text = textRef.current;
+      if (!wrapper || !text) return;
+
+      const split = SplitText.create(text, { type: 'words' });
+      gsap.set(split.words, { opacity: 0 });
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: wrapper,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1,
+        },
+      });
+
+      /* Year watermark drifts upward throughout */
+      if (yearRef.current) {
+        tl.to(
+          yearRef.current,
+          { yPercent: -50, ease: 'none', duration: 2.0 },
+          0,
+        );
+      }
+
+      /* Phase 1 — Words reveal left → right */
+      tl.to(
+        split.words,
+        { opacity: 1, stagger: 0.02, ease: 'none', duration: 0.6 },
+        0.1,
+      );
+
+      /* Progress line draws left → right */
+      if (lineRef.current) {
+        tl.fromTo(
+          lineRef.current,
+          { scaleX: 0 },
+          { scaleX: 1, ease: 'none', duration: 1.0 },
+          0,
+        );
+      }
+
+      /* Phase 2 — Words fade out right → left (last word first) */
+      const reversedWords = [...split.words].reverse();
+      tl.to(
+        reversedWords,
+        { opacity: 0, stagger: 0.015, ease: 'none', duration: 0.5 },
+        1.3,
+      );
+
+      /* Progress line fades out */
+      if (lineRef.current) {
+        tl.to(
+          lineRef.current,
+          { opacity: 0, ease: 'none', duration: 0.8 },
+          1.5,
+        );
+      }
+
+      return () => split.revert();
+    },
+    { scope: wrapperRef },
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ height: '300vh' }}>
+      <div
+        className='sticky top-2 h-dvh flex items-center overflow-hidden'
+        style={{ background: 'var(--color-surface-0)' }}
+      >
+        {/* Year watermark */}
+        <div
+          ref={yearRef}
+          className='absolute inset-0 flex items-center justify-center pointer-events-none select-none'
+          aria-hidden
+        >
+          <span
+            className='font-black tracking-[-0.05em]'
+            style={{
+              fontSize: 'clamp(10rem, 30vw, 42rem)',
+              lineHeight: '1',
+              color: 'var(--color-text-primary)',
+              opacity: 0.03,
+            }}
+          >
+            1964
+          </span>
+        </div>
+
+        <div className={`relative ${SECTION_PX} w-full`}>
+          {/* Manifesto text — words light up then fade out as you scroll */}
+          <p
+            ref={textRef}
+            className='font-black leading-[1.15] tracking-[-0.043em] max-w-fit '
+            style={{
+              fontSize: 'clamp(2rem, 5vw, 4rem)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
             Yeni Turistik Hisar Gazinosu, gece hayatının merkezinde konumlanan,
             güçlü geçmişi ve rafine çizgisiyle öne çıkan seçkin bir buluşma
             noktasıdır. 1964&apos;ten bu yana süregelen bu yaklaşım, gazinoyu
             dönemler üstü bir sahne kültürünün temsilcisi hâline getirmiştir.
+          </p>
+
+          {/* Scroll-synced progress line */}
+          <div
+            ref={lineRef}
+            className='h-px mt-12 max-w-7xl'
+            style={{
+              background:
+                'linear-gradient(90deg, var(--color-brand), var(--color-accent))',
+              transformOrigin: 'left',
+              transform: 'scaleX(0)',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ================================================================
+   2 · PILLARS — Bold feature blocks with animated SVG icons
+   ================================================================
+   Each pillar has a hand-drawn SVG icon that animates on scroll
+   via stroke-dashoffset (draw-on effect). Content alternates
+   left/right on desktop with parallax on the number.
+   ================================================================ */
+const PILLARS = [
+  {
+    num: '01',
+    label: 'Atmosfer & Deneyim',
+    text: 'Mekânın mimari dili, dengeli ışık kullanımı ve akıcı atmosferi, misafirlerini ilk andan itibaren gecenin ritmine dahil edecek şekilde kurgulanmıştır.',
+    iconPaths: [
+      'M20 4L32 18L20 36L8 18Z',
+      'M8 18H32',
+      'M20 4L14 18L20 36',
+      'M20 4L26 18L20 36',
+    ],
+  },
+  {
+    num: '02',
+    label: 'Işık & Ses',
+    text: 'Işık, ses ve sahne yerleşimi; gösterinin değil, atmosferin ön planda olduğu bir dengeyle ele alınır. Müzik doğru dengeyle var olur.',
+    iconPaths: [
+      'M20 17A3 3 0 1 1 20 23A3 3 0 1 1 20 17Z',
+      'M26 14C28.5 16.5 30 19 30 20C30 21 28.5 23.5 26 26',
+      'M30 10C34 14 36 17 36 20C36 23 34 26 30 30',
+      'M14 14C11.5 16.5 10 19 10 20C10 21 11.5 23.5 14 26',
+      'M10 10C6 14 4 17 4 20C4 23 6 26 10 30',
+    ],
+  },
+  {
+    num: '03',
+    label: 'Güvenlik & Konfor',
+    text: 'Profesyonel ekip, akışın doğallığını bozmadan süreci yönetir. Burada özgürlük, güvenle birlikte var olur.',
+    iconPaths: [
+      'M20 4L6 12V22C6 30 20 36 20 36C20 36 34 30 34 22V12L20 4Z',
+      'M14 20L18 24L26 16',
+    ],
+  },
+];
+
+const PillarBlock = ({
+  pillar,
+  index,
+}: {
+  pillar: (typeof PILLARS)[0];
+  index: number;
+}) => {
+  const blockRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      const block = blockRef.current;
+      if (!block) return;
+
+      const num = block.querySelector<HTMLElement>('.pillar-num');
+      const line = block.querySelector<HTMLElement>('.pillar-line');
+
+      /* SVG draw-on animation */
+      const iconPaths = block.querySelectorAll('.pillar-icon path');
+      iconPaths.forEach((p) => {
+        const el = p as SVGGeometryElement;
+        const len = el.getTotalLength();
+        gsap.set(el, { strokeDasharray: len, strokeDashoffset: len });
+      });
+
+      /* Number parallax — drifts upward faster than scroll */
+      if (num) {
+        gsap.to(num, {
+          yPercent: -50,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: block,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+      }
+
+      /* Entrance animation */
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: block,
+          start: 'top 82%',
+          once: true,
+        },
+      });
+
+      /* Icon draws on first */
+      if (iconPaths.length) {
+        tl.to(
+          Array.from(iconPaths),
+          {
+            strokeDashoffset: 0,
+            duration: 1.5,
+            stagger: 0.12,
+            ease: 'expo.out',
+          },
+          0,
+        );
+      }
+
+      if (line)
+        tl.from(line, { scaleX: 0, duration: 1.2, ease: 'expo.out' }, 0.1);
+      if (num)
+        tl.from(
+          num,
+          { opacity: 0, x: -20, duration: 0.9, ease: 'expo.out' },
+          0.15,
+        );
+    },
+    { scope: blockRef },
+  );
+
+  const isEven = index % 2 === 1;
+
+  return (
+    <div ref={blockRef} className={`${SECTION_PX} py-16 lg:py-28`}>
+      <div className={`max-w-3xl ${isEven ? 'lg:ml-auto' : ''}`}>
+        {/* SVg + gradient line */}
+        <div className='flex items-center gap-5 mb-8 lg:mb-10'>
+          {/* Animated SVG icon */}
+          <svg
+            viewBox='0 0 40 40'
+            fill='none'
+            className='pillar-icon '
+            style={{
+              width: 'clamp(36px, 4vw, 48px)',
+              height: 'clamp(36px, 4vw, 48px)',
+              color: 'var(--color-brand)',
+            }}
+          >
+            {pillar.iconPaths.map((d, i) => (
+              <path
+                key={i}
+                d={d}
+                stroke='currentColor'
+                strokeWidth='1.5'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+              />
+            ))}
+          </svg>
+          <div
+            className='pillar-line flex-1 h-px'
+            style={{
+              background: isEven
+                ? 'linear-gradient(90deg, var(--color-accent), transparent)'
+                : 'linear-gradient(90deg, var(--color-brand), transparent)',
+              transformOrigin: 'left',
+            }}
+          />
+        </div>
+
+        {/* Title */}
+        <TextReveal>
+          <h3
+            className='pillar-title font-black leading-[1.05] tracking-[-0.02em] mb-5 lg:mb-7'
+            style={{
+              fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
+            {pillar.label}
+          </h3>
+        </TextReveal>
+
+        {/* Description */}
+        <TextReveal>
+          <p
+            className='pillar-desc'
+            style={{
+              color: 'var(--color-text-secondary)',
+              fontSize: 'clamp(0.9375rem, 1.4vw, 1.0625rem)',
+              lineHeight: 1.72,
+              maxWidth: '36rem',
+            }}
+          >
+            {pillar.text}
+          </p>
+        </TextReveal>
+      </div>
+    </div>
+  );
+};
+
+const PillarsSection = () => (
+  <div>
+    {PILLARS.map((p, i) => (
+      <PillarBlock key={p.num} pillar={p} index={i} />
+    ))}
+  </div>
+);
+
+/* ================================================================
+   3 · TIMELINE
+   ================================================================ */
+const TimelineSection = () => {
+  const { ref, visible } = useReveal(0.08);
+
+  return (
+    <div
+      ref={ref}
+      className={`${SECTION_PX} section-py`}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'none' : 'translateY(32px)',
+        transition:
+          'opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1)',
+      }}
+    >
+      <div className='text-center max-w-4xl mx-auto mb-20'>
+        <TextReveal>
+          <Headline center className='mb-8'>
+            Nesiller boyu bir <br />
+            <GradientText>sahne mirası</GradientText>
+          </Headline>
+        </TextReveal>
+
+        <TextReveal delay={0.15}>
+          <Body center className='max-w-2xl'>
+            Canlı performanslar ve özenle oluşturulan sahne programları. Yıllar
+            boyunca birçok değerli sanatçının sahne aldığı bu mekân, sahneye
+            yaklaşımını her zaman seçicilik ve saygı üzerine kurmuştur.
           </Body>
         </TextReveal>
       </div>
 
-      <div className='grid grid-cols-1 xl:grid-cols-3 gap-x-20 md:gap-x-12 xl:gap-x-24 gap-y-0'>
-        {[
-          {
-            label: 'Atmosfer & Deneyim',
-            text: 'Mekânın mimari dili, dengeli ışık kullanımı ve akıcı atmosferi, misafirlerini ilk andan itibaren gecenin ritmine dahil edecek şekilde kurgulanmıştır. Burada zaman, acele etmeden akar; her alan, deneyimin doğal bir parçası olacak biçimde tasarlanmıştır.',
-          },
-          {
-            label: 'Işık & Ruh',
-            text: 'Işık, ses ve sahne yerleşimi; gösterinin değil, atmosferin ön planda olduğu bir dengeyle ele alınır. Müzik burada yüksek sesle değil, doğru dengeyle var olur. Programlar plansız değil, özenle kürate edilmiş bir akışla sunulur.',
-          },
-          {
-            label: 'Güvenlik & Konfor',
-            text: 'Profesyonel ekip, akışın doğallığını bozmadan süreci yönetir; Alan yerleşimi, yoğunluk dengesi ve operasyonel disiplin; gecenin keyfini kesintiye uğratmadan koruyan bir sistem içinde ilerler. Burada özgürlük, güvenle birlikte var olur.',
-          },
-        ].map((block, i) => (
-          <div
-            key={block.label}
-            className='py-10 md:py-12 border-t border-white/10'
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'none' : 'translateY(24px)',
-              transition: `opacity 1s cubic-bezier(0.25,0.46,0.45,0.94) ${200 + i * 150}ms, transform 1s cubic-bezier(0.25,0.46,0.45,0.94) ${200 + i * 150}ms`,
-            }}
-          >
-            <TextReveal>
-              <p
-                className='text-white font-semibold mb-4'
-                style={{ fontSize: 'clamp(1.05rem, 1.8vw, 1.3125rem)' }}
-              >
-                {block.label}
-              </p>
-            </TextReveal>
-            <TextReveal delay={0.14}>
-              <Body>{block.text}</Body>
-            </TextReveal>
-          </div>
-        ))}
-      </div>
+      <Timeline />
     </div>
   );
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   HISTORY SECTION
-───────────────────────────────────────────────────────────────── */
-const HistorySection = () => {
-  const { ref, visible } = useReveal(0.08);
-  return (
-    <div className='relative overflow-hidden'>
-      <div
-        className='pointer-events-none absolute inset-0'
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,25,135,0.08) 0%, transparent 65%)',
-        }}
-      />
-      <div
-        ref={ref}
-        className='relative px-6 sm:px-12 lg:px-24 xl:px-32 pt-24 lg:pt-36 pb-16 lg:pb-24'
-        style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'none' : 'translateY(40px)',
-          transition:
-            'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-        }}
-      >
-        <div className='text-center max-w-4xl mx-auto mb-24'>
-          <TextReveal delay={0}>
-            <Headline center className='mb-8 max-w-3xl'>
-              Nesiller boyu bir <br />
-              <MainColorToQuatFont> sahne mirası</MainColorToQuatFont>
-            </Headline>
-          </TextReveal>
-
-          <TextReveal delay={0.15}>
-            <Body center className='max-w-2xl'>
-              Canlı performanslar ve özenle oluşturulan sahne programları.
-              Yıllar boyunca birçok değerli sanatçının sahne aldığı bu mekân,
-              sahneye yaklaşımını her zaman seçicilik ve saygı üzerine
-              kurmuştur.
-            </Body>
-          </TextReveal>
-        </div>
-        <Timeline />
-      </div>
-    </div>
-  );
-};
-
-/* ─────────────────────────────────────────────────────────────────
-   STATS SECTION
-───────────────────────────────────────────────────────────────── */
-const STAT_ROWS = [
+/* ================================================================
+   4 · STATS — Alternating horizontal rows with massive counters
+   ================================================================
+   Each stat gets its own full-width row with a massive gradient
+   number on one side and text on the other. Rows alternate
+   left/right alignment. GSAP slides each row in from the side
+   with parallax on the numbers.
+   ================================================================ */
+const STATS = [
   {
     label: 'Etkinlik',
     sub: 'Kapılarımızdan geçen her gece, ayrı bir hikâye.',
-    numeric: 800,
+    value: 1600,
     suffix: '+',
-    accent: 'linear-gradient(135deg, #b8860b 0%, #ffd700 40%, #ff8c00 100%)',
+    gradient:
+      'linear-gradient(135deg, var(--color-gold-dark), var(--color-gold), var(--color-gold-light))',
   },
   {
     label: 'Mutlu Misafir',
     sub: 'Her misafir, hikâyemizin yeni bir parçasıdır.',
-    numeric: 20000,
+    value: 20000,
     suffix: '+',
-    accent: 'linear-gradient(135deg, #ff1987 0%, #ff6ec7 60%, #ffaadd 100%)',
+    gradient:
+      'linear-gradient(135deg, var(--color-brand), var(--color-brand-light))',
   },
   {
     label: 'Canlı Performans',
     sub: 'Sahnemizde yankılanan her ses, kalıcı bir iz bıraktı.',
-    numeric: 7000,
+    value: 7000,
     suffix: '+',
-    accent: 'linear-gradient(135deg, #b8860b 0%, #ffd700 40%, #ff8c00 100%)',
+    gradient:
+      'linear-gradient(135deg, var(--color-gold-dark), var(--color-gold), var(--color-gold-light))',
   },
 ] as const;
 
-/* ─────────────────────────────────────────────────────────────────
-   STAT ROW — own IntersectionObserver per row so each counter
-   fires only when that specific row scrolls into view.
-───────────────────────────────────────────────────────────────── */
-// Total time before ghost appears: AnimatedCounter delay (400ms) + duration (1800ms)
-const COUNTER_TOTAL_MS = 400 + 1800;
-
 const StatRow = ({
   stat,
-  i,
-  isLast,
+  index,
 }: {
-  stat: (typeof STAT_ROWS)[number];
-  i: number;
-  isLast: boolean;
+  stat: (typeof STATS)[number];
+  index: number;
 }) => {
-  const { ref, visible } = useReveal(0.35);
-  const isEven = i % 2 === 0;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [play, setPlay] = useState(false);
 
-  // Ghost watermark is hidden until the counter finishes counting
-  const [ghostVisible, setGhostVisible] = useState(false);
-  useEffect(() => {
-    if (!visible) return;
-    const id = setTimeout(() => setGhostVisible(true), COUNTER_TOTAL_MS);
-    return () => clearTimeout(id);
-  }, [visible]);
+  useGSAP(
+    () => {
+      const row = rowRef.current;
+      if (!row) return;
+
+      const isEven = index % 2 === 1;
+
+      /* Slide in from alternating sides */
+      gsap.from(row, {
+        x: isEven ? 80 : -80,
+        opacity: 0,
+        duration: 1.2,
+        ease: 'expo.out',
+        scrollTrigger: {
+          trigger: row,
+          start: 'top 85%',
+          once: true,
+          onEnter: () => setPlay(true),
+        },
+      });
+
+      /* Number parallax */
+      const numEl = row.querySelector('.stat-num');
+      if (numEl) {
+        gsap.to(numEl, {
+          yPercent: -25,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: row,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+      }
+
+      /* Accent line draws in */
+      const accent = row.querySelector('.stat-accent');
+      if (accent) {
+        gsap.from(accent, {
+          scaleX: 0,
+          duration: 1,
+          ease: 'expo.out',
+          scrollTrigger: {
+            trigger: row,
+            start: 'top 82%',
+            once: true,
+          },
+        });
+      }
+    },
+    { scope: rowRef },
+  );
+
+  const isEven = index % 2 === 1;
 
   return (
-    <div ref={ref} className='relative'>
-      {/* Top border */}
+    <>
+      {/* Gradient separator */}
       <div
-        className='w-full h-px'
+        className='h-px'
         style={{
           background:
-            i === 0
-              ? 'linear-gradient(90deg, rgba(255,215,0,0.25) 0%, rgba(255,255,255,0.06) 50%, transparent 100%)'
-              : 'rgba(255,255,255,0.06)',
+            'linear-gradient(90deg, transparent, var(--color-border-default), transparent)',
         }}
       />
 
       <div
-        className={`flex flex-col lg:flex-row items-start lg:items-center py-10 lg:py-14 ${isEven ? '' : 'lg:flex-row-reverse'}`}
-        style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'none' : `translateX(${isEven ? -20 : 20}px)`,
-          transition:
-            'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-        }}
+        ref={rowRef}
+        className={`py-14 lg:py-20 flex flex-col ${
+          isEven ? 'lg:flex-row-reverse' : 'lg:flex-row'
+        } items-start lg:items-end gap-4 lg:gap-16`}
       >
-        {/* Ghost watermark — fades in once the counter lands on its final value */}
-        <div
-          aria-hidden='true'
-          className='pointer-events-none select-none absolute'
-          style={{
-            fontSize: 'clamp(7rem, 17vw, 16rem)',
-            fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: '-0.06em',
-            top: '50%',
-            [isEven ? 'right' : 'left']: '-1%',
-            transform: 'translateY(-50%)',
-            background: stat.accent,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            opacity: ghostVisible ? 0.045 : 0,
-            transition: 'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-          }}
-        >
-          {stat.numeric.toLocaleString()}+
-        </div>
-
-        {/* Counter — plays only when THIS row is visible */}
-        <div className='lg:w-[42%]'>
+        {/* Massive number */}
+        <div className='stat-num shrink-0'>
           <AnimatedCounter
-            value={stat.numeric}
+            value={stat.value}
             suffix={stat.suffix}
-            duration={1800}
-            play={visible}
-            className='font-black leading-none tracking-[-0.04em]'
+            duration={2000}
+            delay={300}
+            play={play}
+            className='font-black leading-none tracking-[-0.05em]'
             style={{
-              fontSize: 'clamp(3rem, 8.5vw, 7.5rem)',
-              background: stat.accent,
+              fontSize: 'clamp(4rem, 10vw, 8rem)',
+              background: stat.gradient,
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               display: 'block',
-              lineHeight: 0.95,
+              lineHeight: '0.9',
             }}
           />
         </div>
 
-        {/* Connector line — desktop only */}
-        <div
-          className='hidden lg:flex items-center flex-1 px-8 xl:px-12'
-          aria-hidden
-        >
-          <div
-            className='w-full h-px'
-            style={{
-              background: `linear-gradient(${isEven ? '90deg' : '270deg'}, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)`,
-            }}
-          />
-        </div>
-
-        {/* Label + sub */}
-        <div
-          className={`mt-4 lg:mt-0 lg:w-[34%] ${isEven ? 'lg:text-right' : 'lg:text-left'}`}
-        >
+        {/* Label + description + accent */}
+        <div>
           <p
-            className='text-white font-semibold leading-tight mb-2'
-            style={{ fontSize: 'clamp(1.4rem, 2.5vw, 2rem)' }}
+            className='font-bold mb-2'
+            style={{
+              color: 'var(--color-text-primary)',
+              fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+            }}
           >
             {stat.label}
           </p>
-          <Body style={{ fontSize: 'clamp(0.875rem, 1.2vw, 1rem)' }}>
-            {stat.sub}
-          </Body>
+          <Body style={{ maxWidth: '28rem' }}>{stat.sub}</Body>
+          <div
+            className='stat-accent h-0.5 mt-5'
+            style={{
+              background: stat.gradient,
+              width: 'clamp(3rem, 6vw, 5rem)',
+              transformOrigin: isEven ? 'right' : 'left',
+              marginLeft: isEven ? 'auto' : undefined,
+            }}
+          />
         </div>
       </div>
-
-      {/* Bottom border on last row */}
-      {isLast && (
-        <div
-          className='w-full h-px'
-          style={{ background: 'rgba(255,255,255,0.06)' }}
-        />
-      )}
-    </div>
+    </>
   );
 };
 
-/* ─────────────────────────────────────────────────────────────────
-   STATS SECTION — header keeps its own reveal; rows use StatRow
-───────────────────────────────────────────────────────────────── */
-const StatsSection = () => {
-  const { ref, visible } = useReveal(0.12); // header only
-
-  return (
-    <div className='relative overflow-hidden px-6 sm:px-12 lg:px-24 xl:px-32 py-24 lg:py-36 border-t border-white/[0.07]'>
-      {/* Ambient glow */}
-      <div
-        className='pointer-events-none absolute inset-0'
-        style={{
-          background:
-            'radial-gradient(ellipse 55% 40% at 10% 50%, rgba(184,134,11,0.07) 0%, transparent 60%), radial-gradient(ellipse 40% 35% at 90% 30%, rgba(255,25,135,0.06) 0%, transparent 55%)',
-        }}
-      />
-
-      {/* Left decorative rule */}
-      <div
-        className='pointer-events-none absolute top-0 bottom-0 hidden lg:block'
-        style={{
-          left: 'clamp(24px, 4.16vw, 96px)',
-          width: 1,
-          background:
-            'linear-gradient(180deg, transparent 0%, rgba(255,215,0,0.18) 30%, rgba(255,25,135,0.14) 70%, transparent 100%)',
-        }}
-      />
-
-      <div className='relative max-w-7xl'>
-        {/* Header — own reveal */}
-        <div
-          ref={ref}
-          className='mb-20 lg:mb-28'
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'none' : 'translateY(32px)',
-            transition:
-              'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-          }}
-        >
-          <TextReveal animateOnScroll>
-            <Headline style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}>
-              Rakamlarla <br />
-              <GoldToAmberFont>Yeni Hisar</GoldToAmberFont>
-            </Headline>
-          </TextReveal>
-        </div>
-
-        {/* Each row manages its own visibility + counter */}
-        <div className='flex flex-col'>
-          {STAT_ROWS.map((stat, i) => (
-            <StatRow
-              key={stat.label}
-              stat={stat}
-              i={i}
-              isLast={i === STAT_ROWS.length - 1}
-            />
-          ))}
-        </div>
-      </div>
+const StatsSection = () => (
+  <div className={`${SECTION_PX} section-py`}>
+    <div className='mb-16 lg:mb-24'>
+      <TextReveal animateOnScroll>
+        <Headline>
+          Rakamlarla <GradientText variant='gold'>Yeni Hisar</GradientText>
+        </Headline>
+      </TextReveal>
     </div>
-  );
-};
 
-/* ─────────────────────────────────────────────────────────────────
-   SHIELD VISUAL
-───────────────────────────────────────────────────────────────── */
-const ShieldVisual = ({ visible }: { visible: boolean }) => (
-  <div
-    className='relative flex items-center justify-center mx-auto'
-    style={{
-      width: 'clamp(180px, 22vw, 280px)',
-      height: 'clamp(180px, 22vw, 280px)',
-      opacity: visible ? 1 : 0,
-      transform: visible ? 'scale(1)' : 'scale(0.82)',
-      transition:
-        'opacity 1.2s cubic-bezier(0.25,0.46,0.45,0.94) 0.1s, transform 1.2s cubic-bezier(0.25,0.46,0.45,0.94) 0.1s',
-    }}
-  >
-    {[1, 2, 3].map((i) => (
+    <div className='flex flex-col'>
+      {STATS.map((stat, i) => (
+        <StatRow key={stat.label} stat={stat} index={i} />
+      ))}
+      {/* Bottom separator */}
       <div
-        key={i}
-        className='absolute rounded-full border border-white/6'
+        className='h-px'
         style={{
-          width: `${60 + i * 22}%`,
-          height: `${60 + i * 22}%`,
-          animation: `pulse-ring 3.5s ease-in-out ${i * 0.6}s infinite`,
+          background:
+            'linear-gradient(90deg, transparent, var(--color-border-default), transparent)',
         }}
       />
-    ))}
-    <div
-      className='absolute inset-0 rounded-full'
-      style={{
-        background:
-          'radial-gradient(circle at 50% 45%, rgba(255,25,135,0.18) 0%, transparent 70%)',
-      }}
-    />
-    <svg
-      viewBox='0 0 120 140'
-      fill='none'
-      style={{
-        width: '52%',
-        filter:
-          'drop-shadow(0 0 18px rgba(255,25,135,0.55)) drop-shadow(0 0 40px rgba(255,25,135,0.2))',
-      }}
-    >
-      <path
-        d='M60 6L12 26v38c0 28.6 20.5 55.4 48 62 27.5-6.6 48-33.4 48-62V26L60 6z'
-        stroke='url(#sg1)'
-        strokeWidth='2.5'
-        fill='url(#sf1)'
-        strokeLinejoin='round'
-      />
-      <path
-        d='M60 20L26 36v28c0 21 15 40.7 34 45.6C79 104.7 94 85 94 64V36L60 20z'
-        stroke='rgba(255,255,255,0.12)'
-        strokeWidth='1'
-        fill='rgba(255,255,255,0.03)'
-        strokeLinejoin='round'
-      />
-      <path
-        d='M42 68l12 13 24-22'
-        stroke='white'
-        strokeWidth='4'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-      <defs>
-        <linearGradient
-          id='sg1'
-          x1='12'
-          y1='6'
-          x2='108'
-          y2='134'
-          gradientUnits='userSpaceOnUse'
-        >
-          <stop stopColor='#ff1987' />
-          <stop offset='0.5' stopColor='#ff6ec7' />
-          <stop offset='1' stopColor='#b8860b' />
-        </linearGradient>
-        <linearGradient
-          id='sf1'
-          x1='12'
-          y1='6'
-          x2='108'
-          y2='134'
-          gradientUnits='userSpaceOnUse'
-        >
-          <stop stopColor='#ff1987' stopOpacity='0.12' />
-          <stop offset='1' stopColor='#b8860b' stopOpacity='0.06' />
-        </linearGradient>
-      </defs>
-    </svg>
-    <style>{`@keyframes pulse-ring { 0%,100% { opacity:0.4; transform:scale(1); } 50% { opacity:0.15; transform:scale(1.06); } }`}</style>
+    </div>
   </div>
 );
 
-const HEADLINE_LINE1 = 'Eğlenceniz için';
-const HEADLINE_LINE2 = 'maksimum güvenlik';
+/* ================================================================
+   5 · SECURITY — Netflix-style horizontal accordion
+   ================================================================
+   One card is expanded (wide) showing full content. The others
+   are collapsed strips showing just an icon + number. Click a
+   collapsed card or use the NavButtons to cycle. Desktop uses
+   flex-based width transition; mobile shows one card at a time.
+   ================================================================ */
+const SECURITY_ITEMS = [
+  {
+    icon: (
+      <svg viewBox='0 0 24 24' fill='none' className='w-full h-full'>
+        <path
+          d='M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinejoin='round'
+        />
+        <path
+          d='M9 12l2 2 4-4'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+    ),
+    label: 'Profesyonel Güvenlik',
+    text: 'Uzman ve deneyimli güvenlik personelimiz, kapıdan sahneye kadar mekânın tamamını kesintisiz olarak denetler.',
+  },
+  {
+    icon: (
+      <svg viewBox='0 0 24 24' fill='none' className='w-full h-full'>
+        <circle cx='12' cy='12' r='4' stroke='currentColor' strokeWidth='1.5' />
+        <circle
+          cx='12'
+          cy='12'
+          r='9'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeDasharray='2.5 1.5'
+        />
+        <path
+          d='M12 3v2M12 19v2M3 12h2M19 12h2'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+      </svg>
+    ),
+    label: 'Kamera & Gözetim Sistemi',
+    text: '360° kapsama alanına sahip yüksek çözünürlüklü kamera altyapımız, mekânın her noktasını anlık olarak izler.',
+  },
+  {
+    icon: (
+      <svg viewBox='0 0 24 24' fill='none' className='w-full h-full'>
+        <rect
+          x='3'
+          y='4'
+          width='18'
+          height='16'
+          rx='2'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <path
+          d='M6 9h12M6 13h8'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+        <path
+          d='M15 15l3 3'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+      </svg>
+    ),
+    label: 'Metal Dedektörü & Arama',
+    text: 'Tüm misafirler sistematik arama prosedüründen geçer. Güvenlik, konforla birlikte sağlanır.',
+  },
+  {
+    icon: (
+      <svg viewBox='0 0 24 24' fill='none' className='w-full h-full'>
+        <circle cx='12' cy='12' r='5' stroke='currentColor' strokeWidth='1.5' />
+        <path
+          d='M12 3v4M12 17v4M3 12h4M17 12h4'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+        <path
+          d='M12 10v3l2 1'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+    ),
+    label: 'Acil Durum Prosedürleri',
+    text: 'Tahliye planları, ilk yardım ekibi ve doğrudan bağlantılı acil servis koordinasyonu; her senaryoya karşı hazırlıklıyız.',
+  },
+];
 
-/* ─────────────────────────────────────────────────────────────────
-   SECURITY SECTION
-───────────────────────────────────────────────────────────────── */
 const SecuritySection = () => {
+  const [active, setActive] = useState(0);
   const { ref, visible } = useReveal(0.08);
 
-  const trackRef = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const syncScrollState = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const { scrollLeft, clientWidth, scrollWidth } = track;
-    setCanScrollLeft(scrollLeft > 2);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 2);
-    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
-    let closest = 0;
-    let minDist = Infinity;
-    cardRefs.current.forEach((card, i) => {
-      if (!card) return;
-      const dist = Math.abs(card.offsetLeft - scrollLeft - paddingLeft);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = i;
-      }
-    });
-    setActiveIndex(closest);
-  }, []);
-
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    syncScrollState();
-    el.addEventListener('scroll', syncScrollState, { passive: true });
-    window.addEventListener('resize', syncScrollState);
-    return () => {
-      el.removeEventListener('scroll', syncScrollState);
-      window.removeEventListener('resize', syncScrollState);
-    };
-  }, [syncScrollState]);
-
-  const scrollToCard = useCallback((index: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const clamped = Math.max(0, Math.min(index, PILLARS.length - 1));
-    const card = cardRefs.current[clamped];
-    if (!card) return;
-    const paddingLeft = parseFloat(getComputedStyle(track).paddingLeft) || 0;
-    track.scrollTo({ left: card.offsetLeft - paddingLeft, behavior: 'smooth' });
-  }, []);
-
-  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
-    cardRefs.current[i] = el;
+  const isFirst = active === 0;
+  const isLast = active === SECURITY_ITEMS.length - 1;
+  const goPrev = () => {
+    if (!isFirst) setActive((p) => p - 1);
+  };
+  const goNext = () => {
+    if (!isLast) setActive((p) => p + 1);
   };
 
-  const l1BaseRef = useRef<HTMLDivElement>(null);
-  const l1AnimRef = useRef<HTMLDivElement>(null);
-  const l2BaseRef = useRef<HTMLDivElement>(null);
-  const l2AnimRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const l1Base = l1BaseRef.current;
-    const l1Anim = l1AnimRef.current;
-    const l2Base = l2BaseRef.current;
-    const l2Anim = l2AnimRef.current;
-    if (!l1Base || !l1Anim || !l2Base || !l2Anim) return;
-
-    const chars1 = HEADLINE_LINE1.split('');
-    const dots1 = chars1.map((c) => (c === ' ' ? '\u00a0' : '·'));
-    const chars2 = HEADLINE_LINE2.split('');
-    const dots2 = chars2.map((c) => (c === ' ' ? '\u00a0' : '·'));
-    const total = chars1.length + chars2.length;
-
-    l1Anim.textContent = dots1.join('');
-    l2Anim.innerHTML = dots2.join('');
-
-    const st = ScrollTrigger.create({
-      trigger: l1Base,
-      start: 'top 80%',
-      end: 'top 30%',
-      onUpdate: (self) => {
-        const offset = Math.round(self.progress * total);
-        const o1 = Math.min(offset, chars1.length);
-        l1Anim.textContent =
-          chars1.slice(0, o1).join('') + dots1.slice(o1).join('');
-        const o2 = Math.max(0, offset - chars1.length);
-        const revealed = chars2.slice(0, o2).join('');
-        const remain = dots2.slice(o2).join('');
-        l2Anim.innerHTML = revealed
-          ? `<span style="background:linear-gradient(135deg,#ff1987 0%,#ff6ec7 50%,#b8860b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">${revealed}</span>${remain}`
-          : remain;
-      },
-    });
-    return () => st.kill();
-  }, []);
-
-  const TRACK_PADDING = 'clamp(24px, 4.16vw, 96px)';
-
-  const renderCard = (pillar: (typeof PILLARS)[number], i: number) => (
+  return (
     <div
-      className='rounded-2xl p-8 lg:p-10'
+      ref={ref}
+      className='px-4 sm:px-8 lg:px-12 xl:px-20 section-py-lg'
       style={{
-        width: '100%',
-        background: 'rgba(255,255,255,0.001)',
-        border: '1px solid rgba(255,255,255,0.07)',
         opacity: visible ? 1 : 0,
-        transform: visible ? 'none' : 'translateY(28px)',
-        transition: `opacity 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms, transform 0.9s cubic-bezier(0.25,0.46,0.45,0.94) ${250 + i * 110}ms`,
+        transform: visible ? 'none' : 'translateY(32px)',
+        transition:
+          'opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1)',
+        background:
+          'radial-gradient(ellipse at 70% 20%, rgba(157, 0, 255, 0.03), transparent 60%), var(--color-surface-0)',
       }}
     >
-      <div
-        className='mb-6 inline-flex items-center justify-center rounded-xl'
-        style={{
-          width: 56,
-          height: 56,
-          background: 'rgba(255,25,135,0.08)',
-          border: '1px solid rgba(255,25,135,0.18)',
-          color: 'rgba(255,100,160,0.9)',
-        }}
-      >
-        {pillar.icon}
+      {/* Header */}
+      <div className='max-w-fit mb-10 lg:mb-14'>
+        <TextReveal animateOnScroll>
+          <Headline className='mb-6'>
+            Eğlenceniz için <br />
+            <GradientText>maksimum güvenlik</GradientText>
+          </Headline>
+        </TextReveal>
+        <TextReveal delay={0.15}>
+          <Body className='max-w-2xl'>
+            Yeni Turistik Hisar Gazinosu, misafirlerinin gece boyunca kendini
+            özgür ve güvende hissetmesi için endüstri standartlarının ötesinde
+            bir güvenlik altyapısı işletmektedir.
+          </Body>
+        </TextReveal>
       </div>
 
-      <p
-        className='text-white font-semibold mb-4'
-        style={{ fontSize: 'clamp(1.1rem, 1.8vw, 1.375rem)' }}
-      >
-        {pillar.label}
-      </p>
-      <Body style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1.0625rem)' }}>
-        {pillar.text}
-      </Body>
-    </div>
-  );
-
-  return (
-    <div className='relative overflow-hidden'>
+      {/* Separator */}
       <div
-        className='pointer-events-none absolute inset-0'
+        className='h-px mb-10 lg:mb-14'
         style={{
           background:
-            'radial-gradient(ellipse 65% 45% at 50% 0%, rgba(255,25,135,0.09) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 80% 80%, rgba(184,134,11,0.06) 0%, transparent 55%)',
-        }}
-      />
-      <div
-        className='pointer-events-none absolute inset-0 opacity-[0.025]'
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
+            'linear-gradient(90deg, var(--color-brand), var(--color-accent), transparent)',
         }}
       />
 
-      <div ref={ref} className='relative pt-24 lg:pt-36'>
-        {/* ── Header block ── */}
+      {/* ---- Mobile / Tablet: horizontal sliding carousel ---- */}
+      <div className='lg:hidden overflow-hidden'>
         <div
-          style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
-          className='pb-12'
-        >
-          <div
-            className='flex flex-col lg:flex-row items-center lg:items-start gap-14 lg:gap-20'
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'none' : 'translateY(40px)',
-              transition:
-                'opacity 1s cubic-bezier(0.25,0.46,0.45,0.94), transform 1s cubic-bezier(0.25,0.46,0.45,0.94)',
-            }}
-          >
-            <ShieldVisual visible={visible} />
-            <div className='flex-1 lg:pt-6 min-w-0'>
-              <h2
-                className='text-white font-bold leading-[1.15] tracking-[-0.025em] mb-8'
-                style={{ fontSize: 'clamp(2.5rem, 6vw, 5.5rem)' }}
-              >
-                <div style={{ position: 'relative', display: 'block' }}>
-                  <div ref={l1BaseRef} style={{ opacity: 0 }}>
-                    {HEADLINE_LINE1}
-                  </div>
-                  <div
-                    ref={l1AnimRef}
-                    aria-hidden='true'
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
-                  />
-                </div>
-                <div style={{ position: 'relative', display: 'block' }}>
-                  <div ref={l2BaseRef} style={{ opacity: 0 }}>
-                    {HEADLINE_LINE2}
-                  </div>
-                  <div
-                    ref={l2AnimRef}
-                    aria-hidden='true'
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
-                  />
-                </div>
-              </h2>
-
-              <TextReveal delay={0.2}>
-                <Body className='max-w-xl'>
-                  Yeni Turistik Hisar Gazinosu, misafirlerinin gece boyunca
-                  kendini özgür ve güvende hissetmesi için endüstri
-                  standartlarının ötesinde bir güvenlik altyapısı işletmektedir.
-                  Kapıdan sahneye, sahneden çıkışa her adım denetim altındadır.
-                </Body>
-              </TextReveal>
-
-              <div
-                className='mt-10 h-px max-w-md'
-                style={{
-                  background:
-                    'linear-gradient(90deg, rgba(255,25,135,0.5) 0%, rgba(255,25,135,0.08) 60%, transparent 100%)',
-                  opacity: visible ? 1 : 0,
-                  transition: 'opacity 1s ease 0.5s',
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════
-            DESKTOP: 2×2 grid — visible on lg+
-        ══════════════════════════════════════════ */}
-        <div
-          className='hidden lg:grid grid-cols-2 gap-4'
-          style={{ paddingLeft: TRACK_PADDING, paddingRight: TRACK_PADDING }}
-        >
-          {PILLARS.map((pillar, i) => (
-            <div key={pillar.label}>{renderCard(pillar, i)}</div>
-          ))}
-        </div>
-
-        {/* ══════════════════════════════════════════
-            MOBILE / TABLET: carousel — visible below lg
-        ══════════════════════════════════════════ */}
-        <div className='lg:hidden'>
-          <div
-            ref={trackRef}
-            className='scrollbar-hide'
-            style={
-              {
-                display: 'flex',
-                overflowX: 'auto',
-                alignItems: 'stretch',
-                gap: 16,
-                paddingLeft: TRACK_PADDING,
-                paddingRight: TRACK_PADDING,
-                paddingTop: 40,
-                paddingBottom: 32,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-              } as React.CSSProperties
-            }
-          >
-            {PILLARS.map((pillar, i) => (
-              <div
-                key={pillar.label}
-                ref={setCardRef(i)}
-                style={{
-                  flexShrink: 0,
-                  width: 'clamp(280px, 78vw, 405px)',
-                  display: 'flex',
-                }}
-              >
-                {renderCard(pillar, i)}
-              </div>
-            ))}
-            <div style={{ flexShrink: 0, width: TRACK_PADDING }} />
-          </div>
-
-          {/* Nav buttons */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: 12,
-              paddingRight: TRACK_PADDING,
-              paddingBottom: 40,
-              paddingTop: 8,
-            }}
-          >
-            <NavButton
-              dir='left'
-              disabled={!canScrollLeft}
-              onClick={() => scrollToCard(activeIndex - 1)}
-            />
-            <NavButton
-              dir='right'
-              disabled={!canScrollRight}
-              onClick={() => scrollToCard(activeIndex + 1)}
-            />
-          </div>
-        </div>
-
-        {/* ── Bottom statement bar ── */}
-        <div
+          className='flex'
           style={{
-            paddingLeft: TRACK_PADDING,
-            paddingRight: TRACK_PADDING,
-            paddingBottom: '6rem',
-            paddingTop: '2rem',
+            transform: `translateX(-${active * 100}%)`,
+            transition: 'transform 0.55s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          <div
-            className='rounded-2xl mt-5 px-8 py-8 sm:px-12 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-12 w-fit mx-auto'
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(255,25,135,0.07) 0%, rgba(255,25,135,0.03) 50%, rgba(184,134,11,0.04) 100%)',
-              border: '1px solid rgba(255,25,135,0.12)',
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'none' : 'translateY(20px)',
-              transition: 'opacity 1s ease 0.85s, transform 1s ease 0.85s',
-            }}
-          >
-            <div className='shrink-0'>
-              <p
-                className='font-bold leading-none tracking-[-0.03em]'
+          {SECURITY_ITEMS.map((item) => (
+            <div
+              key={item.label}
+              className='w-full shrink-0'
+              style={{ padding: '0 2px' }}
+            >
+              <div
+                className='rounded-2xl p-7 sm:p-9'
                 style={{
-                  fontSize: 'clamp(3.5rem, 5vw, 4.5rem)',
                   background:
-                    'linear-gradient(135deg,#b8860b 0%,#ffd700 30%,#ff8c00 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                    'linear-gradient(160deg, var(--color-surface-3), var(--color-surface-1))',
+                  border: '1px solid var(--color-border-default)',
+                  minHeight: 'clamp(260px, 42vw, 340px)',
                 }}
               >
-                60+
-              </p>
-              <p
-                className='text-white/40 mt-1'
-                style={{ fontSize: '0.875rem' }}
-              >
-                Yıllık güven
-              </p>
+                <div
+                  style={{
+                    color: 'var(--color-brand)',
+                    width: 36,
+                    height: 36,
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.icon}
+                </div>
+                <h4
+                  className='font-bold mt-5 mb-3'
+                  style={{
+                    color: 'var(--color-text-primary)',
+                    fontSize: 'clamp(1.25rem, 3vw, 1.65rem)',
+                  }}
+                >
+                  {item.label}
+                </h4>
+                <p
+                  style={{
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 'clamp(0.9375rem, 1.5vw, 1.0625rem)',
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {item.text}
+                </p>
+              </div>
             </div>
-            <div className='hidden sm:block w-px self-stretch bg-white/10' />
-            <Body
-              className='max-w-2xl'
-              style={{ fontSize: 'clamp(0.9375rem, 1.3vw, 1rem)' }}
+          ))}
+        </div>
+      </div>
+
+      {/* ---- Desktop: horizontal accordion ---- */}
+      <div
+        className='hidden lg:flex gap-3'
+        style={{ height: 'clamp(340px, 30vw, 440px)' }}
+      >
+        {SECURITY_ITEMS.map((item, i) => {
+          const isActive = i === active;
+          return (
+            <div
+              key={item.label}
+              onClick={() => !isActive && setActive(i)}
+              className='rounded-3xl overflow-hidden relative'
+              style={{
+                flex: isActive ? 4 : 1,
+                minWidth: isActive ? '240px' : '70px',
+                background:
+                  'linear-gradient(160deg, var(--color-surface-3), var(--color-surface-1))',
+                border: `1px solid ${isActive ? 'var(--color-border-default)' : 'var(--color-border-subtle)'}`,
+                cursor: isActive ? 'default' : 'pointer',
+                transition:
+                  'flex 0.65s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease',
+              }}
             >
-              Altmış yılı aşan deneyimimiz, yalnızca sahne kültürünü değil,
-              güvenlik kültürünü de şekillendirdi. Misafirlerimiz kapıdan içeri
-              adım attığı andan itibaren{' '}
-              <span className='text-white/85'>
-                profesyonel bir sistemin koruması altındadır.
-              </span>
-            </Body>
+              {/* ---------- Expanded view ---------- */}
+              <div
+                className='absolute inset-0 p-10 xl:p-14 flex flex-col justify-center'
+                style={{
+                  opacity: isActive ? 1 : 0,
+                  visibility: isActive ? 'visible' : 'hidden',
+                  transition: isActive
+                    ? 'opacity 0.45s ease 0.3s, visibility 0s'
+                    : 'opacity 0s, visibility 0s',
+                }}
+              >
+                <div className='max-w-lg'>
+                  <div
+                    style={{
+                      color: 'var(--color-brand)',
+                      width: 'clamp(36px, 3.5vw, 48px)',
+                      height: 'clamp(36px, 3.5vw, 48px)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.icon}
+                  </div>
+                  <h4
+                    className='font-bold mt-6 mb-4'
+                    style={{
+                      color: 'var(--color-text-primary)',
+                      fontSize: 'clamp(1.5rem, 2.2vw, 2rem)',
+                    }}
+                  >
+                    {item.label}
+                  </h4>
+                  <p
+                    style={{
+                      color: 'var(--color-text-secondary)',
+                      fontSize: 'clamp(0.9375rem, 1.15vw, 1.125rem)',
+                      lineHeight: 1.75,
+                    }}
+                  >
+                    {item.text}
+                  </p>
+                  {/* accent line */}
+                  <div
+                    className='h-px mt-8'
+                    style={{
+                      background:
+                        i % 2 === 0
+                          ? 'linear-gradient(90deg, var(--color-brand), transparent)'
+                          : 'linear-gradient(90deg, var(--color-accent), transparent)',
+                      opacity: 0.35,
+                      width: 'clamp(3rem, 8vw, 6rem)',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* ---------- Collapsed view ---------- */}
+              <div
+                className='h-full flex flex-col items-center justify-center gap-4'
+                style={{
+                  opacity: isActive ? 0 : 1,
+                  visibility: isActive ? 'hidden' : 'visible',
+                  transition: isActive
+                    ? 'opacity 0s, visibility 0s'
+                    : 'opacity 0.4s ease 0.35s, visibility 0s',
+                }}
+              >
+                <div
+                  style={{
+                    color: 'var(--color-text-tertiary)',
+                    width: 22,
+                    height: 22,
+                  }}
+                >
+                  {item.icon}
+                </div>
+                <span
+                  className='font-black tracking-[-0.04em]'
+                  style={{
+                    fontSize: '1.5rem',
+                    lineHeight: 1,
+                    background:
+                      'linear-gradient(135deg, var(--color-brand), var(--color-accent-light))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    opacity: 0.2,
+                  }}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom row — trust stat (left) + nav controls (right) */}
+      <div className='flex items-center justify-between mt-6 lg:mt-8'>
+        {/* Trust stat card */}
+        <div
+          className='flex items-center gap-4 rounded-xl px-5 py-3 sm:px-6 sm:py-4'
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(212, 168, 83, 0.06), rgba(212, 168, 83, 0.02))',
+            border: '1px solid rgba(212, 168, 83, 0.12)',
+          }}
+        >
+          <span
+            className='font-black leading-none tracking-tight text-gradient-gold'
+            style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)' }}
+          >
+            60+
+          </span>
+          <div>
+            <p
+              className='font-semibold'
+              style={{
+                color: 'var(--color-text-primary)',
+                fontSize: 'clamp(0.8125rem, 1vw, 0.9375rem)',
+              }}
+            >
+              Yıllık Güven
+            </p>
+            <p
+              style={{
+                color: 'var(--color-text-tertiary)',
+                fontSize: 'clamp(0.6875rem, 0.85vw, 0.8125rem)',
+              }}
+            >
+              1964&apos;ten bu yana
+            </p>
           </div>
+        </div>
+
+        {/* NavButtons + counter */}
+        <div className='flex items-center gap-4'>
+          <span
+            className='font-medium tracking-wide'
+            style={{
+              color: 'var(--color-text-tertiary)',
+              fontSize: '0.8125rem',
+            }}
+          >
+            {String(active + 1).padStart(2, '0')}{' '}
+            <span style={{ opacity: 0.4 }}>/</span>{' '}
+            {String(SECURITY_ITEMS.length).padStart(2, '0')}
+          </span>
+          <NavButton dir='left' onClick={goPrev} disabled={isFirst} />
+          <NavButton dir='right' onClick={goNext} disabled={isLast} />
         </div>
       </div>
     </div>
   );
 };
 
-/* ─────────────────────────────────────────────────────────────────
+/* ================================================================
    ROOT
-───────────────────────────────────────────────────────────────── */
+   ================================================================ */
 const AboutUs = ({ id }: Props) => (
   <section
     id={id}
-    className='bg-secondaryColor relative max-w-full overflow-hidden'
+    className='relative'
+    style={{ background: 'var(--color-surface-0)' }}
     aria-labelledby='aboutus-heading'
   >
-    <AtmosphereSection />
-    <div className='w-full h-px bg-white/[0.07]' />
-    <HistorySection />
-    <div className='w-full h-px bg-white/[0.07]' />
+    <ManifestoSection />
+    <PillarsSection />
+    <div
+      className='h-px w-full'
+      style={{ background: 'var(--color-border-subtle)' }}
+    />
+    <TimelineSection />
+    <div
+      className='h-px w-full'
+      style={{ background: 'var(--color-border-subtle)' }}
+    />
     <StatsSection />
-    <div className='w-full h-px bg-white/[0.07]' />
     <SecuritySection />
   </section>
 );

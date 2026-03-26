@@ -125,8 +125,10 @@ export default function Home() {
        * outside these wrappers — they will be clipped and miscalculated
        * inside overflow-x-hidden.
        */}
+      {/* AboutUs uses GSAP pin:true — must be outside overflow-x-hidden */}
+      <AboutUs id='about' />
+
       <div className='overflow-x-hidden'>
-        <AboutUs id='about' />
         <ArtistWall />
       </div>
 

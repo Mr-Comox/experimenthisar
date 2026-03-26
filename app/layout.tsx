@@ -59,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang='en'>
+    <html lang='en' className={graphik.variable}>
       <head>
         <Script id='scroll-reset' strategy='beforeInteractive'>
           {`history.scrollRestoration = 'manual'; window.scrollTo(0, 0);`}
